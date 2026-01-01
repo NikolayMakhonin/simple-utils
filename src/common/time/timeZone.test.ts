@@ -1,6 +1,6 @@
 import { describe, it, assert } from 'vitest'
 import { convertTimeZone } from './timeZone'
-import { dateToString } from 'src/time/dateToString'
+import { dateToString } from 'src/common/time/dateToString'
 
 describe('date', () => {
   it('convertTimeZone', () => {

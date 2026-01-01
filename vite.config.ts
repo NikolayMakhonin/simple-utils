@@ -18,7 +18,11 @@ export default defineConfig(({ mode, isSsrBuild, command }) => {
     plugins: [
       dts({
         // Without path.resolve of vite aliases the dts plugin will not work
-        rollupTypes: true,
+        rollupTypes: false,
+        include: ['src/**/*.ts'],
+        exclude: ['**/*.{test,node,browser,perf,manual,api,e2e}.ts'],
+        insertTypesEntry: true,
+        staticImport: true,
       }),
     ],
     resolve: {
@@ -32,9 +36,24 @@ export default defineConfig(({ mode, isSsrBuild, command }) => {
       // minify: mode === 'production',
       // minify: false,
       lib: {
-        entry: 'src/index.ts',
-        formats: ['es'],
-        fileName: 'index',
+        entry: {
+          'common/index': 'src/common/index.ts',
+          'node/index': 'src/node/index.ts',
+          'browser/index': 'src/browser/index.ts',
+        },
+      },
+      rollupOptions: {
+        external: ['rdtsc/node'],
+        output: [
+          {
+            format: 'es',
+            entryFileNames: '[name].mjs',
+          },
+          {
+            format: 'cjs',
+            entryFileNames: '[name].cjs',
+          },
+        ],
       },
       target: 'node20',
       minify: true,
