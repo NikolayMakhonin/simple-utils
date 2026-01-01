@@ -42,7 +42,8 @@
     "test:karma": "rimraf tmp/coverage/karma && karma start --single-run --log-level debug",
     "test:mocha:ci": "rimraf tmp/coverage/mocha && nyc --all mocha ./{src,dist/lib}/**/*.test.*",
     "coveralls": "pnpm run coverage:check && nyc report --reporter=text-lcov --temp-dir \"tmp/coverage/merge/\" | coveralls",
-    "mcp:tools": "mcp-project-tools"
+    "mcp:tools": "mcp-project-tools",
+    "dep:fix": "tsx tools/dep-fix.ts"
   },
   "devDependencies": {
     "@babel/core": "7.28.4",
