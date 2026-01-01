@@ -1,5 +1,6 @@
 // @ai ChatGPT
 // TODO: use pool from @flemist/time-limits to limit concurrent fetches
+// TODO: extract to separate CLI module
 
 import * as fs from 'fs'
 import * as path from 'path'
