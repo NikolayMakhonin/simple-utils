@@ -1,24 +1,4 @@
-export function sha256(content: Uint8Array): string
-export function sha256(content: null | undefined | string | Uint8Array): string | null
-export function sha256(content: null | undefined | string | Uint8Array): string | null {
-  if (content == null) {
-    return null
-  }
-
-  let bytes: Uint8Array
-  if (typeof content === 'string') {
-    bytes = new TextEncoder().encode(content)
-  }
-  else if (content instanceof Uint8Array) {
-    bytes = content
-  }
-  else {
-    throw new Error(`[calcSha256] Unsupported content type: ${typeof content}`)
-  }
-
-  return sha256Sync(bytes)
-}
-function sha256Sync(data: Uint8Array): string {
+export function sha256(data: Uint8Array): string {
   const K = new Uint32Array([
     0x428a2f98,
     0x71374491,
