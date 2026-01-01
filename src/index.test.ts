@@ -1,5 +1,5 @@
-describe('test', function() {
-  it('base', function() {
+describe('test', function () {
+  it('base', function () {
     console.log('Test')
   })
 })
