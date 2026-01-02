@@ -44,6 +44,9 @@ export default defineConfig(env =>
                 { browser: 'firefox' },
                 { browser: 'webkit' },
               ],
+              api: {
+                port: 4002,
+              },
             },
           },
         },
