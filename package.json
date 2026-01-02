@@ -65,7 +65,7 @@
   },
   "scripts": {
     "========================= install =========================": "",
-    "prepublishOnly": "pnpm run audit && pnpm run lint && pnpm run build && pnpm run test:mocha:ci && pnpm run test:karma && npm login",
+    "prepublishOnly": "run-p audit lint build test:all && npm login",
     "prepare": "node .husky/install.mjs",
     "install:playwright": "pnpm exec playwright install --with-deps",
     "========================= deploy =========================": "",
@@ -100,7 +100,6 @@
     "@eslint/eslintrc": "3.2.0",
     "@eslint/js": "9.17.0",
     "@flemist/copy-glob-flat": "0.0.5",
-    "@flemist/karma-custom-launcher": "0.0.0",
     "@flemist/mcp-project-tools": "3.0.20",
     "@flemist/test-utils": "1.0.2",
     "@flemist/test-variants": "1.0.7",
