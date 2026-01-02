@@ -1,5 +1,6 @@
 // noinspection JSUnfilteredForInLoop
 
+import { formatDate } from './formatDate'
 import { getObjectId } from './getObjectId'
 
 function tryGetValue(obj: any, key: string): any {
@@ -62,6 +63,10 @@ export function formatAny(
 
   if (obj instanceof RegExp) {
     return String(obj)
+  }
+
+  if (obj instanceof Date) {
+    return formatDate(obj)
   }
 
   if (Array.isArray(obj)) {

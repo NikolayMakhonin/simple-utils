@@ -1,3 +1,4 @@
+export * from './deepCloneJsonLike'
 export * from './deepEqualJsonLike'
 export * from './deepEqualJsonLikeMap'
 export * from './equalArray'
