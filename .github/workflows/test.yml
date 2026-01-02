@@ -17,6 +17,16 @@ jobs:
         node-version: [20.x]
 
     steps:
+      - name: Debug environment
+        run: |
+          echo "Playwright version:"
+          pnpm playwright --version
+          echo "Browsers path:"
+          ls -la ~/.cache/ms-playwright/ || echo "No browsers in default path"
+          echo "Container check:"
+          [ -f /.dockerenv ] && echo "Running inside Docker container" || echo "NOT inside container"
+          cat /etc/os-release
+
       - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
