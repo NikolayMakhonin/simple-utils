@@ -1,3 +1,5 @@
 onlyBuiltDependencies:
+  - '@flemist/mcp-project-tools'
   - esbuild
+  - msw
   - rdtsc
