@@ -1,18 +1,18 @@
 import { isPromiseLike, type PromiseOrValue } from '@flemist/async-utils'
 
-// TODO: write doc comment
+// TODO: write doc comments
 export interface ILazy<T = void> {
   run(): PromiseOrValue<T>
 }
 
-// TODO: write doc comment
+// TODO: write doc comments
 export type LazyOptions<T> = {
   func: () => PromiseOrValue<T>
   /** If true, the result will be cached */
   persist?: null | boolean
 }
 
-// TODO: write doc comment
+// TODO: write doc comments
 export class Lazy<T = void> implements ILazy<T> {
   private readonly _options: LazyOptions<T>
   private _hasValue: boolean = false
@@ -66,18 +66,18 @@ export class Lazy<T = void> implements ILazy<T> {
   }
 }
 
-// TODO: write doc comment
+// TODO: write doc comments
 export interface ILazyWithId<Id, Result = void> {
   run(id: Id): PromiseOrValue<Result>
 }
 
-// TODO: write doc comment
+// TODO: write doc comments
 export type LazyWithIdOptions<Id, Result> = {
   func: (id: Id) => PromiseOrValue<Result>
   persist?: null | boolean
 }
 
-// TODO: write doc comment
+// TODO: write doc comments
 export class LazyWithId<Id, Result = void> implements ILazyWithId<Id, Result> {
   private readonly _options: LazyWithIdOptions<Id, Result>
   private _promiseOrValues: Map<Id, PromiseOrValue<Result>> = new Map()

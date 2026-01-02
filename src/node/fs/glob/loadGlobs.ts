@@ -9,6 +9,7 @@ import { poolFs } from 'src/node/fs/pools'
  * @import {CreateMatchPathOptions} from "./walkPaths/createMatchPath"
  */
 
+// TODO: write doc comments
 // see CreateMatchPathOptions['globs'] for glob syntax
 export type Glob = {
   value: string
@@ -19,16 +20,19 @@ export type Glob = {
    */
   exclude: boolean
 }
+// TODO: write doc comments
 export type LoadGlobsOptions = {
   /** default: cwd */
   rootDir?: string | null
   globs?: Glob[] | null
 }
 
+// TODO: write doc comments
 function globExclude(glob: string): string {
   return '^' + glob
 }
 
+// TODO: write doc comments
 export async function loadGlobsFromFile(filePath: string): Promise<string[]> {
   const content = await fs.promises.readFile(filePath, 'utf-8')
   const lines = content.split('\n')
@@ -43,6 +47,7 @@ export async function loadGlobsFromFile(filePath: string): Promise<string[]> {
   return globs
 }
 
+// TODO: write doc comments
 export async function loadGlobs(options: LoadGlobsOptions): Promise<string[]> {
   const rootDir = options.rootDir ?? '.'
   const result: string[] = []

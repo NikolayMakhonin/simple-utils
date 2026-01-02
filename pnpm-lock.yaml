@@ -14,12 +14,18 @@ importers:
       '@flemist/async-utils':
         specifier: ^1.2.8
         version: 1.2.8
+      '@flemist/priority-queue':
+        specifier: ^1.0.1
+        version: 1.0.1
       '@flemist/time-controller':
         specifier: ^1.0.4
         version: 1.0.4
       '@flemist/time-limits':
         specifier: ^2.0.4
         version: 2.0.4
+      picomatch:
+        specifier: ^4.0.3
+        version: 4.0.3
       tslib:
         specifier: '>=2.8.1'
         version: 2.8.1

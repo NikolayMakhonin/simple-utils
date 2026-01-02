@@ -9,14 +9,14 @@ import {
   timeControllerDefault,
 } from '@flemist/time-controller'
 
-// TODO: write doc comment
+// TODO: write doc comments
 export type TimeoutArgs = {
   abortSignal?: null | IAbortSignalFast
   timeout?: null | number
   timeController?: ITimeController
 }
 
-// TODO: write doc comment
+// TODO: write doc comments
 export function timeoutAbortController(
   args: undefined | null | TimeoutArgs,
 ): IAbortControllerFast | null {

@@ -1,3 +1,4 @@
+// TODO: write doc comments
 export function globGitIgnoreToPicomatch(glob: string): string {
   const negative = glob.startsWith('!')
   if (negative) {

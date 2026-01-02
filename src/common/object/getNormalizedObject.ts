@@ -1,4 +1,4 @@
-// TODO: write doc comment
+// TODO: write doc comments
 // TODO: Add options, disable sort by default
 export function getNormalizedObject<T>(obj: T): T {
   if (!obj || typeof obj !== 'object') {

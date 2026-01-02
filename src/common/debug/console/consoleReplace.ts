@@ -2,7 +2,7 @@
 
 import { isPromiseLike } from '@flemist/async-utils'
 
-// TODO: write doc comment
+// TODO: write doc comments
 export enum ConsoleMessageLevel {
   log = 'log',
   warn = 'warn',
@@ -22,7 +22,7 @@ function bindConsoleMethod(method: (...args: any[]) => void) {
   }
 }
 
-// TODO: write doc comment
+// TODO: write doc comments
 export type Console = Record<ConsoleMessageLevel, (...args: any[]) => void>
 
 const consoleOrig: Console = {
@@ -35,7 +35,7 @@ const consoleOrig: Console = {
   assert: bindConsoleMethod(console.assert),
 }
 
-// TODO: write doc comment
+// TODO: write doc comments
 export function consoleReplace(
   handler: (console: Console, level: ConsoleMessageLevel, args: any[]) => void,
 ): () => void {
@@ -51,10 +51,10 @@ export function consoleReplace(
   }
 }
 
-// TODO: write doc comment
+// TODO: write doc comments
 export type WithConsoleReplaceFunc = <T>(callback: () => T) => T
 
-// TODO: write doc comment
+// TODO: write doc comments
 export function withConsoleReplace(
   handler: (console: Console, level: ConsoleMessageLevel, args: any[]) => void,
 ): WithConsoleReplaceFunc {

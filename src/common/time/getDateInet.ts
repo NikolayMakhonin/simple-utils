@@ -4,7 +4,7 @@ import {
 } from '@flemist/abort-controller-fast'
 
 /**
- * TODO: write doc comment
+ * TODO: write doc comments
  * url: any url with available HEAD method. Default is "/"
  */
 export async function getDateInet({

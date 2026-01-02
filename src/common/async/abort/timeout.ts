@@ -4,7 +4,7 @@ import {
   type TimeoutArgs,
 } from './timeoutAbortController'
 
-// TODO: write doc comment
+// TODO: write doc comments
 export async function withTimeout<T>(
   func: (abortSignal: IAbortSignalFast | null) => Promise<T>,
   args: undefined | null | TimeoutArgs,

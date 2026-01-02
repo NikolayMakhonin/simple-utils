@@ -1,4 +1,4 @@
-// TODO: write doc comment
+// TODO: write doc comments
 export function getStackTrace(): string {
   let stack = new Error().stack
   if (stack != null) {

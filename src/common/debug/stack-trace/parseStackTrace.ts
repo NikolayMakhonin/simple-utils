@@ -1,4 +1,4 @@
-// TODO: write doc comment
+// TODO: write doc comments
 export type StackFrame = {
   func: string | undefined | null
   file: string | undefined | null
@@ -6,7 +6,7 @@ export type StackFrame = {
   column: number | undefined | null
 }
 
-// TODO: write doc comment
+// TODO: write doc comments
 /** @deprecated Пока не ясно нужно ли это */
 export function parseStackTrace(
   stackTrace: string,

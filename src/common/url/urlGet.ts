@@ -4,7 +4,7 @@ function normalizeParamName(name: string): string {
   return name.replace(/\W/g, '').toLowerCase()
 }
 
-// TODO: write doc comment
+// TODO: write doc comments
 export function urlGetParams(
   urlOrParams?: null | string | URL | URLSearchParams,
 ): URLSearchParams {
@@ -23,7 +23,7 @@ export function urlGetParams(
   return new URLSearchParams()
 }
 
-// TODO: write doc comment
+// TODO: write doc comments
 export function urlParamToBoolean(
   paramValue: string | null | undefined,
 ): boolean | null {
@@ -38,7 +38,7 @@ export function urlParamToBoolean(
       : null
 }
 
-// TODO: write doc comment
+// TODO: write doc comments
 export function urlParamToInt(
   paramValue: string | null | undefined,
 ): number | null {
@@ -50,7 +50,7 @@ export function urlParamToInt(
   return isNaN(value) ? null : value
 }
 
-// TODO: write doc comment
+// TODO: write doc comments
 export function urlParamToFloat(
   paramValue: string | null | undefined,
 ): number | null {
@@ -62,7 +62,7 @@ export function urlParamToFloat(
   return isNaN(value) ? null : value
 }
 
-// TODO: write doc comment
+// TODO: write doc comments
 export function urlGetString(
   paramName,
   urlOrParams?: null | string | URL | URLSearchParams,
@@ -79,7 +79,7 @@ export function urlGetString(
   return null
 }
 
-// TODO: write doc comment
+// TODO: write doc comments
 export function urlGetBoolean(
   paramName,
   urlOrParams?: null | string | URL | URLSearchParams,
@@ -87,7 +87,7 @@ export function urlGetBoolean(
   return urlParamToBoolean(urlGetString(paramName, urlOrParams))
 }
 
-// TODO: write doc comment
+// TODO: write doc comments
 export function urlGetInt(
   paramName,
   urlOrParams?: null | string | URL | URLSearchParams,
@@ -95,7 +95,7 @@ export function urlGetInt(
   return urlParamToInt(urlGetString(paramName, urlOrParams))
 }
 
-// TODO: write doc comment
+// TODO: write doc comments
 export function urlGetFloat(
   paramName,
   urlOrParams?: null | string | URL | URLSearchParams,

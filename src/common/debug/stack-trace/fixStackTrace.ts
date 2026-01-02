@@ -1,6 +1,6 @@
 import { getStackTrace } from './getStackTrace'
 
-// TODO: write doc comment
+// TODO: write doc comments
 export function fixStackTrace<This, Args extends any[], Return>(
   func: (this: This, ...args: Args) => Return,
 ): (this: This, ...args: Args) => Return {

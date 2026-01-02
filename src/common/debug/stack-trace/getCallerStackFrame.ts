@@ -6,7 +6,7 @@
 //   return match?.[1]
 // }
 
-// TODO: write doc comment
+// TODO: write doc comments
 /** @deprecated Пока не ясно нужно ли это */
 export function getCallerStackFrame(): string | undefined | null {
   const stack = new Error().stack

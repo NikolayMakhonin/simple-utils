@@ -1,6 +1,6 @@
 export type Alert = typeof alert
 
-// TODO: write doc comment
+// TODO: write doc comments
 export function alertReplace(
   handler: (alert: Alert, message: any) => void,
 ): () => void {
