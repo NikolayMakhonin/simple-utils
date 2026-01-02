@@ -1,6 +1,6 @@
 import { describe, it, assert } from 'vitest'
 import { convertTimeZone } from './timeZone'
-import { dateToString } from 'src/common/time/dateToString'
+import { formatDate } from 'src/common/string/format/formatDate'
 
 describe('date', () => {
   it('convertTimeZone', () => {
@@ -91,27 +91,27 @@ describe('date', () => {
 
   it('dateToString', () => {
     assert.strictEqual(
-      dateToString(new Date('2020-01-01T00:00:00.000Z'), 'UTC'),
+      formatDate(new Date('2020-01-01T00:00:00.000Z'), 'UTC'),
       '2020-01-01 00:00:00',
     )
 
     assert.strictEqual(
-      dateToString(new Date('2020-01-01T00:00:00.000Z'), 'Europe/Kiev'),
+      formatDate(new Date('2020-01-01T00:00:00.000Z'), 'Europe/Kiev'),
       '2020-01-01 02:00:00',
     )
 
     assert.strictEqual(
-      dateToString(new Date('2020-01-01T00:00:00.000Z'), 'America/Los_Angeles'),
+      formatDate(new Date('2020-01-01T00:00:00.000Z'), 'America/Los_Angeles'),
       '2019-12-31 16:00:00',
     )
 
     assert.strictEqual(
-      dateToString(new Date('2020-01-01T00:00:00.000Z'), 'America/Los_Angeles'),
+      formatDate(new Date('2020-01-01T00:00:00.000Z'), 'America/Los_Angeles'),
       '2019-12-31 16:00:00',
     )
 
     assert.strictEqual(
-      dateToString(new Date('2020-01-01T00:00:00.000Z'), 'America/New_York'),
+      formatDate(new Date('2020-01-01T00:00:00.000Z'), 'America/New_York'),
       '2019-12-31 19:00:00',
     )
   })
@@ -150,21 +150,21 @@ describe('date', () => {
     )
   })
 
-  it('dateToString current', () => {
+  it('formatDate current', () => {
     console.log(
-      `[test][timeZone] Current date UTC: ${dateToString(new Date(), 'UTC')}`,
+      `[test][timeZone] Current date UTC: ${formatDate(new Date(), 'UTC')}`,
     )
     console.log(
-      `[test][timeZone] Current date Europe/Kiev: ${dateToString(new Date(), 'Europe/Kiev')}`,
+      `[test][timeZone] Current date Europe/Kiev: ${formatDate(new Date(), 'Europe/Kiev')}`,
     )
     console.log(
-      `[test][timeZone] Current date America/Los_Angeles: ${dateToString(
+      `[test][timeZone] Current date America/Los_Angeles: ${formatDate(
         new Date(),
         'America/Los_Angeles',
       )}`,
     )
     console.log(
-      `[test][timeZone] Current date Asia/Tbilisi: ${dateToString(new Date(), 'Asia/Tbilisi')}`,
+      `[test][timeZone] Current date Asia/Tbilisi: ${formatDate(new Date(), 'Asia/Tbilisi')}`,
     )
   })
 

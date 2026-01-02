@@ -120,7 +120,7 @@
     "npm-run-all": "4.1.5",
     "playwright": "1.57.0",
     "prettier": "3.4.2",
-    "rdtsc": "3.0.4",
+    "rdtsc": "5.0.7",
     "shx": "0.3.4",
     "tsx": "4.19.3",
     "typescript": "5.7.2",
@@ -130,6 +130,10 @@
     "vitest": "3.2.4"
   },
   "dependencies": {
+    "@flemist/abort-controller-fast": "^1.0.0",
+    "@flemist/async-utils": "^1.2.8",
+    "@flemist/time-controller": "^1.0.4",
+    "@flemist/time-limits": "^2.0.4",
     "tslib": ">=2.8.1"
   }
 }
