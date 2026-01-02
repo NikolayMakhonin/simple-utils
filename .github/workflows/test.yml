@@ -81,5 +81,7 @@ jobs:
 
       - name: Test
         shell: bash
+        env:
+          HOME: /root
         run: |
           xvfb-run pnpm run test
