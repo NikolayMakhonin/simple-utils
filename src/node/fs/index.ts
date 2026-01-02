@@ -1,3 +1,5 @@
 export * from './fileLock'
 export * from './pathNormalize'
 export * from './pools'
+export * from './walk'
+export * from './glob'
