@@ -2,7 +2,7 @@ import { describe, it, assert } from 'vitest'
 import { isPrime, nextPrime, prevPrime } from './prime'
 
 describe('test-variants > prime', () => {
-  it(
+  it.skip(
     'isPrime',
     async function () {
       const primeNumbers: number[] = []

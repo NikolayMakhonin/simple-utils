@@ -12,18 +12,6 @@ export default defineConfig(env =>
           },
           test: {
             name: {
-              label: 'dev',
-              // color: 'grey',
-            },
-          },
-        },
-        {
-          extends: true,
-          resolve: {
-            conditions: ['node'],
-          },
-          test: {
-            name: {
               label: 'node',
               // color: 'blue',
             },
