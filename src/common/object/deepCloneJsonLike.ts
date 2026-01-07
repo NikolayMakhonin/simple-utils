@@ -19,9 +19,7 @@ export function deepCloneJsonLike<T>(value: T): T {
 
   if (typeof value === 'object') {
     if (value.constructor && value.constructor !== Object) {
-      throw new Error(
-        `[deepCloneJsonLike] unexpected behavior: value.constructor (${value.constructor}) !== Object`,
-      )
+      return value
     }
 
     const result: Record<string, any> = {}

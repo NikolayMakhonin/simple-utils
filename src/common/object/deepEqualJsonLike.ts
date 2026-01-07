@@ -40,14 +40,10 @@ export function deepEqualJsonLike(a: any, b: any): boolean {
     }
 
     if (a.constructor && a.constructor !== Object) {
-      throw new Error(
-        `[deepEqual] unexpected behavior: a.constructor (${a.constructor}) !== Object`,
-      )
+      return false
     }
     if (b.constructor && b.constructor !== Object) {
-      throw new Error(
-        `[deepEqual] unexpected behavior: b.constructor (${b.constructor}) !== Object`,
-      )
+      return false
     }
 
     for (const key in a) {
