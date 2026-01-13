@@ -11,24 +11,26 @@ function tryGetValue(obj: any, key: string | number): any {
   }
 }
 
+export type FormatAnyOptions = {
+  pretty?: boolean
+  filter?: null | ((path: string[], value: any) => boolean)
+  maxDepth?: number
+  maxItems?: number
+  showObjectId?: boolean
+  showArrayIndex?: boolean
+  customToString?:
+    | null
+    | ((
+        obj: any,
+        toString: (obj: any) => any,
+      ) => string | null | undefined | void)
+}
+
 export function formatAny(
   obj: any,
-  options: {
-    pretty?: boolean
-    filter?: null | ((path: string[], value: any) => boolean)
-    maxDepth?: number
-    maxItems?: number
-    showObjectId?: boolean
-    showArrayIndex?: boolean
-    customToString?:
-      | null
-      | ((
-          obj: any,
-          toString: (obj: any) => any,
-        ) => string | null | undefined | void)
-  } = {},
-  path: string[] = [],
-  visited: Set<any> = new Set(),
+  options?: null | FormatAnyOptions,
+  path?: null | string[],
+  visited?: null | Set<any>,
 ): string {
   const {
     pretty,
@@ -38,7 +40,13 @@ export function formatAny(
     showObjectId,
     showArrayIndex,
     customToString,
-  } = options
+  } = options ?? {}
+  if (path == null) {
+    path = []
+  }
+  if (visited == null) {
+    visited = new Set()
+  }
 
   if (customToString) {
     const str = customToString(obj, o => formatAny(o, options, path, visited))
