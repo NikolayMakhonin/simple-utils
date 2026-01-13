@@ -3,11 +3,11 @@
 import { formatDate } from './formatDate'
 import { getObjectId } from './getObjectId'
 
-function tryGetValue(obj: any, key: string): any {
+function tryGetValue(obj: any, key: string | number): any {
   try {
     return obj[key]
   } catch (err) {
-    return 'Error: ' + (err?.message || String(err))
+    return 'Error: ' + (err instanceof Error ? err.message : String(err))
   }
 }
 
@@ -43,7 +43,7 @@ export function formatAny(
   if (customToString) {
     const str = customToString(obj, o => formatAny(o, options, path, visited))
     if (str != null) {
-      return str as any
+      return str
     }
   }
 
@@ -57,48 +57,59 @@ export function formatAny(
     return String(obj)
   }
 
-  if (typeof obj.byteLength === 'number') {
-    return `${obj.constructor.name}#${getObjectId(obj)}[${obj.byteLength}]`
+  if (obj instanceof ArrayBuffer || ArrayBuffer.isView(obj)) {
+    return `${obj.constructor?.name ?? ''}#${getObjectId(obj)}[${obj.byteLength}]`
   }
 
   if (obj instanceof RegExp) {
     return String(obj)
   }
 
-  if (obj instanceof Error) {
-    return obj.stack || obj.message || String(obj)
-  }
-
   if (obj instanceof Date) {
     return formatDate(obj)
   }
 
-  if (Array.isArray(obj)) {
+  if (obj instanceof Object) {
     if (visited.has(obj) || (maxDepth != null && depth >= maxDepth)) {
-      return `#${getObjectId(obj)}`
+      const name =
+        obj.constructor === Object ? '' : (obj.constructor?.name ?? '')
+      return `${name}#${getObjectId(obj)}`
+    } else {
+      visited.add(obj)
     }
+  }
+
+  if (obj instanceof Error) {
+    return obj.stack || obj.message || String(obj)
+  }
+
+  if (Array.isArray(obj)) {
     const indent = pretty ? '  '.repeat(depth) : ''
     let result = ''
     if (showObjectId) {
       result += `#${getObjectId(obj)} `
     }
     result += '['
-    const len = maxItems != null ? Math.min(obj.length, maxItems) : obj.length
-    if (len > 0 && pretty) {
-      result += '\n'
-    }
-    for (let i = 0; i < len; i++) {
+    let outputCount = 0
+    let truncated = false
+    for (let i = 0; i < obj.length; i++) {
+      if (maxItems != null && outputCount >= maxItems) {
+        truncated = true
+        break
+      }
       const pathNext = [...path, String(i)]
-      if (filter != null && !filter(pathNext, obj[i])) {
+      const value = tryGetValue(obj, i)
+      if (filter != null && !filter(pathNext, value)) {
         continue
       }
-      const value = obj[i]
-      const valueStr = formatAny(value, options, pathNext)
-      if (i > 0) {
+      const valueStr = formatAny(value, options, pathNext, visited)
+      if (outputCount > 0) {
         result += ','
         if (pretty) {
           result += '\n'
         }
+      } else if (pretty) {
+        result += '\n'
       }
       if (pretty) {
         result += `${indent}  `
@@ -107,27 +118,30 @@ export function formatAny(
         result += `${i}: `
       }
       result += `${valueStr}`
+      outputCount++
     }
-    if (len > 0 && pretty) {
-      result += '\n'
-    }
-    if (obj.length > len) {
-      if (len > 0) {
+    if (truncated) {
+      if (outputCount > 0) {
         result += ','
       }
-      result += pretty ? `${indent}  ...\n` : '...'
-    }
-    if (len > 0 && pretty) {
+      if (pretty) {
+        result += '\n'
+        result += `${indent}  ...\n`
+      } else {
+        result += '...'
+      }
       result += indent
+      result += ']'
+    } else {
+      if (outputCount > 0 && pretty) {
+        result += `\n${indent}`
+      }
+      result += ']'
     }
-    result += ']'
     return result
   }
 
   if (obj instanceof Map) {
-    if (visited.has(obj) || (maxDepth != null && depth >= maxDepth)) {
-      return `#${getObjectId(obj)}`
-    }
     let result = ''
     if (showObjectId) {
       result += `#${getObjectId(obj)} `
@@ -138,9 +152,6 @@ export function formatAny(
   }
 
   if (obj instanceof Set) {
-    if (visited.has(obj) || (maxDepth != null && depth >= maxDepth)) {
-      return `#${getObjectId(obj)}`
-    }
     let result = ''
     if (showObjectId) {
       result += `#${getObjectId(obj)} `
@@ -152,44 +163,34 @@ export function formatAny(
 
   // object
   {
-    const name =
-      obj.prototype?.constructor === Object
-        ? ''
-        : obj.prototype?.constructor.name
-    if (visited.has(obj) || (maxDepth != null && depth >= maxDepth)) {
-      return `${name}#${getObjectId(obj)}`
-    }
+    const name = obj.constructor === Object ? '' : (obj.constructor?.name ?? '')
     const indent = pretty ? '  '.repeat(depth) : ''
     let result = name ? `${name} ` : ''
     if (showObjectId) {
       result += `#${getObjectId(obj)} `
     }
     result += '{'
-    const len = maxItems != null ? Math.min(obj.length, maxItems) : obj.length
     let i = 0
+    let truncated = false
 
     for (const key in obj) {
-      if (i === 0 && pretty) {
-        result += '\n'
-      }
-      if (i >= len) {
-        if (i > 0) {
-          result += ','
-        }
-        result += pretty ? `${indent}  ...\n` : '...'
+      if (maxItems != null && i >= maxItems) {
+        truncated = true
         break
       }
       const pathNext = [...path, key]
-      if (filter != null && !filter(pathNext, obj[key])) {
+      const value = tryGetValue(obj, key)
+      if (filter != null && !filter(pathNext, value)) {
         continue
       }
-      const value = tryGetValue(obj, key)
-      const valueStr = formatAny(value, options, pathNext)
+      const valueStr = formatAny(value, options, pathNext, visited)
       if (i > 0) {
         result += ','
         if (pretty) {
           result += '\n'
         }
+      } else if (pretty) {
+        result += '\n'
       }
       if (pretty) {
         result += `${indent}  `
@@ -197,7 +198,19 @@ export function formatAny(
       result += `${key}: ${valueStr}`
       i++
     }
-    if (i > 0 && pretty) {
+    if (truncated) {
+      if (i > 0) {
+        result += ','
+      }
+      if (pretty) {
+        result += '\n'
+        result += `${indent}  ...\n`
+      } else {
+        result += '...'
+      }
+      result += indent
+    }
+    if (i > 0 && pretty && !truncated) {
       result += `\n${indent}`
     }
     result += '}'
