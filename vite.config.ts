@@ -90,6 +90,16 @@ export default defineConfig(({ mode, isSsrBuild, command }) => {
         cleanOnRerun: true,
         reportOnFailure: true,
       },
+
+      // poolOptions: {
+      //   forks: {
+      //     execArgv: [
+      //       // '--report-on-fatalerror',
+      //       // '--heap-prof',
+      //       // '--heap-prof-interval=512',
+      //     ],
+      //   },
+      // },
     },
   }
 })
