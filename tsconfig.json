@@ -6,7 +6,6 @@
     "module": "esnext",
     "noEmit": true,
     "target": "esnext",
-
     "allowJs": true,
     "checkJs": false,
     "esModuleInterop": true,
