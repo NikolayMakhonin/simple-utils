@@ -3,7 +3,7 @@
     <node-interpreter value="project" />
     <vitest-package value="$PROJECT_DIR$/node_modules/vitest" />
     <working-dir value="$PROJECT_DIR$" />
-    <vitest-options value="--project node" />
+    <vitest-options value="--config vite.projects.ts --project node" />
     <envs />
     <scope-kind value="ALL" />
     <method v="2" />
