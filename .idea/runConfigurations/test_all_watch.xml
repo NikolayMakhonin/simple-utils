@@ -1,9 +1,9 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="test:chrome" type="JavaScriptTestRunnerVitest">
+  <configuration default="false" name="test:all watch" type="JavaScriptTestRunnerVitest">
     <node-interpreter value="project" />
     <vitest-package value="$PROJECT_DIR$/node_modules/vitest" />
     <working-dir value="$PROJECT_DIR$" />
-    <vitest-options value="--project browser --browser chromium" />
+    <vitest-options value="--config vite.projects.ts --watch" />
     <envs />
     <scope-kind value="ALL" />
     <method v="2" />
