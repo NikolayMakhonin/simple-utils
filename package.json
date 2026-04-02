@@ -134,7 +134,7 @@
     "@flemist/priority-queue": "^1.0.1",
     "@flemist/time-controller": "^1.0.4",
     "@flemist/time-limits": "^2.0.4",
-    "picomatch": "^4.0.3",
+    "picomatch": "^4.0.4",
     "tslib": ">=2.8.1"
   }
 }
