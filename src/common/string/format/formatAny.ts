@@ -2,6 +2,7 @@
 
 import { formatDate } from './formatDate'
 import { getObjectId } from './getObjectId'
+import { truncateString } from './truncateString'
 
 function tryGetValue(obj: any, key: string | number): any {
   try {
@@ -16,6 +17,7 @@ export type FormatAnyOptions = {
   filter?: null | ((path: string[], value: any) => boolean)
   maxDepth?: number
   maxItems?: number
+  maxStringLength?: number
   showObjectId?: boolean
   showArrayIndex?: boolean
   customToString?:
@@ -37,6 +39,7 @@ export function formatAny(
     filter,
     maxDepth,
     maxItems,
+    maxStringLength,
     showObjectId,
     showArrayIndex,
     customToString,
@@ -51,14 +54,19 @@ export function formatAny(
   if (customToString) {
     const str = customToString(obj, o => formatAny(o, options, path, visited))
     if (str != null) {
-      return str
+      return truncateString(str, maxStringLength)
     }
   }
 
   const depth = path.length
 
   if (typeof obj === 'string') {
-    return JSON.stringify(obj)
+    obj = truncateString(obj, maxStringLength)
+    if (visited.size > 0) {
+      // JSON.stringify inside objects only
+      obj = JSON.stringify(obj)
+    }
+    return obj
   }
 
   if (obj == null || typeof obj !== 'object') {
@@ -70,7 +78,7 @@ export function formatAny(
   }
 
   if (obj instanceof RegExp) {
-    return String(obj)
+    return truncateString(String(obj), maxStringLength)
   }
 
   if (obj instanceof Date) {
@@ -88,7 +96,10 @@ export function formatAny(
   }
 
   if (obj instanceof Error) {
-    return obj.stack || obj.message || String(obj)
+    return truncateString(
+      obj.stack || obj.message || String(obj),
+      maxStringLength,
+    )
   }
 
   if (Array.isArray(obj)) {
