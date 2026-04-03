@@ -12,6 +12,12 @@ function tryGetValue(obj: any, key: string | number): any {
   }
 }
 
+export type FormatAnyToString = (
+  obj: any,
+  toString: (obj: any) => any,
+  path: string[],
+) => string | null | undefined | void
+
 export type FormatAnyOptions = {
   pretty?: boolean
   filter?: null | ((path: string[], value: any) => boolean)
@@ -20,12 +26,7 @@ export type FormatAnyOptions = {
   maxStringLength?: number
   showObjectId?: boolean
   showArrayIndex?: boolean
-  customToString?:
-    | null
-    | ((
-        obj: any,
-        toString: (obj: any) => any,
-      ) => string | null | undefined | void)
+  customToString?: null | FormatAnyToString
 }
 
 export function formatAny(
@@ -52,7 +53,11 @@ export function formatAny(
   }
 
   if (customToString) {
-    const str = customToString(obj, o => formatAny(o, options, path, visited))
+    const str = customToString(
+      obj,
+      o => formatAny(o, options, path, visited),
+      path,
+    )
     if (str != null) {
       return truncateString(str, maxStringLength)
     }
