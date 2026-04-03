@@ -14,8 +14,8 @@ function tryGetValue(obj: any, key: string | number): any {
 
 export type FormatAnyToString = (
   obj: any,
-  toString: (obj: any) => any,
   path: string[],
+  toString: (obj: any) => any,
 ) => string | null | undefined | void
 
 export type FormatAnyOptions = {
@@ -53,10 +53,8 @@ export function formatAny(
   }
 
   if (customToString) {
-    const str = customToString(
-      obj,
-      o => formatAny(o, options, path, visited),
-      path,
+    const str = customToString(obj, path, o =>
+      formatAny(o, options, path, visited),
     )
     if (str != null) {
       return truncateString(str, maxStringLength)
