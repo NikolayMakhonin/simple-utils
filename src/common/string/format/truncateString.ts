@@ -1,5 +1,7 @@
 export type TruncateStringOptions = {
-  fromStart?: boolean
+  fromStart?: null | boolean
+  appendEllipsis?: null | boolean
+  appendTruncatedLength?: null | boolean
 }
 
 export function truncateString(
@@ -18,19 +20,26 @@ export function truncateString(
   options?: null | TruncateStringOptions,
 ): string | null {
   if (str == null) {
-    return str ?? null
+    return null
   }
-  if (maxLength == null) {
+  if (maxLength == null || str.length <= maxLength) {
     return str
   }
-  if (str.length > maxLength) {
-    if (maxLength <= 0) {
-      return '…'
-    }
-    if (options?.fromStart) {
-      return '…' + str.slice(str.length - maxLength + 1)
-    }
-    return str.slice(0, maxLength - 1) + '…'
+
+  const ellipsis = options?.appendEllipsis ? '…' : ''
+  const overhead =
+    ellipsis.length +
+    (options?.appendTruncatedLength ? String(str.length).length + 2 : 0)
+  const newLength = Math.max(0, maxLength - overhead)
+  const tag = options?.appendTruncatedLength
+    ? `(${str.length - newLength})`
+    : ''
+
+  if (newLength <= 0) {
+    return tag + ellipsis
   }
-  return str
+  if (options?.fromStart) {
+    return tag + ellipsis + str.slice(str.length - newLength)
+  }
+  return str.slice(0, newLength) + ellipsis + tag
 }
