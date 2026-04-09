@@ -1,6 +1,6 @@
-import { Expected, MatchResult3 } from '../types'
+import type { Expected, MatchResult3 } from '../types'
 import { match } from '../match'
-import { Matcher, MatcherArgs } from '../Matcher'
+import { Matcher, type MatcherArgs } from '../Matcher'
 
 export type MatchNotArgs<T> = MatcherArgs<T> & {
   expected: Expected<T>

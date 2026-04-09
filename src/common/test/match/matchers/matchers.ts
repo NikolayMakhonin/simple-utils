@@ -1,23 +1,23 @@
-import { MatchArray, MatcherArray } from './MatcherArray'
+import { type MatchArray, MatcherArray } from './MatcherArray'
 import { MatcherAny } from './MatcherAny'
-import { Expected, MatchResult3 } from '../types'
+import type { Expected, MatchResult3 } from '../types'
 import { MatcherArrayItem } from './MatcherArrayItem'
 import { MatcherConvert } from './MatcherConvert'
 import { MatcherIs } from './MatcherIs'
 import {
   MatcherNumber,
-  MatchNumberArgs,
-  MatchNumberArgsRange,
+  type MatchNumberArgs,
+  type MatchNumberArgsRange,
 } from './MatcherNumber'
-import { MatcherObject, MatchObject } from './MatcherObject'
-import { MatcherString, MatchStringPattern } from './MatcherString'
+import { MatcherObject, type MatchObject } from './MatcherObject'
+import { MatcherString, type MatchStringPattern } from './MatcherString'
 import { MatcherInstanceOf } from './MatchInstanceOf'
 import { MatcherIn } from './MatcherIn'
 import { MatcherFew } from './MatcherFew'
 import { MatcherCustom } from './MatcherCustom'
 import { isMatcher } from '../helpers'
 import { MatcherNot } from './MatcherNot'
-import { Matcher, MatcherArgsName } from '../Matcher'
+import { Matcher, type MatcherArgsName } from '../Matcher'
 import { MatcherNever } from './MatcherNever'
 import { type NumberRangeOptional } from 'src/common/types/common'
 import { ValueState } from '@flemist/async-utils'

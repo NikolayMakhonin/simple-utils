@@ -1,7 +1,7 @@
-import { Expected, MatchResult3, MatchResultNested } from '../types'
+import type { Expected, MatchResult3, MatchResultNested } from '../types'
 import { match } from '../match'
 import { argsToString } from '../helpers'
-import { Matcher, MatcherArgs } from '../Matcher'
+import { Matcher, type MatcherArgs } from '../Matcher'
 import { MAX_REPORT_ITEMS_DEFAULT } from './constants'
 
 export type MatchObjectEntry<T> = Expected<[keyof T, T[keyof T]]>

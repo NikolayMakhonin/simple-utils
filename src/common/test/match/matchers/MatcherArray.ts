@@ -1,6 +1,6 @@
-import { Expected, MatchResult3, MatchResultNested } from '../types'
+import type { Expected, MatchResult3, MatchResultNested } from '../types'
 import { match } from '../match'
-import { Matcher, MatcherArgs } from '../Matcher'
+import { Matcher, type MatcherArgs } from '../Matcher'
 import { expectedToString } from '../helpers'
 import { MAX_REPORT_ITEMS_DEFAULT } from './constants'
 

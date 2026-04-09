@@ -1,4 +1,4 @@
-import { MatchResult3 } from '../types'
+import type { MatchResult3 } from '../types'
 import { Matcher } from '../Matcher'
 
 export class MatcherAny extends Matcher<any> {

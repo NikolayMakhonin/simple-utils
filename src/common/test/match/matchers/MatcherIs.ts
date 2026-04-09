@@ -1,7 +1,7 @@
 // noinspection EqualityComparisonWithCoercionJS
 
-import { MatchResult3 } from '../types'
-import { Matcher, MatcherArgs } from '../Matcher'
+import type { MatchResult3 } from '../types'
+import { Matcher, type MatcherArgs } from '../Matcher'
 import { expectedToString } from '../helpers'
 
 export type MatchIsArgs<T> = MatcherArgs<T> & {

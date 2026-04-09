@@ -1,5 +1,5 @@
-import { Page } from 'playwright'
-import { OnError } from './types'
+import type { Page } from 'playwright'
+import type { OnError } from './types'
 import { getStackTrace } from 'src/common/debug/stack-trace/getStackTrace'
 
 export async function subscribeJsErrors({

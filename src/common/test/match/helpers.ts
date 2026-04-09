@@ -2,7 +2,7 @@ import {
   formatAny,
   type FormatAnyOptions,
 } from 'src/common/string/format/formatAny'
-import { Matcher, MatcherArgs } from './Matcher'
+import { Matcher, type MatcherArgs } from './Matcher'
 
 function formatObject(obj: any, options?: null | FormatAnyOptions): string {
   return formatAny(obj, {

@@ -1,5 +1,5 @@
-import { MatchResult3 } from '../types'
-import { Matcher, MatcherArgs } from '../Matcher'
+import type { MatchResult3 } from '../types'
+import { Matcher, type MatcherArgs } from '../Matcher'
 import { argsToString } from '../helpers'
 
 export type MatchNumberArgsRange = MatcherArgs<number> & {

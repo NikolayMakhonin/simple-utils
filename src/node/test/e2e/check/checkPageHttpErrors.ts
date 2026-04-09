@@ -1,4 +1,4 @@
-import { Page } from 'playwright'
+import type { Page } from 'playwright'
 import { withTimeout } from 'src/common/async/abort/timeout'
 
 export type RegExpRule = { value: boolean; pattern: RegExp }

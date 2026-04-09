@@ -1,5 +1,5 @@
-import { MatchResult3 } from '../types'
-import { Matcher, MatcherArgs } from '../Matcher'
+import type { MatchResult3 } from '../types'
+import { Matcher, type MatcherArgs } from '../Matcher'
 
 export type MatchStringPattern = RegExp | ((actual: string) => MatchResult3)
 

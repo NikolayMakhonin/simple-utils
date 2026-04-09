@@ -1,4 +1,4 @@
-import { type CDPSession, Page } from 'playwright'
+import type { CDPSession, Page } from 'playwright'
 import { delay } from '@flemist/async-utils'
 import { loadJson, saveJson } from './loadSaveJson'
 import { DIFF_NEW, DIFF_OLD, getObjectsDiff } from './getObjectsDiff'
