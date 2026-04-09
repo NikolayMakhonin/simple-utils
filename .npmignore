@@ -1,6 +1,5 @@
 /*
 !/build
-/build/**/test/**
 /build/**/*.test.*
 /build/**/*.stress.*
 /build/**/*.perf.*
@@ -10,3 +9,4 @@
 **/-deprecated/**
 **/-tmp/**
 **/-temp/**
+**/-test/**
