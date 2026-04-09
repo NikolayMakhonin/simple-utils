@@ -54,29 +54,58 @@ export function consoleReplace(
 // TODO: write doc comments
 export type WithConsoleReplaceFunc = <T>(callback: () => T) => T
 
+export type WithConsoleReplaceHandler = (
+  console: Console,
+  level: ConsoleMessageLevel,
+  args: any[],
+) => void
+
 // TODO: write doc comments
 export function withConsoleReplace(
-  handler: (console: Console, level: ConsoleMessageLevel, args: any[]) => void,
+  handler: WithConsoleReplaceHandler,
 ): WithConsoleReplaceFunc {
   return function _withConsoleReplace<T>(callback: () => T): T {
-    const restore = consoleReplace(handler)
+    let firstError: any = null
+
+    const _handler: WithConsoleReplaceHandler = (console, level, args) => {
+      try {
+        handler(console, level, args)
+      } catch (err) {
+        if (!firstError) {
+          firstError = err
+        }
+        throw err
+      }
+    }
+
+    const restore = consoleReplace(_handler)
+
+    const _restore = () => {
+      restore()
+      if (firstError) {
+        throw firstError
+      }
+    }
+
     try {
       const result = callback()
       if (isPromiseLike(result)) {
         return result.then(
           o => {
-            restore()
+            _restore()
             return o
           },
           err => {
-            restore()
+            _restore()
             throw err
           },
         ) as any
       }
+      _restore()
       return result
-    } finally {
-      restore()
+    } catch (err) {
+      _restore()
+      throw err
     }
   }
 }

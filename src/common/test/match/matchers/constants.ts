@@ -1,0 +1,1 @@
+export const MAX_REPORT_ITEMS_DEFAULT = 10
