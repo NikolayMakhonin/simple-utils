@@ -1,6 +1,6 @@
 {
   "name": "@flemist/simple-utils",
-  "version": "2.1.5",
+  "version": "2.1.6",
   "description": "Simple simple utils",
   "sideEffects": false,
   "types": "build/common/index.d.ts",
@@ -134,6 +134,7 @@
     "@flemist/priority-queue": "^1.0.1",
     "@flemist/time-controller": "^1.0.4",
     "@flemist/time-limits": "^2.0.4",
+    "fflate": "^0.8.2",
     "picomatch": "^4.0.4",
     "tslib": ">=2.8.1"
   }

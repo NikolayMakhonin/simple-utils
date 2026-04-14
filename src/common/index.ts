@@ -1,4 +1,6 @@
+export * from './converter'
 export * from './crypto'
+export * from './gzip'
 export * from './number'
 export * from './random'
 export * from './time'
