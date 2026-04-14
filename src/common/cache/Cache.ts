@@ -7,6 +7,7 @@ export type CacheStorages<Key, Value, Error, Stat> = {
   error: IStorage<Key, Error>
   stat: IStorage<Key, Stat>
 }
+
 export type CacheOptions<
   Input,
   Value,

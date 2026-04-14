@@ -1,3 +1,4 @@
+export * from './cache'
 export * from './converter'
 export * from './crypto'
 export * from './gzip'

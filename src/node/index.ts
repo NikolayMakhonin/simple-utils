@@ -1,4 +1,5 @@
 export * from '../common'
+export * from './cache'
 export * from './fs'
 export * from './process'
 export * from './test'
