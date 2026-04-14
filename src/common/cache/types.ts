@@ -3,6 +3,7 @@ import {
   type PromiseOrValue,
 } from '@flemist/async-utils'
 import {
+  type Converter,
   type ConverterAsync,
   converterJson,
   type ConvertToAsync,
@@ -83,7 +84,12 @@ export async function writeFileThroughTmp(
           await fs.promises.writeFile(tmpPath, data)
         })(),
       ])
-      await fs.promises.rename(tmpPath, filePath)
+      try {
+        await fs.promises.rename(tmpPath, filePath)
+      } catch (err) {
+        await fs.promises.unlink(tmpPath).catch(() => {})
+        throw err
+      }
     },
   })
 }
@@ -113,10 +119,10 @@ export class FileStorage implements IStorage<string, Uint8Array> {
       (this._options.prefix ?? '') + key + (this._options.suffix ?? '')
     const filePath = path.join(this._options.dir, fileName)
     const tmpFileName = this._options.getTempFileName
-      ? this._options.getTempFileName(fileName)
+      ? this._options.getTempFileName(key)
       : generateTempFileName()
     const tmpPath = path.join(this._options.tmpDir, tmpFileName)
-    await writeFileThroughTmp(filePath, tmpPath, value)
+    await writeFileThroughTmp(filePath, tmpPath, value, this._options.pool)
   }
 
   async get(key: string): Promise<Uint8Array | undefined> {
@@ -242,28 +248,28 @@ export function getHashKey(obj?: any): string {
   return sha256(json)
 }
 
-export const converterStringToBuffer: ConverterAsync<string, Uint8Array> = {
-  to: async (value: string) => {
+export const converterStringToBuffer: Converter<string, Uint8Array> = {
+  to: (value: string) => {
     return new TextEncoder().encode(value)
   },
-  from: async (value: Uint8Array) => {
+  from: (value: Uint8Array) => {
     return new TextDecoder().decode(value)
   },
 }
 
 export const converterJsonBuffer: ConverterAsync<any, Uint8Array> = {
-  to: async (value: any) => {
+  to: (value: any) => {
     const json = converterJson.to(value)
     return converterStringToBuffer.to(json)
   },
-  from: async (value: Uint8Array) => {
-    const json = await converterStringToBuffer.from(value)
+  from: (value: Uint8Array) => {
+    const json = converterStringToBuffer.from(value)
     return converterJson.from(json)
   },
 }
 
 export const converterErrorToBuffer: ConverterAsync<any, Uint8Array> = {
-  to: async (value: any) => {
+  to: (value: any) => {
     const error = formatAny(value, {
       pretty: true,
       maxDepth: 10,
@@ -272,9 +278,8 @@ export const converterErrorToBuffer: ConverterAsync<any, Uint8Array> = {
     })
     return converterStringToBuffer.to(error)
   },
-  from: async (value: Uint8Array) => {
-    const errorStr = await converterStringToBuffer.from(value)
-    return errorStr
+  from: (value: Uint8Array) => {
+    return converterStringToBuffer.from(value)
   },
 }
 
