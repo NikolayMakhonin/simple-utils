@@ -39,8 +39,5 @@ export interface ICacheStats<Key, Stat extends CacheStat> {
 
   set(key: Key, statNew: Stat | null | undefined): PromiseLikeOrValue<void>
 
-  forEach(
-    /** @returns true to break the loop */
-    func: (key: Key, stat: Stat) => boolean | undefined | null | void,
-  ): void
+  getEntries(): PromiseLikeOrValue<ReadonlyMap<Key, Stat>>
 }

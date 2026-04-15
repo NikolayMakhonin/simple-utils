@@ -52,6 +52,26 @@ export type CacheOptions<
   timeController?: null | ITimeController
 }
 
+/** Compare function for LRU eviction strategy */
+function compareLru<Key, Stat extends CacheStat>(
+  a: [Key, Stat],
+  b: [Key, Stat],
+): -1 | 0 | 1 {
+  if (a[1].dateUsed !== b[1].dateUsed) {
+    return a[1].dateUsed < b[1].dateUsed ? -1 : 1
+  }
+  if (a[1].size !== b[1].size) {
+    return a[1].size < b[1].size ? -1 : 1
+  }
+  if (a[1].dateModified !== b[1].dateModified) {
+    return a[1].dateModified < b[1].dateModified ? -1 : 1
+  }
+  if (a[0] !== b[0]) {
+    return a[0] < b[0] ? -1 : 1
+  }
+  return 0
+}
+
 export class Cache<
   Input,
   Value,
@@ -124,7 +144,12 @@ export class Cache<
     totalSizeOld += totalSizeDelta
 
     const promises: PromiseLike<void>[] = []
-    this._stats.forEach((key, stat) => {
+
+    const stats = await this._stats.getEntries()
+    const statsArray = Array.from(stats.entries())
+    statsArray.sort(compareLru)
+
+    statsArray.forEach(([key, stat]) => {
       const totalSizeDelta = -stat.size
       if (
         totalSizeOld > totalSizeMax ||
@@ -267,29 +292,28 @@ export class Cache<
       this._options.storages.stat.getKeys(),
     ])
     const keys = new Set([...keysValue, ...keysError, ...keysStat])
-    const promises: Promise<void>[] = []
+    const lockPromises: Promise<void>[] = []
     keys.forEach(key => {
-      const promiseOrValue = this._locker.lock(key, async () => {
-        const promises: PromiseLike<void>[] = []
-        let promiseOrValue: PromiseLikeOrValue<void>
-        promiseOrValue = this._options.storages.value.delete(key)
-        if (isPromiseLike(promiseOrValue)) {
-          promises.push(promiseOrValue)
+      const lockResult = this._locker.lock(key, async () => {
+        const innerPromises: PromiseLike<void>[] = []
+        const valueDeleteResult = this._options.storages.value.delete(key)
+        if (isPromiseLike(valueDeleteResult)) {
+          innerPromises.push(valueDeleteResult)
         }
-        promiseOrValue = this._options.storages.error.delete(key)
-        if (isPromiseLike(promiseOrValue)) {
-          promises.push(promiseOrValue)
+        const errorDeleteResult = this._options.storages.error.delete(key)
+        if (isPromiseLike(errorDeleteResult)) {
+          innerPromises.push(errorDeleteResult)
         }
-        promiseOrValue = this._options.storages.stat.delete(key)
-        if (isPromiseLike(promiseOrValue)) {
-          promises.push(promiseOrValue)
+        const statSetResult = this._stats.set(key, null)
+        if (isPromiseLike(statSetResult)) {
+          innerPromises.push(statSetResult)
         }
-        await Promise.all(promises)
+        await Promise.all(innerPromises)
       })
-      if (isPromiseLike(promiseOrValue)) {
-        promises.push(promiseOrValue)
+      if (isPromiseLike(lockResult)) {
+        lockPromises.push(lockResult)
       }
     })
-    await Promise.all(promises)
+    await Promise.all(lockPromises)
   }
 }
