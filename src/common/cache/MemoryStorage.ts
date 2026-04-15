@@ -1,7 +1,7 @@
 import type { PromiseLikeOrValue } from '@flemist/async-utils'
-import type { IStorage } from './types'
+import type { IStorageDb } from './types'
 
-export class MemoryStorage<Key, Value> implements IStorage<Key, Value> {
+export class MemoryStorage<Key, Value> implements IStorageDb<Key, Value> {
   private readonly _cache: Map<Key, Value> = new Map()
 
   set<T extends Value>(key: Key, value: T): PromiseLikeOrValue<void> {
@@ -23,5 +23,9 @@ export class MemoryStorage<Key, Value> implements IStorage<Key, Value> {
 
   getKeys(): PromiseLikeOrValue<Key[]> {
     return Array.from(this._cache.keys())
+  }
+
+  getEntries(): PromiseLikeOrValue<Map<Key, Value>> {
+    return new Map(this._cache)
   }
 }

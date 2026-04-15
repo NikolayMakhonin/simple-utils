@@ -1,4 +1,6 @@
 export * from './FileStorage'
+export * from './createConverterSubPath'
 export * from './createFileCacheOptions'
 export * from './generateTempFileName'
 export * from './writeFileThroughTmp'
+export * from './FileStatStorage'

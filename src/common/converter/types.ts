@@ -12,8 +12,14 @@ export type ConverterTo<From, To> = {
 export type ConverterFrom<From, To> = {
   from: ConvertFrom<From, To>
 }
-export type Converter<From, To> = ConverterTo<From, To> &
-  ConverterFrom<From, To>
+
+/** ToFrom => (ToTo ... FromTo) => FromFrom */
+export type Converter<
+  ToFrom,
+  ToTo,
+  FromTo = ToTo,
+  FromFrom = ToFrom,
+> = ConverterTo<ToFrom, ToTo> & ConverterFrom<FromFrom, FromTo>
 
 export type ConvertWithDefaultTo<From, To> = (
   from: From,
@@ -29,8 +35,13 @@ export type ConverterWithDefaultTo<From, To> = {
 export type ConverterWithDefaultFrom<From, To> = {
   from: ConvertWithDefaultFrom<From, To>
 }
-export type ConverterWithDefault<From, To> = ConverterWithDefaultTo<From, To> &
-  ConverterWithDefaultFrom<From, To>
+export type ConverterWithDefault<
+  ToFrom,
+  ToTo,
+  FromTo = ToTo,
+  FromFrom = ToFrom,
+> = ConverterWithDefaultTo<ToFrom, ToTo> &
+  ConverterWithDefaultFrom<FromFrom, FromTo>
 
 // Async
 
@@ -43,8 +54,13 @@ export type ConverterToAsync<From, To> = {
 export type ConverterFromAsync<From, To> = {
   from: ConvertFromAsync<From, To>
 }
-export type ConverterAsync<From, To> = ConverterToAsync<From, To> &
-  ConverterFromAsync<From, To>
+/** ToFrom => (ToTo ... FromTo) => FromFrom */
+export type ConverterAsync<
+  ToFrom,
+  ToTo,
+  FromTo = ToTo,
+  FromFrom = ToFrom,
+> = ConverterToAsync<ToFrom, ToTo> & ConverterFromAsync<FromFrom, FromTo>
 
 export type ConvertWithDefaultToAsync<From, To> = (
   from: From,
@@ -60,8 +76,10 @@ export type ConverterWithDefaultToAsync<From, To> = {
 export type ConverterWithDefaultFromAsync<From, To> = {
   from: ConvertWithDefaultFromAsync<From, To>
 }
-export type ConverterWithDefaultAsync<From, To> = ConverterWithDefaultToAsync<
-  From,
-  To
-> &
-  ConverterWithDefaultFromAsync<From, To>
+export type ConverterWithDefaultAsync<
+  ToFrom,
+  ToTo,
+  FromTo = ToTo,
+  FromFrom = ToFrom,
+> = ConverterWithDefaultToAsync<ToFrom, ToTo> &
+  ConverterWithDefaultFromAsync<FromFrom, FromTo>

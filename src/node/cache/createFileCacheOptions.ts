@@ -4,11 +4,12 @@ import { converterJsonBuffer } from 'src/common/converter/converterJsonBuffer'
 import { getHashKey } from 'src/common/cache/getHashKey'
 import { FileStorage } from './FileStorage'
 import type { CacheOptions, CacheStat } from 'src/common/cache/Cache'
+import { createConverterSubPath } from './createConverterSubPath'
 
 export function createFileCacheOptions<Input, Value>(options: {
   dir: string
   /**
-   * Temp dir should be on the same device as dir to make it sense.
+   * Temp dir should be on the same device as dir to be meaningful.
    * The temp dir can be shared between multiple cache instances
    */
   tmpDir: string
@@ -35,17 +36,17 @@ export function createFileCacheOptions<Input, Value>(options: {
       value: new FileStorage({
         dir: options.dir,
         tmpDir: options.tmpDir,
-        suffix: '.value',
+        converterSubPath: createConverterSubPath({ suffix: '.value' }),
       }),
       error: new FileStorage({
         dir: options.dir,
         tmpDir: options.tmpDir,
-        suffix: '.error',
+        converterSubPath: createConverterSubPath({ suffix: '.error' }),
       }),
       stat: new FileStorage({
         dir: options.dir,
         tmpDir: options.tmpDir,
-        suffix: '.stat',
+        converterSubPath: createConverterSubPath({ suffix: '.stat' }),
       }),
     },
   }
