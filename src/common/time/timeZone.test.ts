@@ -89,7 +89,7 @@ describe('date', () => {
     }
   })
 
-  it('dateToString', () => {
+  it('formatDate', () => {
     assert.strictEqual(
       formatDate(new Date('2020-01-01T00:00:00.000Z'), 'UTC'),
       '2020-01-01 00:00:00',

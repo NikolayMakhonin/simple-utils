@@ -1,2 +1,2 @@
-export * from './format'
 export * from './escape'
+export * from './format'
