@@ -110,7 +110,7 @@ export class Cache<
 
     if (statNew.size > totalSizeMax) {
       throw new Error(
-        `[Cache] Cannot add value to cache because its size (${statNew.size}) exceeds the maximum total size (${totalSizeMax})`,
+        `[Cache][freeUpSpace] value size (${statNew.size}) exceeds maximum total size (${totalSizeMax})`,
       )
     }
 
@@ -135,7 +135,7 @@ export class Cache<
             this._options.storages.value.delete(key),
             this._options.storages.error.delete(key),
           ]).then(() => {
-            return this._stats.set(key, stat, null)
+            return this._stats.set(key, null)
           }),
         )
         totalSizeOld += totalSizeDelta
@@ -166,7 +166,7 @@ export class Cache<
         await Promise.all([
           this._options.storages.value.delete(key),
           this._options.storages.error.delete(key),
-          this._stats.set(key, statOld, null),
+          this._stats.set(key, null),
         ])
       } else {
         const [storedValue, storedError] = await Promise.all([
@@ -184,7 +184,7 @@ export class Cache<
           const value = this._options.converterValue
             ? await this._options.converterValue.from(storedValue)
             : (storedValue as unknown as Value)
-          await this._stats.set(key, statOld, statNew)
+          await this._stats.set(key, statNew)
           return value as T
         }
 
@@ -196,7 +196,7 @@ export class Cache<
           const error = this._options.converterError
             ? await this._options.converterError.from(storedError)
             : (storedError as unknown as Error)
-          await this._stats.set(key, statOld, statNew)
+          await this._stats.set(key, statNew)
           throw error
         }
       }
@@ -220,7 +220,7 @@ export class Cache<
           this._options.storages.value.set(key, storedValue),
           this._options.storages.error.delete(key),
         ])
-        await this._stats.set(key, statOld, statNew)
+        await this._stats.set(key, statNew)
         return value
       } catch (error) {
         const now = this._timeController.now()
@@ -241,7 +241,7 @@ export class Cache<
           this._options.storages.error.set(key, storedError),
           this._options.storages.value.delete(key),
         ])
-        await this._stats.set(key, statOld, statNew)
+        await this._stats.set(key, statNew)
         throw error
       }
     })
@@ -255,7 +255,7 @@ export class Cache<
       await Promise.all([
         this._options.storages.value.delete(key),
         this._options.storages.error.delete(key),
-        this._options.storages.stat.delete(key),
+        this._stats.set(key, null),
       ])
     })
   }

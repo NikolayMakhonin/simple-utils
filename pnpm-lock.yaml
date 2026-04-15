@@ -15,7 +15,7 @@ importers:
         specifier: ^1.2.8
         version: 1.2.8
       '@flemist/pairing-heap':
-        specifier: 1.0.0
+        specifier: ^1.0.0
         version: 1.0.0
       '@flemist/priority-queue':
         specifier: ^1.0.1
@@ -49,14 +49,14 @@ importers:
         specifier: 0.0.5
         version: 0.0.5
       '@flemist/mcp-project-tools':
-        specifier: 3.0.20
-        version: 3.0.20
+        specifier: 5.0.2
+        version: 5.0.2
       '@flemist/test-utils':
-        specifier: 1.0.2
-        version: 1.0.2(expect@30.2.0)
+        specifier: 1.0.4
+        version: 1.0.4(expect@30.2.0)
       '@flemist/test-variants':
-        specifier: 1.0.7
-        version: 1.0.7
+        specifier: 5.0.8
+        version: 5.0.8
       '@types/eslint':
         specifier: 9.6.1
         version: 9.6.1
@@ -377,10 +377,6 @@ packages:
   '@flemist/abort-controller-fast@1.0.0':
     resolution: {integrity: sha512-umA3lbp5W025xc410C2zRbYcUkUDIW47s2TreONwzVmuekzmmRmvQ0IEmDO5aYIjU9QDnI4X0NZ+Yh5ELj6raQ==}
 
-  '@flemist/async-utils@1.0.0':
-    resolution: {integrity: sha512-FN1SHf8OIanveOJXFsyDxR4y9TAU8VsvPWkCfxDwo2ru3D3GCu/Pv0hd+D4XbHTq6nedIjVHphUWzFsWtdHnNg==}
-    engines: {node: '>=12.9.0'}
-
   '@flemist/async-utils@1.2.8':
     resolution: {integrity: sha512-mAjyCtQfX+pj71YhY1rnP3TY4KkhIanyP8+vrXoHxGkq+uhFmhA49giNHySA4futnTRRYgKfTHyvE3LscEwwFQ==}
     engines: {node: '>=12.9.0'}
@@ -389,8 +385,8 @@ packages:
     resolution: {integrity: sha512-nw2x3zS78uRv7jlR709oXiMXhtTlTS2+WJiy3aTabcayv50CNHMKXevv9WR7YjUJzS7743EdPJl5wAKjIq9Fdg==}
     hasBin: true
 
-  '@flemist/mcp-project-tools@3.0.20':
-    resolution: {integrity: sha512-+UkeQdLBHRkqvZ8TuPXKP2CUWMLF3C+SqoIoEo4zbWhUXI4aBi0pcNd7CQNaA1kIzuVv8cp+m9WTQr2cX1g8qw==}
+  '@flemist/mcp-project-tools@5.0.2':
+    resolution: {integrity: sha512-8MOsOql6w3FYW/uUZSLREX8sasniqumWdRlHuD/FRIARcD6H5yDadi9Q4exeXRkc4RSgFBHVqK4GvChL/vUAUg==}
     engines: {node: '>=20'}
     hasBin: true
     peerDependencies:
@@ -407,26 +403,22 @@ packages:
     resolution: {integrity: sha512-5rc1BdJOBpLzXoyKGWjXQSSEr5S8NtPG5c4oH/mG1Dsm3/7H1QlyaHfznXbquy2B6lQ7j1sHMlFvsDO3+ULdSQ==}
     engines: {node: '>=12.9.0'}
 
-  '@flemist/test-utils@1.0.2':
-    resolution: {integrity: sha512-E+ZdFyQXDEaBsfPX1Wft4xLNy/gyM2rVbjdu65l93W+t80mJ4jZG/xzSSdcOCWg2od2c03CmyOHF93w/FXFGoA==}
+  '@flemist/simple-utils@1.0.7':
+    resolution: {integrity: sha512-8k31DIEnw8yVYbdYpz1J1s9bBYaDdCS4fNKzpfiB70ArQj4c7J+iAErDJkGiTp+f4zdcUEHaKn26XcgaKrACQQ==}
+    engines: {node: '>=20'}
+
+  '@flemist/test-utils@1.0.4':
+    resolution: {integrity: sha512-kdHXVCXaL4kpMkTU/zxJ4MQU0WetOhUZvObq45KI7dYDofaeOmiV2Wu0Nj8p7Kyr7Rr0NvOf2qzTj59sAz/I3Q==}
     engines: {node: '>=10.4.0', pnpm: '>=7.1.6'}
     peerDependencies:
       expect: '>=24'
 
-  '@flemist/test-variants@1.0.7':
-    resolution: {integrity: sha512-I6P5vvkoik+t+sTaMudQDNTMjMvmL2DcPr/ssHAY6Nb0Sf2w4xg5GONoOIcqH04v+hyS+nZGpvF9BeqV87WUgg==}
-    engines: {node: '>=10.4.0', pnpm: '>=7.1.6'}
-
-  '@flemist/time-controller@1.0.0':
-    resolution: {integrity: sha512-lrway8vi98Xe/oPsGexhOsoTro8cuJ8/J/J81ZAs6lEaWCcOy+qpOWpp8ulx6F9uN2lU/LSsCsDZ8X9ov5svZQ==}
-    engines: {node: '>=10.4.0'}
+  '@flemist/test-variants@5.0.8':
+    resolution: {integrity: sha512-0iJydlbe/ahNBP4kHyRn4njab38PrK3BrWagrhODJACtjtahJqgSL7ZQDYgvWeo4RM2Q6Uk8GKacyalsITrdWQ==}
+    engines: {node: '>=20'}
 
   '@flemist/time-controller@1.0.4':
     resolution: {integrity: sha512-u/R76Pfq3UOBLXNOMAW+zwL5a9U7UhirAJLFMnmJ3JISmomxb+um0wD3v1l6v6vZi+KbqwEVQYnEpv/o37jQug==}
-    engines: {node: '>=10.4.0'}
-
-  '@flemist/time-limits@1.0.3':
-    resolution: {integrity: sha512-d078kPLsAxf5GKC4WqChCdxFqCUVLiCTtbKFo3oz7GuH9zB/18n+MZyljTyMZ7IoSw2FoHC4q879918rJYzeJw==}
     engines: {node: '>=10.4.0'}
 
   '@flemist/time-limits@2.0.4':
@@ -1947,6 +1939,11 @@ packages:
   json-stable-stringify-without-jsonify@1.0.1:
     resolution: {integrity: sha512-Bdboy+l7tA3OGW6FjyFHWkP5LuByj1Tk33Ljyq0axyzdk9//JSi2u3fP1QSmd1KNwq6VOKYGlAu87CisVir6Pw==}
 
+  json5@2.2.3:
+    resolution: {integrity: sha512-XmOWe7eyHYH14cLdVPoyg+GOH3rYX++KpzrylJwSW98t3Nk+U8XOl8FWKOgwtzdb8lXGf6zYwDUzeHMWfxasyg==}
+    engines: {node: '>=6'}
+    hasBin: true
+
   jsonc-eslint-parser@2.4.1:
     resolution: {integrity: sha512-uuPNLJkKN8NXAlZlQ6kmUF9qO+T6Kyd7oV4+/7yy8Jz6+MZNyhPq8EdLpdfnPVzUC8qSf1b4j1azKaGnFsjmsw==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
@@ -3196,12 +3193,6 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  '@flemist/async-utils@1.0.0':
-    dependencies:
-      '@flemist/abort-controller-fast': 1.0.0
-      '@flemist/time-controller': 1.0.0
-      tslib: 2.8.1
-
   '@flemist/async-utils@1.2.8':
     dependencies:
       '@flemist/abort-controller-fast': 1.0.0
@@ -3213,7 +3204,7 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  '@flemist/mcp-project-tools@3.0.20':
+  '@flemist/mcp-project-tools@5.0.2':
     dependencies:
       '@flemist/abort-controller-fast': 1.0.0
       '@flemist/async-utils': 1.2.8
@@ -3224,6 +3215,8 @@ snapshots:
       deepmerge: 4.3.1
       express: 5.1.0
       globby: 11.1.0
+      js-yaml: 4.1.0
+      json5: 2.2.3
       picomatch: 4.0.3
       playwright: 1.57.0
       tree-kill: 1.2.2
@@ -3243,36 +3236,35 @@ snapshots:
       '@flemist/time-controller': 1.0.4
       tslib: 2.8.1
 
-  '@flemist/test-utils@1.0.2(expect@30.2.0)':
-    dependencies:
-      '@flemist/async-utils': 1.0.0
-      '@flemist/time-controller': 1.0.0
-      expect: 30.2.0
-      tslib: 2.8.1
-
-  '@flemist/test-variants@1.0.7':
-    dependencies:
-      '@flemist/abort-controller-fast': 1.0.0
-      '@flemist/async-utils': 1.2.8
-      '@flemist/time-limits': 1.0.3
-      tslib: 2.8.1
-
-  '@flemist/time-controller@1.0.0':
-    dependencies:
-      '@flemist/pairing-heap': 1.0.0
-      tslib: 2.8.1
-
-  '@flemist/time-controller@1.0.4':
-    dependencies:
-      '@flemist/pairing-heap': 1.0.0
-      tslib: 2.8.1
-
-  '@flemist/time-limits@1.0.3':
+  '@flemist/simple-utils@1.0.7':
     dependencies:
       '@flemist/abort-controller-fast': 1.0.0
       '@flemist/async-utils': 1.2.8
       '@flemist/priority-queue': 1.0.1
       '@flemist/time-controller': 1.0.4
+      '@flemist/time-limits': 2.0.4
+      picomatch: 4.0.4
+      tslib: 2.8.1
+
+  '@flemist/test-utils@1.0.4(expect@30.2.0)':
+    dependencies:
+      '@flemist/async-utils': 1.2.8
+      '@flemist/time-controller': 1.0.4
+      expect: 30.2.0
+      tslib: 2.8.1
+
+  '@flemist/test-variants@5.0.8':
+    dependencies:
+      '@flemist/abort-controller-fast': 1.0.0
+      '@flemist/async-utils': 1.2.8
+      '@flemist/simple-utils': 1.0.7
+      '@flemist/time-controller': 1.0.4
+      '@flemist/time-limits': 2.0.4
+      tslib: 2.8.1
+
+  '@flemist/time-controller@1.0.4':
+    dependencies:
+      '@flemist/pairing-heap': 1.0.0
       tslib: 2.8.1
 
   '@flemist/time-limits@2.0.4':
@@ -5001,6 +4993,8 @@ snapshots:
   json-schema-traverse@1.0.0: {}
 
   json-stable-stringify-without-jsonify@1.0.1: {}
+
+  json5@2.2.3: {}
 
   jsonc-eslint-parser@2.4.1:
     dependencies:

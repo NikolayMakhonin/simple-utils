@@ -13,9 +13,10 @@ export class CacheStats<Key, Stat extends CacheStat, StatStored>
   implements ICacheStats<Key, Stat>
 {
   private readonly _options: CacheStatOptions<Key, Stat, StatStored>
-  private _statsMap: Map<Key, PairingNode<[Key, Stat]>> = null as any
-  private _statsHeap: PairingHeap<[Key, Stat]> = null as any
-  private _totalSize: number = null as any
+  private _statsMap: Map<Key, PairingNode<[Key, Stat]>> = null!
+  private _statsHeap: PairingHeap<[Key, Stat]> = null!
+  private _totalSize: number = null!
+  private _initPromise: Promise<void> | null = null
 
   constructor(options: CacheStatOptions<Key, Stat, StatStored>) {
     this._options = options
@@ -45,11 +46,14 @@ export class CacheStats<Key, Stat extends CacheStat, StatStored>
     await Promise.all(promises)
   }
 
-  private async init(): Promise<void> {
-    if (this._statsMap != null) {
-      return
+  private init(): Promise<void> {
+    if (this._initPromise == null) {
+      this._initPromise = this._init()
     }
+    return this._initPromise
+  }
 
+  private async _init(): Promise<void> {
     const statsMap = new Map<Key, PairingNode<[Key, Stat]>>()
     const statsHeap = new PairingHeap<[Key, Stat]>({
       lessThanFunc: (a, b) => {
@@ -103,7 +107,7 @@ export class CacheStats<Key, Stat extends CacheStat, StatStored>
       }
       const nodeNew = this._statsHeap.add([key, statNew])
       this._statsMap.set(key, nodeNew)
-      this._totalSize += (statNew?.size ?? 0) - (statOld?.size ?? 0)
+      this._totalSize += statNew.size - (statOld?.size ?? 0)
     } else {
       await this._options.storage.delete(key)
 
@@ -120,7 +124,7 @@ export class CacheStats<Key, Stat extends CacheStat, StatStored>
   forEach(
     func: (key: Key, stat: Stat) => boolean | undefined | null | void,
   ): void {
-    const node = this._statsHeap.getMinNode()
-    pairingHeapForEach(node, node => func(node.item[0], node.item[1]))
+    const root = this._statsHeap.getMinNode()
+    pairingHeapForEach(root, node => func(node.item[0], node.item[1]))
   }
 }

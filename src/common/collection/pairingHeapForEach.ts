@@ -1,16 +1,16 @@
 import type { PairingNode } from '@flemist/pairing-heap'
 
 export function pairingHeapForEach<Item>(
-  node: PairingNode<Item> | null | undefined,
+  root: PairingNode<Item> | null | undefined,
   /** @returns true to break the loop */
   func: (node: PairingNode<Item>) => boolean | undefined | null | void,
 ): void {
-  if (node == null) {
+  if (root == null) {
     return
   }
-  const stack: PairingNode<Item>[] = [node]
+  const stack: PairingNode<Item>[] = [root]
   while (stack.length > 0) {
-    const node = stack.pop() as PairingNode<Item>
+    const node = stack.pop()!
     const result = func(node)
     if (result) {
       break

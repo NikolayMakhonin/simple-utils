@@ -37,11 +37,7 @@ export interface ICacheStats<Key, Stat extends CacheStat> {
 
   get(key: Key): PromiseLikeOrValue<Stat | null>
 
-  set(
-    key: Key,
-    statOld: Stat | null | undefined,
-    statNew: Stat | null | undefined,
-  ): PromiseLikeOrValue<void>
+  set(key: Key, statNew: Stat | null | undefined): PromiseLikeOrValue<void>
 
   forEach(
     /** @returns true to break the loop */
