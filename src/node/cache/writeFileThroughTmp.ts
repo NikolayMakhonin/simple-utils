@@ -2,6 +2,7 @@ import { type IPool, poolRunWait } from '@flemist/time-limits'
 import path from 'path'
 import { poolFs } from 'src/node/fs/pools'
 import fs from 'fs'
+import { promiseAllWait } from '../../common'
 
 export async function writeFileThroughTmp(
   filePath: string,
@@ -15,17 +16,21 @@ export async function writeFileThroughTmp(
     pool: pool ?? poolFs,
     count: 1,
     func: async () => {
-      await Promise.all([
-        fs.promises.mkdir(path.dirname(filePath), { recursive: true }),
-        (async () => {
-          await fs.promises.mkdir(path.dirname(tmpPath), { recursive: true })
-          await fs.promises.writeFile(tmpPath, data)
-        })(),
-      ])
+      let tmpWritten = false
       try {
+        await promiseAllWait([
+          fs.promises.mkdir(path.dirname(filePath), { recursive: true }),
+          (async () => {
+            await fs.promises.mkdir(path.dirname(tmpPath), { recursive: true })
+            await fs.promises.writeFile(tmpPath, data)
+            tmpWritten = true
+          })(),
+        ])
         await fs.promises.rename(tmpPath, filePath)
       } catch (err) {
-        await fs.promises.unlink(tmpPath).catch(() => {})
+        if (tmpWritten) {
+          await fs.promises.unlink(tmpPath).catch(() => {})
+        }
         throw err
       }
     },

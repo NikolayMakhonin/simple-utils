@@ -5,7 +5,7 @@ import * as fs from 'fs'
 import { type IStorage } from 'src/common/cache/types'
 import { writeFileThroughTmp } from './writeFileThroughTmp'
 import { generateTempFileName } from './generateTempFileName'
-import type { Converter } from 'src/common'
+import { type Converter, promiseAllWait } from 'src/common'
 import { readDirRecursive } from 'src/node/fs'
 
 export type FileStorageOptionsBase = {
@@ -89,7 +89,7 @@ export class FileStorage implements IFileStorage {
 
   async clear(): Promise<void> {
     const keys = await this.getKeys()
-    await Promise.all(keys.map(key => this.delete(key)))
+    await promiseAllWait(keys.map(key => this.delete(key)))
   }
 
   async getKeys(): Promise<string[]> {

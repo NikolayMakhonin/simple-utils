@@ -11,7 +11,7 @@ import {
   type ITimeController,
   timeControllerDefault,
 } from '@flemist/time-controller'
-import { type ILockerWithId, LockerWithId } from '../async'
+import { type ILockerWithId, LockerWithId, promiseAllWait } from '../async'
 import type { NumberRange } from '../types'
 import { CacheStats } from './CacheStats'
 
@@ -118,6 +118,7 @@ export class Cache<
   }
 
   private async freeUpSpace(
+    currentKey: Key,
     statOld: CacheStat | null,
     statNew: CacheStat,
   ): Promise<void> {
@@ -134,14 +135,12 @@ export class Cache<
       )
     }
 
-    let totalSizeOld = await this._stats.getTotalSize()
-    const totalSizeDelta = statNew.size - (statOld?.size ?? 0)
+    let totalSize = await this._stats.getTotalSize()
+    totalSize += statNew.size - (statOld?.size ?? 0)
 
-    if (totalSizeOld + totalSizeDelta <= totalSizeMax) {
+    if (totalSize <= totalSizeMax) {
       return
     }
-
-    totalSizeOld += totalSizeDelta
 
     const promises: PromiseLike<void>[] = []
 
@@ -150,26 +149,28 @@ export class Cache<
     statsArray.sort(compareLru)
 
     statsArray.forEach(([key, stat]) => {
+      // skip the current key: its space contribution is already accounted for
+      if (key === currentKey) {
+        return
+      }
       const totalSizeDelta = -stat.size
       if (
-        totalSizeOld > totalSizeMax ||
-        totalSizeOld + totalSizeDelta > totalSizeMin
+        totalSize > totalSizeMax ||
+        totalSize + totalSizeDelta > totalSizeMin
       ) {
         promises.push(
-          Promise.all([
+          promiseAllWait([
             this._options.storages.value.delete(key),
             this._options.storages.error.delete(key),
           ]).then(() => {
             return this._stats.set(key, null)
           }),
         )
-        totalSizeOld += totalSizeDelta
-      } else {
-        return true
+        totalSize += totalSizeDelta
       }
     })
 
-    await Promise.all(promises)
+    await promiseAllWait(promises)
   }
 
   async getOrCreate<T extends Value>(
@@ -181,18 +182,19 @@ export class Cache<
       : (input as unknown as Key)
 
     return this._locker.lock(key, async () => {
-      const statOld = await this._stats.get(key)
+      let statOld = await this._stats.get(key)
 
       if (
         statOld == null ||
         (this._options.isExpired != null && this._options.isExpired(statOld))
       ) {
         // Expired
-        await Promise.all([
+        await promiseAllWait([
           this._options.storages.value.delete(key),
           this._options.storages.error.delete(key),
           this._stats.set(key, null),
         ])
+        statOld = null
       } else {
         const [storedValue, storedError] = await Promise.all([
           this._options.storages.value.get(key),
@@ -240,8 +242,8 @@ export class Cache<
           dateUsed: now,
           size,
         }
-        await this.freeUpSpace(statOld, statNew)
-        await Promise.all([
+        await this.freeUpSpace(key, statOld, statNew)
+        await promiseAllWait([
           this._options.storages.value.set(key, storedValue),
           this._options.storages.error.delete(key),
         ])
@@ -261,8 +263,8 @@ export class Cache<
           size,
           hasError: true,
         }
-        await this.freeUpSpace(statOld, statNew)
-        await Promise.all([
+        await this.freeUpSpace(key, statOld, statNew)
+        await promiseAllWait([
           this._options.storages.error.set(key, storedError),
           this._options.storages.value.delete(key),
         ])
@@ -277,7 +279,7 @@ export class Cache<
       ? await this._options.converterInput(input)
       : (input as unknown as Key)
     return this._locker.lock(key, async () => {
-      await Promise.all([
+      await promiseAllWait([
         this._options.storages.value.delete(key),
         this._options.storages.error.delete(key),
         this._stats.set(key, null),
@@ -308,12 +310,12 @@ export class Cache<
         if (isPromiseLike(statSetResult)) {
           innerPromises.push(statSetResult)
         }
-        await Promise.all(innerPromises)
+        await promiseAllWait(innerPromises)
       })
       if (isPromiseLike(lockResult)) {
         lockPromises.push(lockResult)
       }
     })
-    await Promise.all(lockPromises)
+    await promiseAllWait(lockPromises)
   }
 }

@@ -76,21 +76,25 @@ export class FileStatStorage implements IStorageDb<string, CacheStat> {
         ])
         if (statValue != null && statError != null) {
           const hasError = statError.mtimeMs >= statValue.mtimeMs
+          const stat = hasError ? statError : statValue
           return {
-            dateModified: hasError ? statError.mtimeMs : statValue.mtimeMs,
-            dateUsed: hasError ? statError.atimeMs : statValue.atimeMs,
+            dateModified: stat.mtimeMs,
+            dateUsed: stat.atimeMs,
+            size: stat.size,
             hasError,
           }
         } else if (statValue != null) {
           return {
             dateModified: statValue.mtimeMs,
             dateUsed: statValue.atimeMs,
+            size: statValue.size,
             hasError: false,
           }
         } else if (statError != null) {
           return {
             dateModified: statError.mtimeMs,
             dateUsed: statError.atimeMs,
+            size: statError.size,
             hasError: true,
           }
         } else {
@@ -100,8 +104,8 @@ export class FileStatStorage implements IStorageDb<string, CacheStat> {
     })
   }
 
-  async delete(_key: string): Promise<void> {
-    this._entries.delete(_key)
+  async delete(key: string): Promise<void> {
+    this._entries.delete(key)
     // Nothing to delete from fs, because stat is stored in file metadata
   }
 
@@ -134,6 +138,7 @@ export class FileStatStorage implements IStorageDb<string, CacheStat> {
           }
         }),
       )
+      this._entriesLoaded = true
     }
     return this._entries
   }
