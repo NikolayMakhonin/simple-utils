@@ -5,6 +5,8 @@ import { getHashKey } from 'src/common/cache/getHashKey'
 import { FileStorage } from './FileStorage'
 import type { CacheOptions, CacheStat } from 'src/common/cache/Cache'
 import { createConverterSubPath } from './createConverterSubPath'
+import { FileStatStorage } from './FileStatStorage'
+import type { NumberRange } from '../../common'
 
 export function createFileCacheOptions<Input, Value>(options: {
   dir: string
@@ -13,6 +15,7 @@ export function createFileCacheOptions<Input, Value>(options: {
    * The temp dir can be shared between multiple cache instances
    */
   tmpDir: string
+  totalSize?: null | NumberRange
   converterInput?: null | ConvertToAsync<Input, string>
   converterValue?: null | ConverterAsync<Value, Uint8Array>
   isExpired?: null | ((stat: CacheStat) => boolean)
@@ -24,29 +27,37 @@ export function createFileCacheOptions<Input, Value>(options: {
   string,
   Uint8Array,
   Uint8Array,
-  Uint8Array
+  CacheStat
 > {
+  const storageValue = new FileStorage({
+    dir: options.dir,
+    tmpDir: options.tmpDir,
+    converterSubPath: createConverterSubPath({ suffix: '.value' }),
+  })
+  const storageError = new FileStorage({
+    dir: options.dir,
+    tmpDir: options.tmpDir,
+    converterSubPath: createConverterSubPath({ suffix: '.error' }),
+  })
   return {
     converterInput: options.converterInput ?? getHashKey,
     converterValue: options.converterValue ?? converterJsonBuffer,
     converterError: converterErrorToBuffer,
-    converterStat: converterJsonBuffer,
+    totalSize: options.totalSize,
+    getSize: {
+      value: value => value.byteLength,
+      error: error => error.byteLength,
+      stat: () => 0,
+    },
     isExpired: options.isExpired,
     storages: {
-      value: new FileStorage({
-        dir: options.dir,
-        tmpDir: options.tmpDir,
-        converterSubPath: createConverterSubPath({ suffix: '.value' }),
-      }),
-      error: new FileStorage({
-        dir: options.dir,
-        tmpDir: options.tmpDir,
-        converterSubPath: createConverterSubPath({ suffix: '.error' }),
-      }),
-      stat: new FileStorage({
-        dir: options.dir,
-        tmpDir: options.tmpDir,
-        converterSubPath: createConverterSubPath({ suffix: '.stat' }),
+      value: storageValue,
+      error: storageError,
+      stat: new FileStatStorage({
+        storages: {
+          value: storageValue,
+          error: storageError,
+        },
       }),
     },
   }

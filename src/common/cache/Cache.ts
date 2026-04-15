@@ -1,16 +1,17 @@
 import { isPromiseLike, type PromiseLikeOrValue } from '@flemist/async-utils'
-import type { ICache, IStorage } from './types'
+import type { ICache, IStorage, IStorageDb } from './types'
 import type { ConverterAsync, ConvertToAsync } from 'src/common/converter'
 import {
   type ITimeController,
   timeControllerDefault,
 } from '@flemist/time-controller'
 import { type ILockerWithId, LockerWithId } from '../async'
+import type { NumberRange } from '../types'
 
 export type CacheStorages<Key, Value, Error, Stat> = {
   value: IStorage<Key, Value>
   error: IStorage<Key, Error>
-  stat: IStorage<Key, Stat>
+  stat: IStorageDb<Key, Stat>
 }
 
 export type CacheOptions<
@@ -18,16 +19,28 @@ export type CacheOptions<
   Value,
   Error,
   Stat,
-  Key,
-  ValueStored,
-  ErrorStored,
-  StatStored,
+  Key = Input,
+  ValueStored = Value,
+  ErrorStored = Error,
+  StatStored = Stat,
 > = {
-  converterInput: ConvertToAsync<Input, Key>
-  converterValue: ConverterAsync<Value, ValueStored>
-  converterError: ConverterAsync<Error, ErrorStored>
-  converterStat: ConverterAsync<Stat, StatStored>
+  converterInput?: null | ConvertToAsync<Input, Key>
+  converterValue?: null | ConverterAsync<Value, ValueStored>
+  converterError?: null | ConverterAsync<Error, ErrorStored>
+  converterStat?: null | ConverterAsync<Stat, StatStored>
   storages: CacheStorages<Key, ValueStored, ErrorStored, StatStored>
+  /**
+   * 1) When adding a new value to the cache, the cache size should not exceed totalSize[1]
+   * 2) After freeing up space, the cache size should not become less than totalSize[0]
+   * If both conditions cannot be met at the same time, priority is given to the first condition
+   * If it is not possible to meet even the first condition, an error is thrown
+   */
+  totalSize?: null | NumberRange
+  getSize: {
+    value: (value: ValueStored) => number
+    error: (error: ErrorStored) => number
+    stat: (stat: StatStored) => number
+  }
   isExpired?: null | ((stat: Stat) => boolean)
   timeController?: null | ITimeController
 }
@@ -83,14 +96,18 @@ export class Cache<
     input: Input,
     func: (input: Input) => PromiseLikeOrValue<T>,
   ): Promise<T> {
-    const key = await this._options.converterInput(input)
+    const key = this._options.converterInput
+      ? await this._options.converterInput(input)
+      : (input as unknown as Key)
 
     return this._locker.lock(key, async () => {
       const storedStat = await this._options.storages.stat.get(key)
       let isExpired: boolean
       let stat: CacheStat | null = null
       if (storedStat) {
-        stat = await this._options.converterStat.from(storedStat)
+        stat = this._options.converterStat
+          ? await this._options.converterStat.from(storedStat)
+          : (storedStat as unknown as CacheStat)
         isExpired =
           this._options.isExpired != null
             ? this._options.isExpired(stat)
@@ -119,8 +136,12 @@ export class Cache<
             dateUsed: now,
           }
           const [value, storedStat] = await Promise.all([
-            this._options.converterValue.from(storedValue),
-            this._options.converterStat.to(stat),
+            this._options.converterValue
+              ? await this._options.converterValue.from(storedValue)
+              : (storedValue as unknown as Value),
+            this._options.converterStat
+              ? await this._options.converterStat.to(stat)
+              : (stat as unknown as StatStored),
           ])
           await this._options.storages.stat.set(key, storedStat)
           return value as T
@@ -133,8 +154,12 @@ export class Cache<
             hasError: true,
           }
           const [error, storedStat] = await Promise.all([
-            this._options.converterError.from(storedError),
-            this._options.converterStat.to(stat),
+            this._options.converterError
+              ? await this._options.converterError.from(storedError)
+              : (storedError as unknown as Error),
+            this._options.converterStat
+              ? await this._options.converterStat.to(stat)
+              : (stat as unknown as StatStored),
           ])
           await this._options.storages.stat.set(key, storedStat)
           throw error
@@ -149,8 +174,12 @@ export class Cache<
           dateUsed: now,
         }
         const [storedValue, storedStat] = await Promise.all([
-          this._options.converterValue.to(value),
-          this._options.converterStat.to(stat),
+          this._options.converterValue
+            ? await this._options.converterValue.to(value)
+            : (value as unknown as ValueStored),
+          this._options.converterStat
+            ? await this._options.converterStat.to(stat)
+            : (stat as unknown as StatStored),
         ])
         await this._options.storages.value.set(key, storedValue)
         await Promise.all([
@@ -158,7 +187,7 @@ export class Cache<
           this._options.storages.error.delete(key),
         ])
         return value
-      } catch (err) {
+      } catch (error) {
         const now = this._timeController.now()
         stat = {
           dateModified: now,
@@ -166,21 +195,27 @@ export class Cache<
           hasError: true,
         }
         const [storedError, storedStat] = await Promise.all([
-          this._options.converterError.to(err),
-          this._options.converterStat.to(stat),
+          this._options.converterError
+            ? await this._options.converterError.to(error)
+            : (error as unknown as ErrorStored),
+          this._options.converterStat
+            ? await this._options.converterStat.to(stat)
+            : (stat as unknown as StatStored),
         ])
         await Promise.all([
           this._options.storages.value.delete(key),
           this._options.storages.error.set(key, storedError),
         ])
         await this._options.storages.stat.set(key, storedStat)
-        throw err
+        throw error
       }
     })
   }
 
   async delete(input: Input): Promise<void> {
-    const key = await this._options.converterInput(input)
+    const key = this._options.converterInput
+      ? await this._options.converterInput(input)
+      : (input as unknown as Key)
     return this._locker.lock(key, async () => {
       await Promise.all([
         this._options.storages.value.delete(key),
