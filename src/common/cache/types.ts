@@ -24,3 +24,27 @@ export type ICache<Input, Value> = {
 
   clear(): PromiseOrValue<void>
 }
+export type CacheStat = {
+  /** Date when the value or error was created last time */
+  dateModified: number
+  dateUsed: number
+  size: number
+  hasError?: null | boolean
+}
+
+export interface ICacheStats<Key, Stat extends CacheStat> {
+  getTotalSize(): PromiseLikeOrValue<number>
+
+  get(key: Key): PromiseLikeOrValue<Stat | null>
+
+  set(
+    key: Key,
+    statOld: Stat | null | undefined,
+    statNew: Stat | null | undefined,
+  ): PromiseLikeOrValue<void>
+
+  forEach(
+    /** @returns true to break the loop */
+    func: (key: Key, stat: Stat) => boolean | undefined | null | void,
+  ): void
+}

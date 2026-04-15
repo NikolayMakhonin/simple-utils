@@ -14,6 +14,9 @@ importers:
       '@flemist/async-utils':
         specifier: ^1.2.8
         version: 1.2.8
+      '@flemist/pairing-heap':
+        specifier: 1.0.0
+        version: 1.0.0
       '@flemist/priority-queue':
         specifier: ^1.0.1
         version: 1.0.1
@@ -24,7 +27,7 @@ importers:
         specifier: ^2.0.4
         version: 2.0.4
       fflate:
-        specifier: 0.8.2
+        specifier: ^0.8.2
         version: 0.8.2
       picomatch:
         specifier: ^4.0.4

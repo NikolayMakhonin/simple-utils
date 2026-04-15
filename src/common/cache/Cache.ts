@@ -1,5 +1,11 @@
 import { isPromiseLike, type PromiseLikeOrValue } from '@flemist/async-utils'
-import type { ICache, IStorage, IStorageDb } from './types'
+import type {
+  CacheStat,
+  ICache,
+  ICacheStats,
+  IStorage,
+  IStorageDb,
+} from './types'
 import type { ConverterAsync, ConvertToAsync } from 'src/common/converter'
 import {
   type ITimeController,
@@ -7,6 +13,7 @@ import {
 } from '@flemist/time-controller'
 import { type ILockerWithId, LockerWithId } from '../async'
 import type { NumberRange } from '../types'
+import { CacheStats } from './CacheStats'
 
 export type CacheStorages<Key, Value, Error, Stat> = {
   value: IStorage<Key, Value>
@@ -18,7 +25,7 @@ export type CacheOptions<
   Input,
   Value,
   Error,
-  Stat,
+  Stat extends CacheStat,
   Key = Input,
   ValueStored = Value,
   ErrorStored = Error,
@@ -39,17 +46,10 @@ export type CacheOptions<
   getSize: {
     value: (value: ValueStored) => number
     error: (error: ErrorStored) => number
-    stat: (stat: StatStored) => number
+    stat: () => number
   }
   isExpired?: null | ((stat: Stat) => boolean)
   timeController?: null | ITimeController
-}
-
-export type CacheStat = {
-  /** Date when the value or error was created last time */
-  dateModified: number
-  dateUsed: number
-  hasError?: null | boolean
 }
 
 export class Cache<
@@ -74,6 +74,7 @@ export class Cache<
   >
   private readonly _timeController: ITimeController
   private readonly _locker: ILockerWithId<Key>
+  private readonly _stats: ICacheStats<Key, CacheStat>
 
   constructor(
     options: CacheOptions<
@@ -90,6 +91,60 @@ export class Cache<
     this._options = options
     this._timeController = options.timeController ?? timeControllerDefault
     this._locker = new LockerWithId()
+    this._stats = new CacheStats({
+      storage: options.storages.stat,
+      converter: options.converterStat,
+    })
+  }
+
+  private async freeUpSpace(
+    statOld: CacheStat | null,
+    statNew: CacheStat,
+  ): Promise<void> {
+    if (this._options.totalSize == null) {
+      return
+    }
+
+    const totalSizeMin = this._options.totalSize[0]
+    const totalSizeMax = this._options.totalSize[1]
+
+    if (statNew.size > totalSizeMax) {
+      throw new Error(
+        `[Cache] Cannot add value to cache because its size (${statNew.size}) exceeds the maximum total size (${totalSizeMax})`,
+      )
+    }
+
+    let totalSizeOld = await this._stats.getTotalSize()
+    const totalSizeDelta = statNew.size - (statOld?.size ?? 0)
+
+    if (totalSizeOld + totalSizeDelta <= totalSizeMax) {
+      return
+    }
+
+    totalSizeOld += totalSizeDelta
+
+    const promises: PromiseLike<void>[] = []
+    this._stats.forEach((key, stat) => {
+      const totalSizeDelta = -stat.size
+      if (
+        totalSizeOld > totalSizeMax ||
+        totalSizeOld + totalSizeDelta > totalSizeMin
+      ) {
+        promises.push(
+          Promise.all([
+            this._options.storages.value.delete(key),
+            this._options.storages.error.delete(key),
+          ]).then(() => {
+            return this._stats.set(key, stat, null)
+          }),
+        )
+        totalSizeOld += totalSizeDelta
+      } else {
+        return true
+      }
+    })
+
+    await Promise.all(promises)
   }
 
   async getOrCreate<T extends Value>(
@@ -101,26 +156,17 @@ export class Cache<
       : (input as unknown as Key)
 
     return this._locker.lock(key, async () => {
-      const storedStat = await this._options.storages.stat.get(key)
-      let isExpired: boolean
-      let stat: CacheStat | null = null
-      if (storedStat) {
-        stat = this._options.converterStat
-          ? await this._options.converterStat.from(storedStat)
-          : (storedStat as unknown as CacheStat)
-        isExpired =
-          this._options.isExpired != null
-            ? this._options.isExpired(stat)
-            : false
-      } else {
-        isExpired = true
-      }
+      const statOld = await this._stats.get(key)
 
-      if (isExpired) {
+      if (
+        statOld == null ||
+        (this._options.isExpired != null && this._options.isExpired(statOld))
+      ) {
+        // Expired
         await Promise.all([
           this._options.storages.value.delete(key),
           this._options.storages.error.delete(key),
-          this._options.storages.stat.delete(key),
+          this._stats.set(key, statOld, null),
         ])
       } else {
         const [storedValue, storedError] = await Promise.all([
@@ -130,38 +176,27 @@ export class Cache<
 
         const now = this._timeController.now()
 
-        if (storedValue != null) {
-          stat = {
-            dateModified: stat?.dateModified ?? now,
+        if (!statOld.hasError && storedValue != null) {
+          const statNew = {
+            ...statOld,
             dateUsed: now,
           }
-          const [value, storedStat] = await Promise.all([
-            this._options.converterValue
-              ? await this._options.converterValue.from(storedValue)
-              : (storedValue as unknown as Value),
-            this._options.converterStat
-              ? await this._options.converterStat.to(stat)
-              : (stat as unknown as StatStored),
-          ])
-          await this._options.storages.stat.set(key, storedStat)
+          const value = this._options.converterValue
+            ? await this._options.converterValue.from(storedValue)
+            : (storedValue as unknown as Value)
+          await this._stats.set(key, statOld, statNew)
           return value as T
         }
 
-        if (storedError != null) {
-          stat = {
-            dateModified: stat?.dateModified ?? now,
+        if (statOld.hasError && storedError != null) {
+          const statNew = {
+            ...statOld,
             dateUsed: now,
-            hasError: true,
           }
-          const [error, storedStat] = await Promise.all([
-            this._options.converterError
-              ? await this._options.converterError.from(storedError)
-              : (storedError as unknown as Error),
-            this._options.converterStat
-              ? await this._options.converterStat.to(stat)
-              : (stat as unknown as StatStored),
-          ])
-          await this._options.storages.stat.set(key, storedStat)
+          const error = this._options.converterError
+            ? await this._options.converterError.from(storedError)
+            : (storedError as unknown as Error)
+          await this._stats.set(key, statOld, statNew)
           throw error
         }
       }
@@ -169,44 +204,44 @@ export class Cache<
       try {
         const value = await func(input)
         const now = this._timeController.now()
-        stat = {
+        const storedValue = this._options.converterValue
+          ? await this._options.converterValue.to(value)
+          : (value as unknown as ValueStored)
+        const size =
+          this._options.getSize.value(storedValue) +
+          this._options.getSize.stat()
+        const statNew: CacheStat = {
           dateModified: now,
           dateUsed: now,
+          size,
         }
-        const [storedValue, storedStat] = await Promise.all([
-          this._options.converterValue
-            ? await this._options.converterValue.to(value)
-            : (value as unknown as ValueStored),
-          this._options.converterStat
-            ? await this._options.converterStat.to(stat)
-            : (stat as unknown as StatStored),
-        ])
-        await this._options.storages.value.set(key, storedValue)
+        await this.freeUpSpace(statOld, statNew)
         await Promise.all([
-          this._options.storages.stat.set(key, storedStat),
+          this._options.storages.value.set(key, storedValue),
           this._options.storages.error.delete(key),
         ])
+        await this._stats.set(key, statOld, statNew)
         return value
       } catch (error) {
         const now = this._timeController.now()
-        stat = {
+        const storedError = this._options.converterError
+          ? await this._options.converterError.to(error)
+          : (error as unknown as ErrorStored)
+        const size =
+          this._options.getSize.error(storedError) +
+          this._options.getSize.stat()
+        const statNew: CacheStat = {
           dateModified: now,
           dateUsed: now,
+          size,
           hasError: true,
         }
-        const [storedError, storedStat] = await Promise.all([
-          this._options.converterError
-            ? await this._options.converterError.to(error)
-            : (error as unknown as ErrorStored),
-          this._options.converterStat
-            ? await this._options.converterStat.to(stat)
-            : (stat as unknown as StatStored),
-        ])
+        await this.freeUpSpace(statOld, statNew)
         await Promise.all([
-          this._options.storages.value.delete(key),
           this._options.storages.error.set(key, storedError),
+          this._options.storages.value.delete(key),
         ])
-        await this._options.storages.stat.set(key, storedStat)
+        await this._stats.set(key, statOld, statNew)
         throw error
       }
     })

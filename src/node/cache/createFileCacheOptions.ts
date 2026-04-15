@@ -3,10 +3,10 @@ import { converterErrorToBuffer } from 'src/common/converter/converterErrorToBuf
 import { converterJsonBuffer } from 'src/common/converter/converterJsonBuffer'
 import { getHashKey } from 'src/common/cache/getHashKey'
 import { FileStorage } from './FileStorage'
-import type { CacheOptions, CacheStat } from 'src/common/cache/Cache'
+import type { CacheOptions } from 'src/common/cache/Cache'
 import { createConverterSubPath } from './createConverterSubPath'
 import { FileStatStorage } from './FileStatStorage'
-import type { NumberRange } from '../../common'
+import type { CacheStat, NumberRange } from '../../common'
 
 export function createFileCacheOptions<Input, Value>(options: {
   dir: string
