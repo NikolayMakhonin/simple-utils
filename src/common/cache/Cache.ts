@@ -228,32 +228,21 @@ export class Cache<
         }
       }
 
+      let value: T = null!
+      let funcError: any = null
+      let funcThrew = false
       try {
-        const value = await func(input)
-        const now = this._timeController.now()
-        const storedValue = this._options.converterValue
-          ? await this._options.converterValue.to(value)
-          : (value as unknown as ValueStored)
-        const size =
-          this._options.getSize.value(storedValue) +
-          this._options.getSize.stat()
-        const statNew: CacheStat = {
-          dateModified: now,
-          dateUsed: now,
-          size,
-        }
-        await this.freeUpSpace(key, statOld, statNew)
-        await promiseAllWait([
-          this._options.storages.value.set(key, storedValue),
-          this._options.storages.error.delete(key),
-        ])
-        await this._stats.set(key, statNew)
-        return value
+        value = await func(input)
       } catch (error) {
-        const now = this._timeController.now()
+        funcError = error
+        funcThrew = true
+      }
+
+      const now = this._timeController.now()
+      if (funcThrew) {
         const storedError = this._options.converterError
-          ? await this._options.converterError.to(error)
-          : (error as unknown as ErrorStored)
+          ? await this._options.converterError.to(funcError)
+          : (funcError as unknown as ErrorStored)
         const size =
           this._options.getSize.error(storedError) +
           this._options.getSize.stat()
@@ -269,8 +258,26 @@ export class Cache<
           this._options.storages.value.delete(key),
         ])
         await this._stats.set(key, statNew)
-        throw error
+        throw funcError
       }
+
+      const storedValue = this._options.converterValue
+        ? await this._options.converterValue.to(value)
+        : (value as unknown as ValueStored)
+      const size =
+        this._options.getSize.value(storedValue) + this._options.getSize.stat()
+      const statNew: CacheStat = {
+        dateModified: now,
+        dateUsed: now,
+        size,
+      }
+      await this.freeUpSpace(key, statOld, statNew)
+      await promiseAllWait([
+        this._options.storages.value.set(key, storedValue),
+        this._options.storages.error.delete(key),
+      ])
+      await this._stats.set(key, statNew)
+      return value
     })
   }
 
