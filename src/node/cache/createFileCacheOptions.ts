@@ -44,9 +44,7 @@ export function createFileCacheOptions<Input, Value>(options: {
     tmpDir: options.tmpDir,
     converterSubPath: createConverterSubPath({ suffix: '.error' }),
   })
-  const compressOptions = options.compressOptions ?? {
-    level: 9,
-  }
+  const compressOptions = options.compressOptions
   return {
     converterInput: options.converterInput ?? getHashKey,
     converterValue:
