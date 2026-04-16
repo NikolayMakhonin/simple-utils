@@ -17,7 +17,7 @@ import { CacheStats } from './CacheStats'
 
 export type CacheStorages<Key, Value, Error, Stat> = {
   value: IStorage<Key, Value>
-  error: IStorage<Key, Error>
+  error?: null | IStorage<Key, Error>
   stat: IStorageDb<Key, Stat>
 }
 
@@ -169,7 +169,7 @@ export class Cache<
           this._locker.lock(key, async () => {
             await promiseAllWait([
               this._options.storages.value.delete(key),
-              this._options.storages.error.delete(key),
+              this._options.storages.error?.delete(key),
             ])
             return this._stats.set(key, null)
           }),
@@ -199,14 +199,14 @@ export class Cache<
         // Expired
         await promiseAllWait([
           this._options.storages.value.delete(key),
-          this._options.storages.error.delete(key),
+          this._options.storages.error?.delete(key),
           this._stats.set(key, null),
         ])
         statOld = null
       } else {
         const [storedValue, storedError] = await Promise.all([
           this._options.storages.value.get(key),
-          this._options.storages.error.get(key),
+          this._options.storages.error?.get(key),
         ])
 
         const now = this._timeController.now()
@@ -247,6 +247,13 @@ export class Cache<
       }
 
       if (funcThrew) {
+        if (this._options.storages.error == null) {
+          await promiseAllWait([
+            this._options.storages.value.delete(key),
+            this._stats.set(key, null),
+          ])
+          throw funcError
+        }
         const storedError = this._options.converterError
           ? await this._options.converterError.to(funcError)
           : (funcError as unknown as ErrorStored)
@@ -277,7 +284,7 @@ export class Cache<
       await this.freeUpSpace(key, statOld?.size, size)
       await promiseAllWait([
         this._options.storages.value.set(key, storedValue),
-        this._options.storages.error.delete(key),
+        this._options.storages.error?.delete(key),
       ])
       const now = this._timeController.now()
       const statNew: CacheStat = {
@@ -297,7 +304,7 @@ export class Cache<
     return this._locker.lock(key, async () => {
       await promiseAllWait([
         this._options.storages.value.delete(key),
-        this._options.storages.error.delete(key),
+        this._options.storages.error?.delete(key),
         this._stats.set(key, null),
       ])
     })
@@ -310,10 +317,10 @@ export class Cache<
   async clear(): Promise<void> {
     const [keysValue, keysError, keysStat] = await Promise.all([
       this._options.storages.value.getKeys(),
-      this._options.storages.error.getKeys(),
+      this._options.storages.error?.getKeys(),
       this._options.storages.stat.getKeys(),
     ])
-    const keys = new Set([...keysValue, ...keysError, ...keysStat])
+    const keys = new Set([...keysValue, ...(keysError ?? []), ...keysStat])
     const promises: Promise<void>[] = []
     keys.forEach(key => {
       const promiseOrValue = this._locker.lock(key, async () => {
@@ -322,7 +329,7 @@ export class Cache<
         if (isPromiseLike(valueDeleteResult)) {
           innerPromises.push(valueDeleteResult)
         }
-        const errorDeleteResult = this._options.storages.error.delete(key)
+        const errorDeleteResult = this._options.storages.error?.delete(key)
         if (isPromiseLike(errorDeleteResult)) {
           innerPromises.push(errorDeleteResult)
         }

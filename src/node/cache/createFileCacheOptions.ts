@@ -24,6 +24,7 @@ export function createFileCacheOptions<Input, Value>(options: {
   totalSize?: null | NumberRange
   converterInput?: null | ConvertToAsync<Input, string>
   converterValue?: null | ConverterAsync<Value, Uint8Array>
+  cacheErrors?: null | boolean
   isExpired?: null | ((stat: CacheStat) => boolean)
   compressOptions?: null | CompressGzipOptions
 }): CacheOptions<
@@ -41,11 +42,13 @@ export function createFileCacheOptions<Input, Value>(options: {
     tmpDir: options.tmpDir,
     converterSubPath: createConverterSubPath({ suffix: '.value' }),
   })
-  const storageError = new FileStorage({
-    dir: options.dir,
-    tmpDir: options.tmpDir,
-    converterSubPath: createConverterSubPath({ suffix: '.error' }),
-  })
+  const storageError = options.cacheErrors
+    ? new FileStorage({
+        dir: options.dir,
+        tmpDir: options.tmpDir,
+        converterSubPath: createConverterSubPath({ suffix: '.error' }),
+      })
+    : null
   const compressOptions = options.compressOptions
   return {
     converterInput: options.converterInput ?? getHashKey,

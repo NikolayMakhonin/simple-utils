@@ -8,7 +8,7 @@ import type { IFileStorage } from './FileStorage'
 export type FileStatStorageOptions = {
   storages: {
     value: IFileStorage
-    error: IFileStorage
+    error?: null | IFileStorage
   }
   pool?: null | IPool
 }
@@ -26,6 +26,9 @@ export class FileStatStorage implements IStorageDb<string, CacheStat> {
     const storage = value.hasError
       ? this._options.storages.error
       : this._options.storages.value
+    if (storage == null) {
+      return
+    }
     const subPath = storage.options.converterSubPath.to(key)
     const filePath = path.resolve(storage.options.dir, subPath)
     await poolRunWait({
@@ -48,16 +51,21 @@ export class FileStatStorage implements IStorageDb<string, CacheStat> {
   async get(key: string): Promise<CacheStat | undefined> {
     const valueSubPath =
       this._options.storages.value.options.converterSubPath.to(key)
-    const errorSubPath =
-      this._options.storages.error.options.converterSubPath.to(key)
     const filePathValue = path.resolve(
       this._options.storages.value.options.dir,
       valueSubPath,
     )
-    const filePathError = path.resolve(
-      this._options.storages.error.options.dir,
-      errorSubPath,
-    )
+
+    let filePathError: string | null = null
+    if (this._options.storages.error != null) {
+      const errorSubPath =
+        this._options.storages.error.options.converterSubPath.to(key)
+      filePathError = path.resolve(
+        this._options.storages.error.options.dir,
+        errorSubPath,
+      )
+    }
+
     return await poolRunWait({
       pool: this._options.pool ?? poolFs,
       count: 1,
@@ -69,12 +77,14 @@ export class FileStatStorage implements IStorageDb<string, CacheStat> {
             }
             throw err
           }),
-          fs.promises.stat(filePathError).catch(err => {
-            if (err.code === 'ENOENT') {
-              return null
-            }
-            throw err
-          }),
+          filePathError
+            ? fs.promises.stat(filePathError).catch(err => {
+                if (err.code === 'ENOENT') {
+                  return null
+                }
+                throw err
+              })
+            : null,
         ])
         if (statValue != null && statError != null) {
           const hasError = statError.mtimeMs >= statValue.mtimeMs
@@ -119,11 +129,11 @@ export class FileStatStorage implements IStorageDb<string, CacheStat> {
   private async _getKeys(): Promise<string[]> {
     const [keysValue, keysError] = await Promise.all([
       this._options.storages.value.getKeys(),
-      this._options.storages.error.getKeys(),
+      this._options.storages.error?.getKeys(),
     ])
     // Keys from value and error storages cannot intersect by design,
     // otherwise we will have a lot of problems, not just here
-    return [...keysValue, ...keysError]
+    return [...keysValue, ...(keysError ?? [])]
   }
 
   async getEntries(): Promise<ReadonlyMap<string, CacheStat>> {

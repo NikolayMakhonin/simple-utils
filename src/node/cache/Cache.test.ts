@@ -981,6 +981,7 @@ describe('Cache', () => {
       const options = createFileCacheOptions({
         dir: DIR_CACHE,
         tmpDir: DIR_CACHE_TMP,
+        cacheErrors: true,
       })
       const cache = new Cache(options)
 
@@ -997,6 +998,29 @@ describe('Cache', () => {
           return 'should not be called'
         }),
       ).rejects.toBeDefined()
+    })
+
+    it('does not cache errors when cacheErrors is not set', async () => {
+      const options = createFileCacheOptions({
+        dir: DIR_CACHE,
+        tmpDir: DIR_CACHE_TMP,
+      })
+      const cache = new Cache(options)
+
+      await expect(
+        cache.getOrCreate('error-input', () => {
+          throw new Error('not-cached-error')
+        }),
+      ).rejects.toThrow('not-cached-error')
+
+      // Second call re-executes func because error was not cached
+      let callCount = 0
+      const result = await cache.getOrCreate('error-input', () => {
+        callCount++
+        return 'recovered-value'
+      })
+      expect(result).toBe('recovered-value')
+      expect(callCount).toBe(1)
     })
 
     it('respects totalSize with file storage', async () => {
@@ -1241,6 +1265,7 @@ describe('Cache', () => {
       const options = createFileCacheOptions({
         dir: DIR_CACHE,
         tmpDir: DIR_CACHE_TMP,
+        cacheErrors: true,
         compressOptions: { level: 9 },
       })
       const cache = new Cache(options)
