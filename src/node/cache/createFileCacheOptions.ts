@@ -1,12 +1,16 @@
-import type { ConverterAsync, ConvertToAsync } from 'src/common/converter'
-import { converterErrorToBuffer } from 'src/common/converter/converterErrorToBuffer'
-import { converterJsonBuffer } from 'src/common/converter/converterJsonBuffer'
+import {
+  createConverterErrorToGzip,
+  createConverterJsonGzip,
+  type ConverterAsync,
+  type ConvertToAsync,
+} from 'src/common/converter'
 import { getHashKey } from 'src/common/cache/getHashKey'
 import { FileStorage } from './FileStorage'
 import type { CacheOptions } from 'src/common/cache/Cache'
 import { createConverterSubPath } from './createConverterSubPath'
 import { FileStatStorage } from './FileStatStorage'
 import type { CacheStat, NumberRange } from '../../common'
+import type { CompressGzipOptions } from 'src/common/gzip/compressGzip'
 
 export function createFileCacheOptions<Input, Value>(options: {
   dir: string
@@ -19,6 +23,7 @@ export function createFileCacheOptions<Input, Value>(options: {
   converterInput?: null | ConvertToAsync<Input, string>
   converterValue?: null | ConverterAsync<Value, Uint8Array>
   isExpired?: null | ((stat: CacheStat) => boolean)
+  compressOptions?: null | CompressGzipOptions
 }): CacheOptions<
   Input,
   Value,
@@ -39,10 +44,14 @@ export function createFileCacheOptions<Input, Value>(options: {
     tmpDir: options.tmpDir,
     converterSubPath: createConverterSubPath({ suffix: '.error' }),
   })
+  const compressOptions = options.compressOptions ?? {
+    level: 9,
+  }
   return {
     converterInput: options.converterInput ?? getHashKey,
-    converterValue: options.converterValue ?? converterJsonBuffer,
-    converterError: converterErrorToBuffer,
+    converterValue:
+      options.converterValue ?? createConverterJsonGzip(compressOptions),
+    converterError: createConverterErrorToGzip(compressOptions),
     totalSize: options.totalSize,
     getSize: {
       value: value => value.byteLength,

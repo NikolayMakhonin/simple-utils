@@ -1,0 +1,84 @@
+/**
+ * Flemist MCP Project Tools Configuration
+ * This file directly configures the MCP server parameters
+ */
+
+{
+  $schema: './node_modules/@flemist/mcp-project-tools/flemist-mcp.config.schema.json',
+
+  port: 8000,
+  host: 'local.host',
+  logDir: 'tmp/mcp-project-tools/logs',
+
+  tools: {
+    processManager: {
+      workingDir: null, // Uses current directory
+      envCleanup: 'deleteServerPaths',
+      commandLineRules: [
+        {
+          rule: 'allow',
+          note: 'Echo command for output testing',
+          regexp: '^echo ',
+        },
+        {
+          rule: 'allow',
+          note: 'Run vitest tests (vitest --run --bail 3 src/dir/**/file.test.js)',
+          regexp: '^pnpm exec vitest --run --bail \\d+\\b',
+        },
+        {
+          rule: 'allow',
+          note: 'Check TypeScript types (tsc --noEmit src/dir/**/file.ts)',
+          regexp: '^pnpm exec tsc --noEmit\\b',
+        },
+        {
+          rule: 'allow',
+          note: 'Lint JavaScript/TypeScript (eslint --fix src/dir/**/file.js)',
+          regexp: '^pnpm exec eslint\\b',
+        },
+        {
+          rule: 'allow',
+          note: 'Lint CSS (stylelint --fix src/dir/**/file.svelte)',
+          regexp: '^pnpm exec stylelint\\b',
+        },
+        {
+          rule: 'allow',
+          note: 'Run pnpm script (pnpm run build)',
+          regexp: '^pnpm run ',
+        },
+        {
+          rule: 'allow',
+          note: 'pnpm install/uninstall packages (pnpm install package-name)',
+          regexp: '^pnpm (i|install|uninstall)\\b',
+        },
+        {
+          rule: 'deny',
+          note: 'global npm/pnpm install/uninstall packages',
+          regexp: '^p?npm.*( -g| --global)( |$)',
+        },
+        {
+          rule: 'allow',
+          note: 'git readonly commands (git status, git log)',
+          regexp: '^git (status|log|diff|show)\\b',
+        },
+        {
+          rule: 'allow',
+          note: 'next.js commands (next dev, next lint, next build)',
+          regexp: '^pnpm exec next\\b',
+        },
+        {
+          rule: 'deny',
+          note: 'multiple commands',
+          regexp: '[>|&;,\\n]',
+        },
+      ],
+    },
+
+    fsManager: {
+      workingDir: null, // Uses current directory
+      globsExclude: [],
+      list: false,
+    },
+
+    playwrightManager: null,
+  },
+}

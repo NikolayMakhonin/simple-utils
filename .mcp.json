@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "project-tools": {
+      "type": "http",
+      "url": "http://local.host:8000/mcp",
+      "headers": {
+        "X-Project-Name": "@flemist/simple-utils",
+        "Authorization": "Bearer d00f70240703039df14c76176a055bce6b5484d2b552ba2c89820f03b8e5e60d"
+      }
+    }
+  }
+}

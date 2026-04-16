@@ -1,8 +1,8 @@
-import { type ConverterAsync } from './types'
+import { type Converter } from './types'
 import { converterStringToBuffer } from './converterStringToBuffer'
 import { converterJson } from './converterJson'
 
-export const converterJsonBuffer: ConverterAsync<any, Uint8Array> = {
+export const converterJsonBuffer: Converter<any, Uint8Array> = {
   to: (value: any) => {
     const json = converterJson.to(value)
     return converterStringToBuffer.to(json)

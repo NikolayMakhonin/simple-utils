@@ -1,8 +1,8 @@
-import type { ConverterAsync } from './types'
+import type { Converter } from './types'
 import { formatAny } from 'src/common/string'
 import { converterStringToBuffer } from './converterStringToBuffer'
 
-export const converterErrorToBuffer: ConverterAsync<any, Uint8Array> = {
+export const converterErrorToBuffer: Converter<any, Uint8Array> = {
   to: (value: any) => {
     const error = formatAny(value, {
       pretty: true,
