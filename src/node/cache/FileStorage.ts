@@ -15,7 +15,9 @@ export type FileStorageOptionsBase = {
 
 export type FileStorageOptions = FileStorageOptionsBase & {
   /**
-   * Temp dir should be on the same device as dir to be meaningful.
+   * Temp dir should be on the same device as dir to be meaningful
+   * The cache writes files via atomic rename from tmp to target,
+   * which requires same device.
    * The temp dir can be shared between multiple cache instances
    */
   tmpDir: string
