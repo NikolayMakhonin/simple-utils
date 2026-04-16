@@ -46,15 +46,17 @@ export class FileStatStorage implements IStorageDb<string, CacheStat> {
   }
 
   async get(key: string): Promise<CacheStat | undefined> {
-    const subPath =
+    const valueSubPath =
       this._options.storages.value.options.converterSubPath.to(key)
+    const errorSubPath =
+      this._options.storages.error.options.converterSubPath.to(key)
     const filePathValue = path.resolve(
       this._options.storages.value.options.dir,
-      subPath,
+      valueSubPath,
     )
     const filePathError = path.resolve(
       this._options.storages.error.options.dir,
-      subPath,
+      errorSubPath,
     )
     return await poolRunWait({
       pool: this._options.pool ?? poolFs,
