@@ -9,6 +9,10 @@ import type { NumberRange } from 'src/common/types/common'
 import type { ConvertToAsync } from 'src/common/converter/types'
 import { TimeControllerMock } from '@flemist/time-controller'
 import { waitMicrotasks, waitTimeControllerMock } from '@flemist/async-utils'
+import {
+  decompressGzip,
+  isGzipCompressed,
+} from 'src/common/gzip/decompressGzip'
 
 const DIR_TMP = '-tmp/-test/cache'
 const DIR_CACHE = DIR_TMP + '/cache'
@@ -1162,6 +1166,177 @@ describe('Cache', () => {
 
       const result2 = await cache.getOrCreate('key1', () => 'not-called')
       expect(result2).toBe('hello')
+    })
+
+    it('stores plain JSON bytes when compressOptions is not provided', async () => {
+      const options = createFileCacheOptions({
+        dir: DIR_CACHE,
+        tmpDir: DIR_CACHE_TMP,
+      })
+      const cache = new Cache(options)
+
+      const payload = { message: 'plain-json', count: 7 }
+      await cache.getOrCreate('plain-key', () => payload)
+
+      const valueFiles = (await readDirFlat(DIR_CACHE)).filter(f =>
+        f.endsWith('.value'),
+      )
+      expect(valueFiles.length).toBe(1)
+      const bytes = await fs.promises.readFile(valueFiles[0])
+      expect(isGzipCompressed(bytes)).toBe(false)
+      expect(JSON.parse(new TextDecoder().decode(bytes))).toEqual(payload)
+    })
+
+    it('stores plain JSON bytes when compressOptions is null', async () => {
+      const options = createFileCacheOptions({
+        dir: DIR_CACHE,
+        tmpDir: DIR_CACHE_TMP,
+        compressOptions: null,
+      })
+      const cache = new Cache(options)
+
+      await cache.getOrCreate('null-key', () => ({ a: 1 }))
+
+      const valueFiles = (await readDirFlat(DIR_CACHE)).filter(f =>
+        f.endsWith('.value'),
+      )
+      const bytes = await fs.promises.readFile(valueFiles[0])
+      expect(isGzipCompressed(bytes)).toBe(false)
+    })
+
+    it('stores gzip-compressed bytes when compressOptions is set', async () => {
+      const options = createFileCacheOptions({
+        dir: DIR_CACHE,
+        tmpDir: DIR_CACHE_TMP,
+        compressOptions: { level: 9 },
+      })
+      const cache = new Cache(options)
+
+      const payload = { message: 'gzip-json', items: [1, 2, 3] }
+      const result1 = await cache.getOrCreate('gzip-key', () => payload)
+      expect(result1).toEqual(payload)
+
+      const valueFiles = (await readDirFlat(DIR_CACHE)).filter(f =>
+        f.endsWith('.value'),
+      )
+      expect(valueFiles.length).toBe(1)
+      const bytes = await fs.promises.readFile(valueFiles[0])
+      expect(isGzipCompressed(bytes)).toBe(true)
+
+      const decompressed = await decompressGzip(bytes)
+      expect(JSON.parse(new TextDecoder().decode(decompressed))).toEqual(
+        payload,
+      )
+
+      let callCount = 0
+      const result2 = await cache.getOrCreate('gzip-key', () => {
+        callCount++
+        return payload
+      })
+      expect(result2).toEqual(payload)
+      expect(callCount).toBe(0)
+    })
+
+    it('stores gzip-compressed errors when compressOptions is set', async () => {
+      const options = createFileCacheOptions({
+        dir: DIR_CACHE,
+        tmpDir: DIR_CACHE_TMP,
+        compressOptions: { level: 9 },
+      })
+      const cache = new Cache(options)
+
+      await expect(
+        cache.getOrCreate('gzip-err-key', () => {
+          throw new Error('gzip-cached-error')
+        }),
+      ).rejects.toThrow('gzip-cached-error')
+
+      const errorFiles = (await readDirFlat(DIR_CACHE)).filter(f =>
+        f.endsWith('.error'),
+      )
+      expect(errorFiles.length).toBe(1)
+      const bytes = await fs.promises.readFile(errorFiles[0])
+      expect(isGzipCompressed(bytes)).toBe(true)
+
+      await expect(
+        cache.getOrCreate('gzip-err-key', () => 'should-not-be-called'),
+      ).rejects.toThrow('gzip-cached-error')
+    })
+
+    it('compressOptions reduces on-disk size for compressible data', async () => {
+      const payload = { text: 'a'.repeat(10000) }
+
+      const plainOptions = createFileCacheOptions({
+        dir: DIR_CACHE,
+        tmpDir: DIR_CACHE_TMP,
+      })
+      const plainCache = new Cache(plainOptions)
+      await plainCache.getOrCreate('same-key', () => payload)
+      const plainBytes = await fs.promises.readFile(
+        (await readDirFlat(DIR_CACHE)).filter(f => f.endsWith('.value'))[0],
+      )
+
+      await fs.promises.rm(DIR_CACHE, { recursive: true })
+      await fs.promises.mkdir(DIR_CACHE, { recursive: true })
+
+      const gzipOptions = createFileCacheOptions({
+        dir: DIR_CACHE,
+        tmpDir: DIR_CACHE_TMP,
+        compressOptions: { level: 9 },
+      })
+      const gzipCache = new Cache(gzipOptions)
+      await gzipCache.getOrCreate('same-key', () => payload)
+      const gzipBytes = await fs.promises.readFile(
+        (await readDirFlat(DIR_CACHE)).filter(f => f.endsWith('.value'))[0],
+      )
+
+      expect(isGzipCompressed(plainBytes)).toBe(false)
+      expect(isGzipCompressed(gzipBytes)).toBe(true)
+      expect(gzipBytes.byteLength).toBeLessThan(plainBytes.byteLength)
+    })
+
+    it('compressOptions gzip persists across separate Cache instances', async () => {
+      const makeOptions = () =>
+        createFileCacheOptions({
+          dir: DIR_CACHE,
+          tmpDir: DIR_CACHE_TMP,
+          compressOptions: { level: 6 },
+        })
+
+      const cache1 = new Cache(makeOptions())
+      const payload = { persisted: true, items: ['x', 'y', 'z'] }
+      await cache1.getOrCreate('persistent-gzip-key', () => payload)
+
+      const cache2 = new Cache(makeOptions())
+      let callCount = 0
+      const result = await cache2.getOrCreate('persistent-gzip-key', () => {
+        callCount++
+        return { persisted: false, items: [] }
+      })
+      expect(result).toEqual(payload)
+      expect(callCount).toBe(0)
+    })
+
+    it('compressOptions level 0 still produces gzip wrapper', async () => {
+      const options = createFileCacheOptions({
+        dir: DIR_CACHE,
+        tmpDir: DIR_CACHE_TMP,
+        compressOptions: { level: 0 },
+      })
+      const cache = new Cache(options)
+
+      const payload = { message: 'level-zero' }
+      const result1 = await cache.getOrCreate('level0-key', () => payload)
+      expect(result1).toEqual(payload)
+
+      const valueFiles = (await readDirFlat(DIR_CACHE)).filter(f =>
+        f.endsWith('.value'),
+      )
+      const bytes = await fs.promises.readFile(valueFiles[0])
+      expect(isGzipCompressed(bytes)).toBe(true)
+
+      const result2 = await cache.getOrCreate('level0-key', () => payload)
+      expect(result2).toEqual(payload)
     })
   })
 })
