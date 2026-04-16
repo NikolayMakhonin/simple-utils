@@ -119,8 +119,8 @@ export class Cache<
 
   private async freeUpSpace(
     currentKey: Key,
-    statOld: CacheStat | null,
-    statNew: CacheStat,
+    sizeOld: number | null | undefined,
+    sizeNew: number,
   ): Promise<void> {
     if (this._options.totalSize == null) {
       return
@@ -129,14 +129,14 @@ export class Cache<
     const totalSizeMin = this._options.totalSize[0]
     const totalSizeMax = this._options.totalSize[1]
 
-    if (statNew.size > totalSizeMax) {
+    if (sizeNew > totalSizeMax) {
       throw new Error(
-        `[Cache][freeUpSpace] value size (${statNew.size}) exceeds maximum total size (${totalSizeMax})`,
+        `[Cache][freeUpSpace] value size (${sizeNew}) exceeds maximum total size (${totalSizeMax})`,
       )
     }
 
     let totalSize = await this._stats.getTotalSize()
-    totalSize += statNew.size - (statOld?.size ?? 0)
+    totalSize += sizeNew - (sizeOld ?? 0)
 
     if (totalSize <= totalSizeMax) {
       return
@@ -149,20 +149,28 @@ export class Cache<
     statsArray.sort(compareLru)
 
     statsArray.forEach(([key, stat]) => {
-      // skip the current key: its space contribution is already accounted for
+      // Skip the current key: its space contribution is already accounted for
       if (key === currentKey) {
         return
       }
+
+      // Those that are currently queued are obviously not worth deleting, since they are needed right now
+      const hasQueued = this._locker.hasQueued(key)
+      if (hasQueued) {
+        return
+      }
+
       const totalSizeDelta = -stat.size
       if (
         totalSize > totalSizeMax ||
         totalSize + totalSizeDelta > totalSizeMin
       ) {
         promises.push(
-          promiseAllWait([
-            this._options.storages.value.delete(key),
-            this._options.storages.error.delete(key),
-          ]).then(() => {
+          this._locker.lock(key, async () => {
+            await promiseAllWait([
+              this._options.storages.value.delete(key),
+              this._options.storages.error.delete(key),
+            ])
             return this._stats.set(key, null)
           }),
         )
@@ -238,7 +246,6 @@ export class Cache<
         funcThrew = true
       }
 
-      const now = this._timeController.now()
       if (funcThrew) {
         const storedError = this._options.converterError
           ? await this._options.converterError.to(funcError)
@@ -246,17 +253,18 @@ export class Cache<
         const size =
           this._options.getSize.error(storedError) +
           this._options.getSize.stat()
+        await this.freeUpSpace(key, statOld?.size, size)
+        await promiseAllWait([
+          this._options.storages.error.set(key, storedError),
+          this._options.storages.value.delete(key),
+        ])
+        const now = this._timeController.now()
         const statNew: CacheStat = {
           dateModified: now,
           dateUsed: now,
           size,
           hasError: true,
         }
-        await this.freeUpSpace(key, statOld, statNew)
-        await promiseAllWait([
-          this._options.storages.error.set(key, storedError),
-          this._options.storages.value.delete(key),
-        ])
         await this._stats.set(key, statNew)
         throw funcError
       }
@@ -266,16 +274,17 @@ export class Cache<
         : (value as unknown as ValueStored)
       const size =
         this._options.getSize.value(storedValue) + this._options.getSize.stat()
+      await this.freeUpSpace(key, statOld?.size, size)
+      await promiseAllWait([
+        this._options.storages.value.set(key, storedValue),
+        this._options.storages.error.delete(key),
+      ])
+      const now = this._timeController.now()
       const statNew: CacheStat = {
         dateModified: now,
         dateUsed: now,
         size,
       }
-      await this.freeUpSpace(key, statOld, statNew)
-      await promiseAllWait([
-        this._options.storages.value.set(key, storedValue),
-        this._options.storages.error.delete(key),
-      ])
       await this._stats.set(key, statNew)
       return value
     })
@@ -294,6 +303,10 @@ export class Cache<
     })
   }
 
+  /**
+   * Deletes all cache entries at this moment.
+   * But does not prevent new entries from being added during the clearing process
+   */
   async clear(): Promise<void> {
     const [keysValue, keysError, keysStat] = await Promise.all([
       this._options.storages.value.getKeys(),
@@ -301,9 +314,9 @@ export class Cache<
       this._options.storages.stat.getKeys(),
     ])
     const keys = new Set([...keysValue, ...keysError, ...keysStat])
-    const lockPromises: Promise<void>[] = []
+    const promises: Promise<void>[] = []
     keys.forEach(key => {
-      const lockResult = this._locker.lock(key, async () => {
+      const promiseOrValue = this._locker.lock(key, async () => {
         const innerPromises: PromiseLike<void>[] = []
         const valueDeleteResult = this._options.storages.value.delete(key)
         if (isPromiseLike(valueDeleteResult)) {
@@ -319,10 +332,10 @@ export class Cache<
         }
         await promiseAllWait(innerPromises)
       })
-      if (isPromiseLike(lockResult)) {
-        lockPromises.push(lockResult)
+      if (isPromiseLike(promiseOrValue)) {
+        promises.push(promiseOrValue)
       }
     })
-    await promiseAllWait(lockPromises)
+    await promiseAllWait(promises)
   }
 }

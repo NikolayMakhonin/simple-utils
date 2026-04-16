@@ -5,9 +5,10 @@ import {
 } from '@flemist/async-utils'
 import type { PromiseOrValue } from 'src/common/types/common'
 
-export type LockFunc = <T>(
-  handler: () => PromiseLikeOrValue<T>,
-) => PromiseOrValue<T>
+export type LockFunc = {
+  <T>(handler: () => PromiseLike<T>): Promise<T>
+  <T>(handler: () => PromiseLikeOrValue<T>): PromiseOrValue<T>
+}
 
 export interface ILocker {
   lock: LockFunc
@@ -47,8 +48,14 @@ export class Locker implements ILocker {
   }
 }
 
+export type LockWithIdFunc<Id> = {
+  <T>(id: Id, handler: () => PromiseLike<T>): Promise<T>
+  <T>(id: Id, handler: () => PromiseLikeOrValue<T>): PromiseOrValue<T>
+}
+
 export interface ILockerWithId<Id> {
-  lock: <T>(id: Id, handler: () => PromiseLikeOrValue<T>) => PromiseOrValue<T>
+  lock: LockWithIdFunc<Id>
+  hasQueued(id: Id): boolean
 }
 
 export class LockerWithId<Id> implements ILockerWithId<Id> {
@@ -86,5 +93,10 @@ export class LockerWithId<Id> implements ILockerWithId<Id> {
     }
     cleanup()
     return resultOrPromise
+  }
+
+  hasQueued(id: Id): boolean {
+    const locker = this._lockers.get(id)
+    return locker != null && locker.hasQueued
   }
 }
