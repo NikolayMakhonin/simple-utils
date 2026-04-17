@@ -44,6 +44,8 @@ export type TestE2ePageArgs<Args> = {
   contextOptions: BrowserContextOptions
   page: Page
   url: string
+  /** error filters */
+  filters?: null | Filters
   /** check http and js errors */
   checkErrors: () => Promise<void>
   abortSignal: IAbortSignalFast
@@ -124,6 +126,7 @@ export function createTestE2e<Args>(
                   context,
                   contextOptions,
                   page,
+                  filters,
                   checkErrors,
                   abortSignal,
                 }) => {
@@ -133,6 +136,7 @@ export function createTestE2e<Args>(
                     contextOptions,
                     page,
                     url,
+                    filters,
                     checkErrors,
                     abortSignal,
                     args: args as any,

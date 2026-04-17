@@ -52,6 +52,7 @@ export async function testPage({
       contextOptions,
       page,
       abortSignal,
+      filters,
       checkErrors,
     })
 
