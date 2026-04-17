@@ -5,7 +5,12 @@ import {
 } from 'src/node/test/e2e/test'
 import { type IPool, poolRunWait } from '@flemist/time-limits'
 import { type Priority } from '@flemist/priority-queue'
-import { type Browser, type BrowserContextOptions, type Page } from 'playwright'
+import {
+  type Browser,
+  type BrowserContext,
+  type BrowserContextOptions,
+  type Page,
+} from 'playwright'
 import {
   AbortControllerFast,
   AbortError,
@@ -34,6 +39,9 @@ export type TestE2eFunc<Args = never> = (
   abortSignal?: null | IAbortSignalFast,
 ) => Promise<void>
 export type TestE2ePageArgs<Args> = {
+  browser: Browser
+  context: BrowserContext
+  contextOptions: BrowserContextOptions
   page: Page
   url: string
   /** check http and js errors */
@@ -105,11 +113,24 @@ export function createTestE2e<Args>(
             try {
               console.log(`START ${name} (${browserName}): ${url}`)
               await testPage({
+                browser,
+                context,
+                contextOptions,
                 page,
                 abortSignal,
                 filters: filters,
-                func: async ({ page, checkErrors, abortSignal }) => {
+                func: async ({
+                  browser,
+                  context,
+                  contextOptions,
+                  page,
+                  checkErrors,
+                  abortSignal,
+                }) => {
                   await testPageFunc({
+                    browser,
+                    context,
+                    contextOptions,
                     page,
                     url,
                     checkErrors,

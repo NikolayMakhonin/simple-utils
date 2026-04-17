@@ -1,7 +1,12 @@
 import { TestFuncArgs } from './types'
 import { Filters, initPage } from './initPage'
 import path from 'path'
-import { Page } from 'playwright'
+import {
+  Browser,
+  BrowserContext,
+  BrowserContextOptions,
+  Page,
+} from 'playwright'
 import { IAbortSignalFast } from '@flemist/abort-controller-fast'
 
 export type TestPageFuncArgs = TestFuncArgs & {
@@ -11,6 +16,9 @@ export type TestPageFuncArgs = TestFuncArgs & {
 export type TestPageFunc = (args: TestPageFuncArgs) => Promise<void>
 
 export type TestPageArgs = {
+  browser: Browser
+  context: BrowserContext
+  contextOptions: BrowserContextOptions
   page: Page
   abortSignal?: null | IAbortSignalFast
   filters?: null | Filters
@@ -20,13 +28,16 @@ export type TestPageArgs = {
 }
 
 export async function testPage({
+  browser,
+  context,
+  contextOptions,
   page,
   abortSignal: _abortSignal,
   filters,
   func,
   pageFilePath,
 }: TestPageArgs) {
-  const browserName = page.context().browser()?.browserType().name()
+  const browserName = browser.browserType().name()
   try {
     const { abortSignal, checkErrors } = await initPage({
       page,
@@ -36,6 +47,9 @@ export async function testPage({
     })
 
     await func({
+      browser,
+      context,
+      contextOptions,
       page,
       abortSignal,
       checkErrors,
