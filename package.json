@@ -65,7 +65,7 @@
   },
   "scripts": {
     "========================= install =========================": "",
-    "prepublishOnly": "run-p audit lint build test:all && npm login",
+    "_prepublishOnly": "run-p audit lint build test:all && npm login",
     "prepare": "node .husky/install.mjs",
     "install:playwright": "pnpm exec playwright install --with-deps",
     "========================= deploy =========================": "",

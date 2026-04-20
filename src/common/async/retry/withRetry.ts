@@ -66,6 +66,12 @@ export type CreateTaskDelayRetryOptions = {
   maxRetries?: null | number
   maxTotalTime?: null | number
   delays: number[] | { min: number; max: number; mult?: null | number }
+  /**
+   * Random multiplicative jitter factor (>= 1): result uniformly distributed
+   * in [value / jitter, value * jitter].
+   * 1 or null disables jitter.
+   */
+  jitter?: null | number
   isRetriableError?: null | ((error: any) => boolean)
 }
 
@@ -74,6 +80,7 @@ export function createTaskDelayRetry({
   maxRetries,
   maxTotalTime,
   delays,
+  jitter,
   isRetriableError,
 }: CreateTaskDelayRetryOptions): TaskDelay {
   return function taskDelayRetry({ retryCount, timeStart, error }) {
@@ -85,12 +92,19 @@ export function createTaskDelayRetry({
       return null
     }
     if (isRetriableError == null || isRetriableError(error)) {
+      let value: number
       if (Array.isArray(delays)) {
-        return delays[Math.min(retryCount, delays.length - 1)]
+        value = delays[Math.min(retryCount, delays.length - 1)]
       } else {
         const mult = delays.mult ?? 2
-        return Math.min(delays.min * mult ** retryCount, delays.max)
+        value = Math.min(delays.min * mult ** retryCount, delays.max)
       }
+      if (jitter != null && jitter !== 1) {
+        const lo = value / jitter
+        const hi = value * jitter
+        value = lo + Math.random() * (hi - lo)
+      }
+      return value
     }
     return null
   }
