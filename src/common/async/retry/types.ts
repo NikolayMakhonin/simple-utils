@@ -5,6 +5,7 @@ export type TaskDelayArg = {
   error: any
   /** Retry count since last success: null = no error, 0 = first retry, 1 = second retry, etc */
   retryCount: null | number
+  timeStart: number
   abortSignal: IAbortSignalFast | null
 }
 

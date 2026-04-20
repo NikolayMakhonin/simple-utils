@@ -25,6 +25,7 @@ export type WithRetryOptions<T> = {
 export async function withRetry<T>(options: WithRetryOptions<T>): Promise<T> {
   const abortSignal = options.abortSignal ?? null
   const timeController = options.timeController ?? timeControllerDefault
+  const timeStart = Date.now()
   let retryCount = 0
 
   while (true) {
@@ -41,6 +42,7 @@ export async function withRetry<T>(options: WithRetryOptions<T>): Promise<T> {
       const __delay = options.delay({
         error,
         retryCount: retryCount++,
+        timeStart,
         abortSignal,
       })
       if (__delay == null) {
@@ -62,6 +64,7 @@ export async function withRetry<T>(options: WithRetryOptions<T>): Promise<T> {
 
 export type CreateTaskDelayRetryOptions = {
   maxRetries?: null | number
+  maxTotalTime?: null | number
   delays: number[] | { min: number; max: number; mult?: null | number }
   isRetriableError?: null | ((error: any) => boolean)
 }
@@ -69,13 +72,15 @@ export type CreateTaskDelayRetryOptions = {
 /** Creates a TaskDelay for retrying failed operations with exponential or fixed delays */
 export function createTaskDelayRetry({
   maxRetries,
+  maxTotalTime,
   delays,
   isRetriableError,
 }: CreateTaskDelayRetryOptions): TaskDelay {
-  return function taskDelayRetry({ retryCount, error }) {
+  return function taskDelayRetry({ retryCount, timeStart, error }) {
     if (
       retryCount == null ||
-      (maxRetries != null && retryCount >= maxRetries)
+      (maxRetries != null && retryCount >= maxRetries) ||
+      (maxTotalTime != null && Date.now() - timeStart > maxTotalTime)
     ) {
       return null
     }
