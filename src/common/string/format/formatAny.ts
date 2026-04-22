@@ -124,7 +124,7 @@ export function formatAny(
       if (showObjectId) {
         return `${name}#${getObjectId(obj)}`
       }
-      return name || '[Object]'
+      return name || 'Object'
     } else {
       visited.add(obj)
     }
