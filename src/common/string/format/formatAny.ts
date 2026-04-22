@@ -19,13 +19,15 @@ export type FormatAnyToString = (
 ) => string | null | undefined | void
 
 export type FormatAnyOptions = {
-  pretty?: boolean
+  pretty?: null | boolean
   filter?: null | ((path: string[], value: any) => boolean)
-  maxDepth?: number
-  maxItems?: number
-  maxStringLength?: number
-  showObjectId?: boolean
-  showArrayIndex?: boolean
+  maxDepth?: null | number
+  maxItems?: null | number
+  maxStringLength?: null | number
+  showObjectId?: null | boolean
+  showArrayIndex?: null | boolean
+  dontExpandClassInstances?: null | boolean
+  dontExpandFunctions?: null | boolean
   customToString?: null | FormatAnyToString
   truncateOptions?: null | TruncateStringOptions
 }
@@ -44,6 +46,8 @@ export function formatAny(
     maxStringLength,
     showObjectId,
     showArrayIndex,
+    dontExpandClassInstances,
+    dontExpandFunctions,
     customToString,
   } = options ?? {}
   if (path == null) {
@@ -74,6 +78,13 @@ export function formatAny(
   }
 
   if (obj == null || typeof obj !== 'object') {
+    if (typeof obj === 'function' && dontExpandFunctions) {
+      const name = obj.name || 'anonymous'
+      if (showObjectId) {
+        return `function ${name}#${getObjectId(obj)}`
+      }
+      return `function ${name}`
+    }
     return String(obj)
   }
 
@@ -93,22 +104,30 @@ export function formatAny(
     return formatDate(obj)
   }
 
-  if (obj instanceof Object) {
-    if (visited.has(obj) || (maxDepth != null && depth >= maxDepth)) {
-      const name =
-        obj.constructor === Object ? '' : (obj.constructor?.name ?? '')
-      return `${name}#${getObjectId(obj)}`
-    } else {
-      visited.add(obj)
-    }
-  }
-
   if (obj instanceof Error) {
     return truncateString(
       obj.stack || obj.message || String(obj),
       maxStringLength,
       options?.truncateOptions,
     )
+  }
+
+  if (obj instanceof Object) {
+    if (visited.has(obj)) {
+      const name =
+        obj.constructor === Object ? '' : (obj.constructor?.name ?? '')
+      return `${name}#${getObjectId(obj)}`
+    }
+    if (maxDepth != null && depth >= maxDepth) {
+      const name =
+        obj.constructor === Object ? '' : (obj.constructor?.name ?? '')
+      if (showObjectId) {
+        return `${name}#${getObjectId(obj)}`
+      }
+      return name || '[Object]'
+    } else {
+      visited.add(obj)
+    }
   }
 
   if (Array.isArray(obj)) {
@@ -187,6 +206,18 @@ export function formatAny(
     result += 'Set'
     result += formatAny(Array.from(obj.values()), options, path, visited)
     return result
+  }
+
+  if (
+    dontExpandClassInstances &&
+    obj.constructor &&
+    obj.constructor !== Object
+  ) {
+    const name = obj.constructor.name
+    if (showObjectId) {
+      return `${name}#${getObjectId(obj)}`
+    }
+    return name
   }
 
   // object
