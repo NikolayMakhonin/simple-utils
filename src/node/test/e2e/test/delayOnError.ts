@@ -9,7 +9,7 @@ export function delayOnErrorSet(time: number) {
 
 export function delayOnErrorCall() {
   if (delayOnErrorPromise) {
-    return
+    return delayOnErrorPromise
   }
   const _delayOnErrorTime =
     delayOnErrorTime ||
