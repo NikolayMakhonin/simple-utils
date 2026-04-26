@@ -16,13 +16,18 @@ export type WithRetryFunc<T> = (args: WithRetryFuncArg) => PromiseOrValue<T>
 
 export type WithRetryOptions<T> = {
   func: WithRetryFunc<T>
-  delay: TaskDelay
+  /** If null - call func directly without retrying on error */
+  delay?: null | TaskDelay
   abortSignal?: null | IAbortSignalFast
   timeController?: null | ITimeController
   logLevel?: null | LogLevel
 }
 
 export async function withRetry<T>(options: WithRetryOptions<T>): Promise<T> {
+  if (options.delay == null) {
+    return options.func({ abortSignal: options.abortSignal ?? null })
+  }
+
   const abortSignal = options.abortSignal ?? null
   const timeController = options.timeController ?? timeControllerDefault
   const timeStart = Date.now()
