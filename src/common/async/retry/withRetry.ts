@@ -17,7 +17,7 @@ export type WithRetryFunc<T> = (args: WithRetryFuncArg) => PromiseOrValue<T>
 export type WithRetryOptions<T> = {
   func: WithRetryFunc<T>
   /** If null - call func directly without retrying on error */
-  delay?: null | TaskDelay
+  delay: null | undefined | TaskDelay
   abortSignal?: null | IAbortSignalFast
   timeController?: null | ITimeController
   logLevel?: null | LogLevel
