@@ -20,8 +20,10 @@ import { combineAbortSignals } from '@flemist/async-utils'
 import {
   createTestVariants,
   type TestVariantsSetArgs,
+  type ArgsWithSeed,
 } from '@flemist/test-variants'
 import { setPlaywrightPriorityLow } from 'src/node/test/e2e/setPlaywrightPriorityLow'
+import { Obj } from 'src/common/types'
 
 export type TestE2eArgs = {
   browser: Browser
@@ -38,7 +40,7 @@ export type TestE2eFunc<Args = never> = (
   args: TestE2eArgs & Args,
   abortSignal?: null | IAbortSignalFast,
 ) => Promise<void>
-export type TestE2ePageArgs<Args> = {
+export type TestE2ePageArgs<Args extends Obj> = {
   browser: Browser
   context: BrowserContext
   contextOptions: BrowserContextOptions
@@ -50,16 +52,16 @@ export type TestE2ePageArgs<Args> = {
   checkErrors: () => Promise<void>
   abortSignal: IAbortSignalFast
   /** custom test args */
-  args: Args
+  args: ArgsWithSeed<Args>
 }
-export type TestE2ePageFunc<Args = never> = (
+export type TestE2ePageFunc<Args extends Obj = never> = (
   args: TestE2ePageArgs<Args>,
 ) => Promise<void>
 
 const abortControllerGlobal = new AbortControllerFast()
 
 let countCompleted = 0
-export function createTestE2e<Args>(
+export function createTestE2e<Args extends Obj>(
   testPageFunc: TestE2ePageFunc<Args>,
 ): TestE2eFunc<Args> {
   return async function testE2e(
@@ -171,7 +173,7 @@ export function createTestE2e<Args>(
   }
 }
 
-export function createTestE2eVariants<Args = never>(
+export function createTestE2eVariants<Args extends Obj = never>(
   func: TestE2ePageFunc<Args>,
 ): TestVariantsSetArgs<TestE2eArgs & Args> {
   const testE2e = createTestE2e(func)
