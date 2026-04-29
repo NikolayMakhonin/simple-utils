@@ -1,6 +1,10 @@
 /* eslint-disable prefer-rest-params */
 
 import { isPromiseLike } from '@flemist/async-utils'
+import {
+  AbortControllerFast,
+  type IAbortSignalFast,
+} from '@flemist/abort-controller-fast'
 
 // TODO: write doc comments
 export enum ConsoleMessageLevel {
@@ -52,7 +56,9 @@ export function consoleReplace(
 }
 
 // TODO: write doc comments
-export type WithConsoleReplaceFunc = <T>(callback: () => T) => T
+export type WithConsoleReplaceFunc = <T>(
+  callback: (abortSignal: IAbortSignalFast) => T,
+) => T
 
 export type WithConsoleReplaceHandler = (
   console: Console,
@@ -64,17 +70,18 @@ export type WithConsoleReplaceHandler = (
 export function withConsoleReplace(
   handler: WithConsoleReplaceHandler,
 ): WithConsoleReplaceFunc {
-  return function _withConsoleReplace<T>(callback: () => T): T {
-    let firstError: any = null
+  return function _withConsoleReplace<T>(
+    callback: (abortSignal: IAbortSignalFast) => T,
+  ): T {
+    const abortController = new AbortControllerFast()
 
     const _handler: WithConsoleReplaceHandler = (console, level, args) => {
       try {
         handler(console, level, args)
       } catch (err) {
-        if (!firstError) {
-          firstError = err
+        if (!abortController.signal.aborted) {
+          abortController.abort(err)
         }
-        throw err
       }
     }
 
@@ -82,13 +89,11 @@ export function withConsoleReplace(
 
     const _restore = () => {
       restore()
-      if (firstError) {
-        throw firstError
-      }
+      abortController.signal.throwIfAborted()
     }
 
     try {
-      const result = callback()
+      const result = callback(abortController.signal)
       if (isPromiseLike(result)) {
         return result.then(
           o => {
