@@ -27,6 +27,8 @@ import {
   PromiseLikeOrValue,
   promiseLikeToPromise,
   combineAbortSignals,
+  delay,
+  EMPTY_FUNC,
 } from '@flemist/async-utils'
 import {
   AbortControllerFast,
@@ -35,6 +37,7 @@ import {
 } from '@flemist/abort-controller-fast'
 import type { TAbortReason } from '@flemist/abort-controller-fast/dist/lib/contracts'
 import { Unsubscribe } from '../types'
+import { LogLevel } from '../debug'
 
 // TODO: Result = void
 export type TaskStatusBase<Result> = {
@@ -90,6 +93,8 @@ export interface ITaskRun<Result, RunOptions extends TaskRunOptionsBase> {
   run(options?: null | RunOptions): PromiseOrValue<Result>
   /** Abort current and scheduled executions */
   abort(): void
+  readonly abortSignal: IAbortSignalFast
+  readonly timeController: ITimeController
 }
 
 // TODO: Result = void, Status = TaskStatusBase<Result>, RunOptions = TaskRunOptionsBase
@@ -296,6 +301,14 @@ export class TaskWrapper<
 
   abort(): void {
     this._task.abort()
+  }
+
+  get abortSignal(): IAbortSignalFast {
+    return this._task.abortSignal
+  }
+
+  get timeController(): ITimeController {
+    return this._task.timeController
   }
 
   subscribe(listener: Listener<Status>): Unsubscribe {
@@ -572,6 +585,7 @@ export type CheckIfAbortedOptions = {
 export type TaskOptionsBase = TaskAbortControllerOptions &
   CheckIfAbortedOptions & {
     timeController?: null | ITimeController
+    logLevel?: null | LogLevel
   }
 
 export class TaskBase<
@@ -585,6 +599,7 @@ export class TaskBase<
   private readonly _func: TaskFunc<Args, Result>
   private readonly _events: ISubject<Status> = new Subject()
   private readonly _abortController: IAbortControllerFast = null!
+  private readonly _timeController: ITimeController
   private _args: Args
   private _status: Status
   private _runPromise: Promise<Result> | null = null
@@ -598,9 +613,11 @@ export class TaskBase<
     this._func = func
     this._args = args
     this._abortController = new AbortControllerReusable(this._options)
+    this._timeController =
+      this._options?.timeController ?? timeControllerDefault
     this._status = {
       abortSignal: this._abortController.signal,
-      timeController: this._options?.timeController ?? timeControllerDefault,
+      timeController: this._timeController,
       firstStart: null,
       isRunning: false,
       lastStart: null,
@@ -625,12 +642,20 @@ export class TaskBase<
     this._abortController.abort()
   }
 
+  get abortSignal(): IAbortSignalFast {
+    return this._abortController.signal
+  }
+
+  get timeController(): ITimeController {
+    return this._timeController
+  }
+
   subscribe(listener: Listener<Status>): Unsubscribe {
     return this._events.subscribe(listener)
   }
 
   private onStart(): void {
-    const now = this._status.timeController.now()
+    const now = this._timeController.now()
     this._status = {
       ...this._status,
       isRunning: true,
@@ -642,7 +667,7 @@ export class TaskBase<
   }
 
   private onSuccess(result: Result): void {
-    const now = this._status.timeController.now()
+    const now = this.timeController.now()
     this._status = {
       ...this._status,
       isRunning: false,
@@ -658,7 +683,7 @@ export class TaskBase<
     this._status = {
       ...this._status,
       isRunning: false,
-      lastEnd: this._status.timeController.now(),
+      lastEnd: this.timeController.now(),
       lastHasError: true,
       lastError: error,
     }
@@ -676,7 +701,7 @@ export class TaskBase<
     try {
       const resultOrPromise = this._func(this._args, {
         abortSignal: this._abortController.signal,
-        timeController: this._status.timeController,
+        timeController: this.timeController,
         isFirst,
       })
       if (isPromiseLike(resultOrPromise)) {
@@ -726,7 +751,7 @@ export class TaskRerun<
   }
 
   run(options?: null | RunOptions): PromiseOrValue<Result> {
-    this.status.abortSignal.throwIfAborted()
+    this.abortSignal.throwIfAborted()
     if (this._runPromise) {
       return this._runPromise
     }
@@ -771,6 +796,14 @@ export class TaskThrottled<
   implements ITaskThrottled<Result, Status, RunOptions, Args>
 {
   private readonly _options: null | TaskOptionsThrottled
+  private _timerAbortController: IAbortControllerFast | null = null
+  private _timerTargetTime: number | null = null
+  private _nextCallTime: number | null = null
+  private _lastCallTime: number | null = null
+  private _isFirstCall: boolean = true
+  private _throttleTimeCurrent: number | null = null
+  private _throttleTimeMaxCurrent: number | null = null
+
   constructor(
     task: ITaskBaseWithArgs<Result, Status, RunOptions, Args>,
     options?: null | TaskOptionsThrottled,
@@ -779,9 +812,161 @@ export class TaskThrottled<
     this._options = options ?? null
   }
 
-  run(options?: null | RunOptions): PromiseOrValue<Result> {
-    this.status.abortSignal.throwIfAborted()
-    // TODO: implement logic
+  private updateThrottleTime(
+    throttleTime?: null | number,
+    _throttleTimeMax?: null | number | false,
+  ): void {
+    const throttleTimeNew =
+      throttleTime ?? this._options?.throttleTimeDefault ?? 0
+    this._throttleTimeCurrent =
+      this._throttleTimeCurrent == null
+        ? throttleTimeNew
+        : Math.min(this._throttleTimeCurrent, throttleTimeNew)
+    this._throttleTimeMaxCurrent =
+      _throttleTimeMax == null
+        ? (this._options?.throttleTimeMax ?? null)
+        : _throttleTimeMax === false
+          ? null
+          : _throttleTimeMax
+  }
+
+  private updateNextCallTime(): void {
+    const now = this.timeController.now()
+    let newNextCallTime = now + this._throttleTimeCurrent!
+    if (this._lastCallTime == null) {
+      this._lastCallTime = now
+    }
+    if (this._throttleTimeMaxCurrent != null) {
+      newNextCallTime = Math.min(
+        newNextCallTime,
+        this._lastCallTime + this._throttleTimeMaxCurrent,
+      )
+    }
+    this._nextCallTime = newNextCallTime
+    if (
+      this._timerTargetTime != null &&
+      this._nextCallTime <= this._timerTargetTime
+    ) {
+      this._timerAbortController!.abort()
+      this._timerAbortController = null
+      this._timerTargetTime = null
+    }
+  }
+
+  private update(
+    throttleTime?: null | number,
+    _throttleTimeMax?: null | number | false,
+  ): void {
+    this.updateThrottleTime(throttleTime, _throttleTimeMax)
+    this.updateNextCallTime()
+  }
+
+  private getCallTime(now: number): number | null {
+    if (this._throttleTimeCurrent == null) {
+      return null
+    }
+
+    let callTime = this._nextCallTime ?? 0
+
+    const callTimeMax =
+      this._throttleTimeMaxCurrent == null
+        ? null
+        : this._lastCallTime == null
+          ? now + this._throttleTimeMaxCurrent
+          : now +
+            Math.max(
+              0,
+              this._throttleTimeMaxCurrent - (now - this._lastCallTime),
+            )
+    if (callTimeMax != null) {
+      callTime = Math.min(callTime, callTimeMax)
+    }
+    return callTime
+  }
+
+  private _processPromise: Promise<void> | null = null
+
+  private async _process(): Promise<void> {
+    try {
+      while (true) {
+        while (true) {
+          this.abortSignal.throwIfAborted()
+
+          const now = this.timeController.now()
+          this._timerTargetTime = this.getCallTime(now)
+
+          if (this._timerTargetTime == null || this._timerTargetTime <= now) {
+            break
+          }
+
+          this._timerAbortController = new AbortControllerFast()
+          const timerAbortSignal = combineAbortSignals(
+            this._timerAbortController.signal,
+            this.abortSignal,
+          )
+          await delay(
+            this._timerTargetTime - now,
+            timerAbortSignal,
+            this.timeController,
+          ).catch(EMPTY_FUNC)
+        }
+
+        if (this._timerTargetTime == null) {
+          break
+        }
+
+        this._timerTargetTime = null
+        this._throttleTimeCurrent = null
+        this._nextCallTime = null
+
+        try {
+          await super.run()
+        } catch (error) {
+          if (
+            this._options?.logLevel == null ||
+            this._options.logLevel >= LogLevel.error
+          ) {
+            console.error('[TaskThrottled] Error in throttled task', error)
+          }
+          throw error
+        } finally {
+          this._lastCallTime = this.timeController.now()
+          this.updateNextCallTime()
+        }
+      }
+    } finally {
+      this._processPromise = null
+    }
+  }
+
+  private process(): Promise<void> {
+    if (!this._processPromise) {
+      this._processPromise = this._process()
+    }
+    return this._processPromise
+  }
+
+  skipDelay(): void {
+    this._timerTargetTime = null
+    if (this._timerAbortController) {
+      this._timerAbortController.abort()
+      this._timerAbortController = null
+    }
+  }
+
+  abort() {
+    this._throttleTimeCurrent = null
+    this._throttleTimeMaxCurrent = null
+    this.skipDelay()
+    super.abort()
+  }
+
+  async run(options?: null | RunOptions): Promise<Result> {
+    this.abortSignal.throwIfAborted()
+    const { immediate, throttleTime, throttleTimeMax } = options ?? {}
+    this.update(immediate ? 0 : throttleTime, throttleTimeMax)
+    await this.process()
+    return this.status.lastResult!
   }
 }
 
@@ -811,7 +996,7 @@ export class TaskRepeated<
   }
 
   run(options?: null | RunOptions): PromiseOrValue<Result> {
-    this.status.abortSignal.throwIfAborted()
+    this.abortSignal.throwIfAborted()
     // TODO: implement logic
   }
 }
