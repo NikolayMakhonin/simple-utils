@@ -1,0 +1,817 @@
+/**
+The files contain several tools that are very similar in essence. Design a single, universal, flexible, and maximally simple solution or foundation - one unified tool or foundation whose capabilities (possible behaviors) cover all the capabilities of the tools in the files and more. I need maximum flexibility, maximum simplicity, maximum capability, and maximum ease of use.
+
+The tool must satisfy all the following good design principles as much as possible: SRP, locality, flexibility, universality, growth-readiness, clarity, explicitness, simplicity, consistency, predictability, extensibility, encapsulation, modularity, testability, functional purity, evolvability, composability.
+
+I don't need a mix, mixer or pipe of all the tools, or tools glued together. I don't need a "Swiss Army knife" either - it is the same mix. I need a unified solution or foundation that covers all of their capabilities.
+
+Capabilities:
+- Very flexible foundation for: Periodic execution, retry on condition, flexible delay between executions, stop or abort by timeout or by another event, throttling with adjustable throttling parameters, lazy one-time execution, lazy cacheable execution with any third-party cache, forced (immediate) execution, etc.
+- Changeable input parameters
+- AbortSignal support
+- Ability to run multiple executions in parallel
+- Ability to know execution start and end times via events
+- etc
+
+ONCE AGAIN, IT IS VERY IMPORTANT! I don't need a mix, mixer or pipe of all the tools, or tools glued together. I don't need a "Swiss Army knife" either - it is the same mix. I need a unified solution or foundation that covers all of their capabilities.
+*/
+
+import { type IObservable, type ISubject, Listener, Subject } from '../rx'
+import {
+  type ITimeController,
+  timeControllerDefault,
+} from '@flemist/time-controller'
+import {
+  isPromiseLike,
+  PromiseOrValue,
+  PromiseLikeOrValue,
+  promiseLikeToPromise,
+  combineAbortSignals,
+} from '@flemist/async-utils'
+import {
+  AbortControllerFast,
+  type IAbortControllerFast,
+  type IAbortSignalFast,
+} from '@flemist/abort-controller-fast'
+import type { TAbortReason } from '@flemist/abort-controller-fast/dist/lib/contracts'
+import { Unsubscribe } from '../types'
+
+// TODO: Result = void
+export type TaskStatusBase<Result> = {
+  readonly abortSignal: IAbortSignalFast
+  readonly timeController: ITimeController
+  readonly isRunning: boolean
+  /**
+   * First start date in milliseconds
+   * null - never started
+   */
+  readonly firstStart: null | number
+  /**
+   * Last start date in milliseconds
+   * null - never started
+   */
+  readonly lastStart: null | number
+  /**
+   * Last end date in milliseconds
+   * null - never ended
+   */
+  readonly lastEnd: null | number
+  /**
+   * Last success date in milliseconds
+   * null - never succeeded
+   */
+  readonly lastSuccess: null | number
+  readonly lastHasError: boolean
+
+  readonly lastError?: any
+  readonly lastResult?: Result
+  /**
+   * Retry count:
+   * null - no need to retry
+   * 0 - zero retries yet
+   * 1 - first retry
+   * etc
+   */
+  readonly countRetry?: null | number
+}
+
+// TODO: Result = void, Status = TaskStatusBase<Result>
+export interface ITaskStatus<Result, Status extends TaskStatusBase<Result>>
+  extends IObservable<Status> {
+  readonly status: Status
+}
+
+export type TaskRunOptionsBase = {
+  immediate?: null | boolean
+}
+
+// TODO: Result = void, RunOptions = TaskRunOptionsBase
+export interface ITaskRun<Result, RunOptions extends TaskRunOptionsBase> {
+  run(options?: null | RunOptions): PromiseOrValue<Result>
+  /** Abort current and scheduled executions */
+  abort(): void
+}
+
+// TODO: Result = void, Status = TaskStatusBase<Result>, RunOptions = TaskRunOptionsBase
+export interface ITaskBase<
+  Result,
+  Status extends TaskStatusBase<Result>,
+  RunOptions extends TaskRunOptionsBase,
+> extends ITaskStatus<Result, Status>,
+    ITaskRun<Result, RunOptions> {}
+
+// TODO: Args = never
+export interface ITaskArgs<Args> {
+  /** Function arguments for next execution */
+  args: Args
+}
+
+// TODO: Result = void, Status = TaskStatusBase<Result>, RunOptions = TaskRunOptionsBase, Args = never
+export interface ITaskBaseWithArgs<
+  Result,
+  Status extends TaskStatusBase<Result>,
+  RunOptions extends TaskRunOptionsBase,
+  Args,
+> extends ITaskBase<Result, Status, RunOptions>,
+    ITaskArgs<Args> {}
+
+export interface ITaskDelay {
+  skipDelay(): void
+}
+
+/**
+ * Guarantees that the task will be executed at least once
+ * after last call of run() until next call of run() or abort()
+ */
+export interface ITaskRerun {
+  skipRerun(): void
+}
+
+export type TaskRunOptionsThrottled = TaskRunOptionsBase & {
+  throttleTime?: null | number
+  throttleTimeMax?: null | number
+}
+
+// TODO: Result = void, Status = TaskStatusBase<Result>, RunOptions = TaskRunOptionsThrottled, Args = never
+export interface ITaskThrottled<
+  Result,
+  Status extends TaskStatusBase<Result>,
+  RunOptions extends TaskRunOptionsThrottled,
+  Args,
+> extends ITaskBaseWithArgs<Result, Status, RunOptions, Args>,
+    ITaskDelay,
+    ITaskRerun {}
+
+export type TaskDelayResult = {
+  delay?: null | number | (() => Promise<any>)
+  isRetry?: null | boolean
+}
+
+/**
+ * Returns:
+ * - null: stop execution
+ * - number: delay in milliseconds
+ * - () => Promise: custom async wait function
+ */
+// TODO: Result = void, Status = TaskStatusBase<Result>
+export type TaskDelay<Result, Status extends TaskStatusBase<Result>> = (
+  args: Status,
+) => TaskDelayResult
+
+// TODO: Result = void, Status = TaskStatusBase<Result>
+export type TaskRunOptionsRepeated<
+  Result,
+  Status extends TaskStatusBase<Result>,
+> = TaskRunOptionsThrottled & {}
+
+// TODO: Result = void, Status = TaskStatusBase<Result>, RunOptions = TaskRunOptionsRepeated, Args = never
+export interface ITaskRepeated<
+  Result,
+  Status extends TaskStatusBase<Result>,
+  RunOptions extends TaskRunOptionsRepeated<Result, Status>,
+  Args,
+> extends ITaskThrottled<Result, Status, RunOptions, Args>,
+    ITaskDelay {}
+
+export type TaskFuncOptions = {
+  abortSignal: IAbortSignalFast
+  timeController: ITimeController
+  isFirst: boolean
+}
+
+// TODO: Args = never, Result = void
+export type TaskFunc<Args, Result> = (
+  args: Args,
+  options: TaskFuncOptions,
+) => PromiseLikeOrValue<Result>
+
+export type TaskAbortControllerOptions = {
+  /** Global abort signal for all executions of the task */
+  abortSignal?: null | IAbortSignalFast
+}
+
+/**
+ * Reusable abort controller that creates a new abort signal after each abort
+ */
+export class AbortControllerReusable implements IAbortControllerFast {
+  private readonly _options: null | TaskAbortControllerOptions
+  private _abortController: IAbortControllerFast = null!
+  private _abortSignal: IAbortSignalFast = null!
+
+  constructor(options?: null | TaskAbortControllerOptions) {
+    this._options = options ?? null
+    this.resetAbortController()
+  }
+
+  private resetAbortController(): void {
+    this._abortController = new AbortControllerFast()
+    this._abortSignal = combineAbortSignals(
+      this._abortController.signal,
+      this._options?.abortSignal,
+    )
+  }
+
+  abort(reason?: TAbortReason): void {
+    if (this._options?.abortSignal?.aborted) {
+      return
+    }
+    const abortController = this._abortController
+    this.resetAbortController()
+    abortController.abort(reason)
+  }
+
+  get signal(): IAbortSignalFast {
+    return this._abortSignal
+  }
+}
+
+export type ITaskWrapperSource<
+  Result,
+  Status extends TaskStatusBase<Result>,
+  RunOptions extends TaskRunOptionsBase,
+  Args,
+> = ITaskBase<Result, Status, RunOptions> &
+  (ITaskArgs<Args> | ITaskDelay | ITaskRerun | {})
+
+export interface ITaskWrapper<
+  Result,
+  Status extends TaskStatusBase<Result>,
+  RunOptions extends TaskRunOptionsBase,
+  Args,
+> extends ITaskBase<Result, Status, RunOptions>,
+    ITaskArgs<Args>,
+    ITaskDelay,
+    ITaskRerun {
+  readonly supportsArgs: boolean
+  readonly supportsDelay: boolean
+  readonly supportsRerun: boolean
+}
+
+export class TaskWrapper<
+  Result,
+  Status extends TaskStatusBase<Result>,
+  RunOptions extends TaskRunOptionsBase,
+  Args,
+> implements ITaskWrapper<Result, Status, RunOptions, Args>
+{
+  protected readonly _task: ITaskWrapperSource<Result, Status, RunOptions, Args>
+  private readonly _supportArgs: boolean
+  private readonly _supportDelay: boolean
+  private readonly _supportRerun: boolean
+  constructor(task: ITaskWrapperSource<Result, Status, RunOptions, Args>) {
+    this._task = task
+    this._supportArgs = 'args' in task
+    this._supportDelay = 'skipDelay' in task
+    this._supportRerun = 'skipRerun' in task
+  }
+
+  get supportsArgs(): boolean {
+    return this._supportArgs
+  }
+
+  get supportsDelay(): boolean {
+    return this._supportDelay
+  }
+
+  get supportsRerun(): boolean {
+    return this._supportRerun
+  }
+
+  get args(): Args {
+    if (!this._supportArgs) {
+      throw new Error('[TaskWrapper] Wrapped task does not support args')
+    }
+    return (this._task as ITaskArgs<Args>).args
+  }
+  set args(value: Args) {
+    if (!this._supportArgs) {
+      throw new Error('[TaskWrapper] Wrapped task does not support args')
+    }
+    ;(this._task as ITaskArgs<Args>).args = value
+  }
+
+  get status(): Status {
+    return this._task.status
+  }
+
+  abort(): void {
+    this._task.abort()
+  }
+
+  subscribe(listener: Listener<Status>): Unsubscribe {
+    return this._task.subscribe(listener)
+  }
+
+  run(options?: null | RunOptions): PromiseOrValue<Result> {
+    return this._task.run(options)
+  }
+
+  skipDelay(): void {
+    if (!this._supportDelay) {
+      return
+    }
+    ;(this._task as ITaskDelay).skipDelay()
+  }
+
+  skipRerun(): void {
+    if (!this._supportRerun) {
+      return
+    }
+    ;(this._task as ITaskRerun).skipRerun()
+  }
+}
+
+/*
+
+export class Task<Args> implements ITaskBase<Args> {
+  private readonly _options: TaskOptions | null
+  private readonly _func: TaskFunc<Args>
+  private readonly _events: ISubject<TaskStatusBase> = new Subject()
+  private readonly _timeController: ITimeController
+  private _args: Args
+  private _status: TaskStatusBase
+  private _abortController: IAbortControllerFast = null!
+
+  constructor(func: TaskFunc<Args>, args: Args, options?: null | TaskOptions) {
+    this._options = options ?? null
+    this._timeController =
+      this._options?.timeController ?? timeControllerDefault
+    this._func = func
+    this._args = args
+    this._status = {
+      lastStart: null,
+      lastSuccess: null,
+      isRunning: false,
+    }
+    this._abortController = new AbortControllerReusable(this._options)
+  }
+
+  abort(): void {
+    this._abortController.abort()
+  }
+
+  get args(): Args {
+    return this._args
+  }
+
+  set args(value: Args) {
+    this._args = value
+  }
+
+  get status(): TaskStatusBase {
+    return this._status
+  }
+
+  subscribe(listener: (status: TaskStatusBase) => void): () => void {
+    return this._events.subscribe(listener)
+  }
+
+  private onStart(): void {
+    this._status = {
+      ...this._status,
+      lastStart: this._timeController.now(),
+      isRunning: true,
+    }
+    this._events.emit(this._status)
+  }
+
+  private onSuccess(): void {
+    this._status = {
+      ...this._status,
+      lastSuccess: this._timeController.now(),
+      isRunning: false,
+    }
+    this._events.emit(this._status)
+  }
+
+  private onError(): void {
+    this._status = {
+      ...this._status,
+      isRunning: false,
+    }
+    this._events.emit(this._status)
+  }
+
+  private _runPromise: Promise<void> | null = null
+
+  run(args?: Args): PromiseOrValue<void> {
+    this._abortController.signal.throwIfAborted()
+    if (arguments.length > 0) {
+      this._args = args!
+    }
+    if (this._runPromise) {
+      return this._runPromise
+    }
+
+    this.onStart()
+    this._events.emit(this._status)
+    try {
+      const resultOrPromise = this._func(this._args, {
+        abortSignal: this._abortController.signal,
+      })
+      if (isPromiseLike(resultOrPromise)) {
+        this._runPromise = promiseLikeToPromise(
+          resultOrPromise.then(
+            result => {
+              this._runPromise = null
+              this.onSuccess()
+              return result
+            },
+            error => {
+              this._runPromise = null
+              this.onError()
+              throw error
+            },
+          ),
+        )
+        return this._runPromise
+      } else {
+        this.onSuccess()
+        return resultOrPromise
+      }
+    } catch (error) {
+      this.onError()
+      throw error
+    }
+  }
+}
+
+export class TaskWrapper2<Args> implements ITaskBase<Args> {
+  private readonly _task: ITaskBase<Args>
+
+  constructor(task: ITaskBase<Args>) {
+    this._task = task
+  }
+
+  get args(): Args {
+    return this._task.args
+  }
+  set args(value: Args) {
+    this._task.args = value
+  }
+
+  get status(): TaskStatusBase {
+    return this._task.status
+  }
+
+  abort(): void {
+    this._task.abort()
+  }
+
+  subscribe(listener: Listener<TaskStatusBase>): Unsubscribe {
+    return this._task.subscribe(listener)
+  }
+
+  run(args?: Args): PromiseOrValue<void> {
+    return this._task.run(args)
+  }
+}
+
+export type TaskNextOptions = TaskAbortControllerOptions & {}
+
+export interface ITaskScheduled<Args> extends ITaskBase<Args> {
+  abortScheduled(): void
+}
+
+export class TaskNext<Args>
+  extends TaskWrapper<Args>
+  implements ITaskScheduled<Args>
+{
+  private readonly _abortController: IAbortControllerFast = null!
+
+  constructor(task: ITaskBase<Args>, options?: null | TaskNextOptions) {
+    super(task)
+    this._abortController = new AbortControllerReusable(options)
+    super.subscribe(status => {
+      if (!status.isRunning) {
+        this._runPromise = null
+      }
+    })
+  }
+
+  private _runPromise: Promise<void> | null = null
+
+  run(args?: Args): PromiseOrValue<void> {
+    this._abortController.signal.throwIfAborted()
+    if (arguments.length > 0) {
+      this.args = args!
+    }
+    if (this._runPromise) {
+      return this._runPromise
+    }
+
+    const isRunning = this.status.isRunning
+
+    const promiseOrResult = super.run()
+
+    if (!isRunning || !isPromiseLike(promiseOrResult)) {
+      return promiseOrResult
+    }
+
+    this._runPromise = promiseOrResult.then(() => {
+      return super.run()
+    })
+
+    return this._runPromise
+  }
+
+  abortScheduled(): void {
+    this._abortController.abort()
+  }
+}
+
+export interface ITaskDelayed<Args> extends ITaskBase<Args> {
+  runForce(args?: Args): PromiseOrValue<void>
+  abortDelay(): void
+}
+
+export type TaskThrottleOptions = TaskAbortControllerOptions & {}
+
+export class TaskDelayed<Args>
+  extends TaskWrapper<Args>
+  implements ITaskDelayed<Args>
+{
+  private readonly _abortController: IAbortControllerFast = null!
+
+  constructor(task: ITaskBase<Args>, options?: null | TaskThrottleOptions) {
+    super(task)
+    this._abortController = new AbortControllerReusable(options)
+  }
+}
+
+export type TaskRetryOptions = TaskAbortControllerOptions & {}
+
+export class TaskRetry<Args>
+  extends TaskWrapper<Args>
+  implements ITaskScheduled<Args>
+{
+  private readonly _abortController: IAbortControllerFast = null!
+
+  constructor(task: ITaskBase<Args>, options?: null | TaskRetryOptions) {
+    super(task)
+    this._abortController = new AbortControllerReusable(options)
+  }
+}
+*/
+
+export type CheckIfAbortedOptions = {
+  dontThrowIfAborted?: null | boolean
+}
+
+// export function checkIfAborted(
+//   abortSignal: IAbortSignalFast,
+//   options?: null | CheckIfAbortedOptions,
+// ): boolean {
+//   if (options?.dontThrowIfAborted) {
+//     return abortSignal.aborted
+//   }
+//   abortSignal.throwIfAborted()
+//   return false
+// }
+
+export type TaskOptionsBase = TaskAbortControllerOptions &
+  CheckIfAbortedOptions & {
+    timeController?: null | ITimeController
+  }
+
+export class TaskBase<
+  Result,
+  Status extends TaskStatusBase<Result>,
+  RunOptions extends TaskRunOptionsBase,
+  Args,
+> implements ITaskBaseWithArgs<Result, Status, RunOptions, Args>
+{
+  private readonly _options: null | TaskOptionsBase
+  private readonly _func: TaskFunc<Args, Result>
+  private readonly _events: ISubject<Status> = new Subject()
+  private readonly _abortController: IAbortControllerFast = null!
+  private _args: Args
+  private _status: Status
+  private _runPromise: Promise<Result> | null = null
+
+  constructor(
+    func: TaskFunc<Args, Result>,
+    args: Args,
+    options?: null | TaskOptionsBase,
+  ) {
+    this._options = options ?? null
+    this._func = func
+    this._args = args
+    this._abortController = new AbortControllerReusable(this._options)
+    this._status = {
+      abortSignal: this._abortController.signal,
+      timeController: this._options?.timeController ?? timeControllerDefault,
+      firstStart: null,
+      isRunning: false,
+      lastStart: null,
+      lastEnd: null,
+      lastSuccess: null,
+      lastHasError: false,
+    } as Status
+  }
+
+  get args(): Args {
+    return this._args
+  }
+  set args(value: Args) {
+    this._args = value
+  }
+
+  get status(): Status {
+    return this._status
+  }
+
+  abort(): void {
+    this._abortController.abort()
+  }
+
+  subscribe(listener: Listener<Status>): Unsubscribe {
+    return this._events.subscribe(listener)
+  }
+
+  private onStart(): void {
+    const now = this._status.timeController.now()
+    this._status = {
+      ...this._status,
+      isRunning: true,
+      firstStart: this._status.firstStart ?? now,
+      lastStart: now,
+      abortSignal: this._abortController.signal,
+    }
+    this._events.emit(this._status)
+  }
+
+  private onSuccess(result: Result): void {
+    const now = this._status.timeController.now()
+    this._status = {
+      ...this._status,
+      isRunning: false,
+      lastEnd: now,
+      lastSuccess: now,
+      lastHasError: false,
+      lastResult: result,
+    }
+    this._events.emit(this._status)
+  }
+
+  private onError(error: any): void {
+    this._status = {
+      ...this._status,
+      isRunning: false,
+      lastEnd: this._status.timeController.now(),
+      lastHasError: true,
+      lastError: error,
+    }
+    this._events.emit(this._status)
+  }
+
+  run(options?: null | RunOptions): PromiseOrValue<Result> {
+    this._abortController.signal.throwIfAborted()
+    if (this._runPromise) {
+      return this._runPromise
+    }
+
+    const isFirst = this._status.firstStart == null
+    this.onStart()
+    try {
+      const resultOrPromise = this._func(this._args, {
+        abortSignal: this._abortController.signal,
+        timeController: this._status.timeController,
+        isFirst,
+      })
+      if (isPromiseLike(resultOrPromise)) {
+        this._runPromise = promiseLikeToPromise(
+          resultOrPromise.then(
+            result => {
+              this._runPromise = null
+              this.onSuccess(result)
+              return result
+            },
+            error => {
+              this._runPromise = null
+              this.onError(error)
+              throw error
+            },
+          ),
+        )
+        return this._runPromise
+      }
+      this.onSuccess(resultOrPromise)
+      return resultOrPromise
+    } catch (error) {
+      this.onError(error)
+      throw error
+    }
+  }
+}
+
+export class TaskRerun<
+    Result,
+    Status extends TaskStatusBase<Result>,
+    RunOptions extends TaskRunOptionsBase,
+    Args,
+  >
+  extends TaskWrapper<Result, Status, RunOptions, Args>
+  implements ITaskRerun
+{
+  private _runPromise: Promise<Result> | null = null
+
+  constructor(task: ITaskBaseWithArgs<Result, Status, RunOptions, Args>) {
+    super(task)
+    super.subscribe(status => {
+      if (!status.isRunning) {
+        this._runPromise = null
+      }
+    })
+  }
+
+  run(options?: null | RunOptions): PromiseOrValue<Result> {
+    this.status.abortSignal.throwIfAborted()
+    if (this._runPromise) {
+      return this._runPromise
+    }
+
+    const isRunning = this.status.isRunning
+    const promiseOrResult = super.run(options)
+
+    if (!isRunning || !isPromiseLike(promiseOrResult)) {
+      return promiseOrResult
+    }
+
+    const runPromise = promiseOrResult.then(result => {
+      // If rerun was skipped
+      // return the result of the first run
+      if (runPromise !== this._runPromise) {
+        return result
+      }
+      return super.run(options)
+    })
+    this._runPromise = runPromise
+
+    return this._runPromise
+  }
+
+  skipRerun(): void {
+    this._runPromise = null
+  }
+}
+
+export type TaskOptionsThrottled = TaskOptionsBase & {
+  throttleTimeDefault?: null | number
+  throttleTimeMax?: null | number
+}
+
+export class TaskThrottled<
+    Result,
+    Status extends TaskStatusBase<Result>,
+    RunOptions extends TaskRunOptionsThrottled,
+    Args,
+  >
+  extends TaskWrapper<Result, Status, RunOptions, Args>
+  implements ITaskThrottled<Result, Status, RunOptions, Args>
+{
+  private readonly _options: null | TaskOptionsThrottled
+  constructor(
+    task: ITaskBaseWithArgs<Result, Status, RunOptions, Args>,
+    options?: null | TaskOptionsThrottled,
+  ) {
+    super(task)
+    this._options = options ?? null
+  }
+
+  run(options?: null | RunOptions): PromiseOrValue<Result> {
+    this.status.abortSignal.throwIfAborted()
+    // TODO: implement logic
+  }
+}
+
+export type TaskOptionsRepeated<
+  Result,
+  Status extends TaskStatusBase<Result>,
+> = TaskOptionsThrottled & {
+  delay: TaskDelay<Result, Status>
+}
+
+export class TaskRepeated<
+    Result,
+    Status extends TaskStatusBase<Result>,
+    RunOptions extends TaskRunOptionsRepeated<Result, Status>,
+    Args,
+  >
+  extends TaskWrapper<Result, Status, RunOptions, Args>
+  implements ITaskRepeated<Result, Status, RunOptions, Args>
+{
+  private readonly _options: null | TaskOptionsRepeated<Result, Status>
+  constructor(
+    task: ITaskThrottled<Result, Status, RunOptions, Args>,
+    options?: null | TaskOptionsRepeated<Result, Status>,
+  ) {
+    super(task)
+    this._options = options ?? null
+  }
+
+  run(options?: null | RunOptions): PromiseOrValue<Result> {
+    this.status.abortSignal.throwIfAborted()
+    // TODO: implement logic
+  }
+}
