@@ -143,6 +143,13 @@ export interface ITaskRerun {
   skipRerun(): void
 }
 
+export type ITaskWithRerun<
+  Result,
+  Status extends TaskStatusBase<Result>,
+  RunOptions extends TaskRunOptionsBase,
+  Args,
+> = ITaskBaseWithArgs<Result, Status, RunOptions, Args> & ITaskRerun
+
 export type TaskRunOptionsThrottled = TaskRunOptionsBase & {
   throttleTime?: null | number
   throttleTimeMax?: null | number
@@ -359,8 +366,8 @@ export type CheckIfAbortedOptions = {
 
 export type TaskOptionsBase = TaskAbortControllerOptions &
   CheckIfAbortedOptions & {
-    timeController?: null | ITimeController
-    logLevel?: null | LogLevel
+    readonly timeController?: null | ITimeController
+    readonly logLevel?: null | LogLevel
   }
 
 export class TaskBase<
@@ -529,19 +536,19 @@ export class TaskBase<
   }
 }
 
-export class TaskRerun<
+export class TaskWithRerun<
     Result,
     Status extends TaskStatusBase<Result>,
     RunOptions extends TaskRunOptionsBase,
     Args,
   >
   extends TaskWrapper<Result, Status, RunOptions, Args>
-  implements ITaskRerun
+  implements ITaskWithRerun<Result, Status, RunOptions, Args>
 {
   private readonly _wait: () => PromiseOrValue<void>
   private _runPromise: Promise<Result> | null = null
 
-  constructor(task: ITaskBaseWithArgs<Result, Status, RunOptions, Args>) {
+  constructor(task: ITaskWrapperSource<Result, Status, RunOptions, Args>) {
     super(task)
     super.subscribe(status => {
       if (!status.isRunning) {
@@ -597,8 +604,8 @@ export class TaskRerun<
 }
 
 export type TaskOptionsThrottled = TaskOptionsBase & {
-  throttleTimeDefault?: null | number
-  throttleTimeMax?: null | number
+  readonly throttleTimeDefault?: null | number
+  readonly throttleTimeMax?: null | number
 }
 
 export class TaskThrottled<
@@ -619,7 +626,7 @@ export class TaskThrottled<
   private _throttleTimeMaxCurrent: number | null = null
 
   constructor(
-    task: ITaskBaseWithArgs<Result, Status, RunOptions, Args>,
+    task: ITaskWrapperSource<Result, Status, RunOptions, Args>,
     options?: null | TaskOptionsThrottled,
   ) {
     super(task)
@@ -780,7 +787,7 @@ export type TaskOptionsRepeated<
   Result,
   Status extends TaskStatusBase<Result>,
 > = TaskOptionsBase & {
-  delay: TaskDelay<Result, Status>
+  readonly delay: TaskDelay<Result, Status>
 }
 
 export class TaskRepeated<
@@ -796,7 +803,7 @@ export class TaskRepeated<
   private _inProcess: boolean = false
 
   constructor(
-    task: ITaskRepeated<Result, Status, RunOptions, Args>,
+    task: ITaskWrapperSource<Result, Status, RunOptions, Args>,
     options: TaskOptionsRepeated<Result, Status>,
   ) {
     super(task)
@@ -864,3 +871,140 @@ export class TaskRepeated<
 // To replace scheduleTaskInterval use TaskRepeated
 // To replace scheduleSync use promiseAllWait
 // To replace scheduleSync onError use subscribe
+
+export function createTask<
+  Result,
+  Status extends TaskStatusBase<Result>,
+  RunOptions extends TaskRunOptionsBase,
+  Args,
+>(
+  func: TaskFunc<Args, Result>,
+  args: Args,
+  options?: null | TaskOptionsBase,
+): TaskBase<Result, Status, RunOptions, Args> {
+  return new TaskBase(func, args, options)
+}
+
+export function createTaskRerun<
+  Result,
+  Status extends TaskStatusBase<Result>,
+  RunOptions extends TaskRunOptionsBase,
+  Args,
+>(
+  task: ITaskWrapperSource<Result, Status, RunOptions, Args>,
+): ITaskWithRerun<Result, Status, RunOptions, Args>
+export function createTaskRerun<
+  Result,
+  Status extends TaskStatusBase<Result>,
+  RunOptions extends TaskRunOptionsBase,
+  Args,
+>(
+  func: TaskFunc<Args, Result>,
+  args: Args,
+  options?: null | TaskOptionsBase,
+): ITaskWithRerun<Result, Status, RunOptions, Args>
+export function createTaskRerun<
+  Result,
+  Status extends TaskStatusBase<Result>,
+  RunOptions extends TaskRunOptionsBase,
+  Args,
+>(
+  taskOrFunc:
+    | ITaskWrapperSource<Result, Status, RunOptions, Args>
+    | TaskFunc<Args, Result>,
+  argsOrOptions?: Args | (null | TaskOptionsBase),
+  optionsArg?: null | TaskOptionsBase,
+): ITaskWithRerun<Result, Status, RunOptions, Args> {
+  if (typeof taskOrFunc === 'function') {
+    return new TaskWithRerun(
+      new TaskBase(taskOrFunc, argsOrOptions as Args, optionsArg),
+    )
+  }
+  return new TaskWithRerun(taskOrFunc)
+}
+
+export function createTaskThrottled<
+  Result,
+  Status extends TaskStatusBase<Result>,
+  RunOptions extends TaskRunOptionsThrottled,
+  Args,
+>(
+  task: ITaskWrapperSource<Result, Status, RunOptions, Args>,
+  options?: null | TaskOptionsThrottled,
+): ITaskThrottled<Result, Status, RunOptions, Args>
+export function createTaskThrottled<
+  Result,
+  Status extends TaskStatusBase<Result>,
+  RunOptions extends TaskRunOptionsThrottled,
+  Args,
+>(
+  func: TaskFunc<Args, Result>,
+  args: Args,
+  options?: null | TaskOptionsThrottled,
+): ITaskThrottled<Result, Status, RunOptions, Args>
+export function createTaskThrottled<
+  Result,
+  Status extends TaskStatusBase<Result>,
+  RunOptions extends TaskRunOptionsThrottled,
+  Args,
+>(
+  taskOrFunc:
+    | ITaskWrapperSource<Result, Status, RunOptions, Args>
+    | TaskFunc<Args, Result>,
+  argsOrOptions?: Args | (null | TaskOptionsThrottled),
+  optionsArg?: null | TaskOptionsThrottled,
+): ITaskThrottled<Result, Status, RunOptions, Args> {
+  if (typeof taskOrFunc === 'function') {
+    return new TaskThrottled(
+      createTaskRerun(taskOrFunc, argsOrOptions as Args, optionsArg),
+      optionsArg,
+    )
+  }
+  return new TaskThrottled(
+    taskOrFunc,
+    argsOrOptions as null | TaskOptionsThrottled,
+  )
+}
+
+export function createTaskRepeated<
+  Result,
+  Status extends TaskStatusBase<Result>,
+  RunOptions extends TaskRunOptionsRepeated,
+  Args,
+>(
+  task: ITaskWrapperSource<Result, Status, RunOptions, Args>,
+  options: TaskOptionsRepeated<Result, Status>,
+): ITaskRepeated<Result, Status, RunOptions, Args>
+export function createTaskRepeated<
+  Result,
+  Status extends TaskStatusBase<Result>,
+  RunOptions extends TaskRunOptionsRepeated,
+  Args,
+>(
+  func: TaskFunc<Args, Result>,
+  args: Args,
+  options: TaskOptionsRepeated<Result, Status>,
+): ITaskRepeated<Result, Status, RunOptions, Args>
+export function createTaskRepeated<
+  Result,
+  Status extends TaskStatusBase<Result>,
+  RunOptions extends TaskRunOptionsRepeated,
+  Args,
+>(
+  taskOrFunc:
+    | ITaskWrapperSource<Result, Status, RunOptions, Args>
+    | TaskFunc<Args, Result>,
+  argsOrOptions: Args | TaskOptionsRepeated<Result, Status>,
+  optionsArg?: null | TaskOptionsRepeated<Result, Status>,
+): ITaskRepeated<Result, Status, RunOptions, Args> {
+  if (typeof taskOrFunc === 'function') {
+    return new TaskRepeated(
+      createTaskRerun(taskOrFunc, argsOrOptions as Args, optionsArg),
+      optionsArg!,
+    )
+  }
+  return new TaskRepeated(
+    taskOrFunc,
+    argsOrOptions as TaskOptionsRepeated<Result, Status>,
+  )
+}
