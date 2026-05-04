@@ -652,8 +652,11 @@ export class TaskThrottled<
   }
 
   private updateNextCallTime(): void {
+    if (this._throttleTimeCurrent == null) {
+      return
+    }
     const now = this.timeController.now()
-    let newNextCallTime = now + this._throttleTimeCurrent!
+    let newNextCallTime = now + this._throttleTimeCurrent
     if (this._lastCallTime == null) {
       this._lastCallTime = now
     }
