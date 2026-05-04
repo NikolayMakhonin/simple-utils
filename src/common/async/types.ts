@@ -16,7 +16,13 @@ Capabilities:
 ONCE AGAIN, IT IS VERY IMPORTANT! I don't need a mix, mixer or pipe of all the tools, or tools glued together. I don't need a "Swiss Army knife" either - it is the same mix. I need a unified solution or foundation that covers all of their capabilities.
 */
 
-import { type IObservable, type ISubject, Listener, Subject } from '../rx'
+import {
+  type IObservable,
+  type ISubject,
+  Listener,
+  Subject,
+  waitObservable,
+} from '../rx'
 import {
   type ITimeController,
   timeControllerDefault,
@@ -86,6 +92,7 @@ export interface ITaskStatus<Result, Status extends TaskStatusBase<Result>>
 
 export type TaskRunOptionsBase = {
   immediate?: null | boolean
+  isRetry?: null | boolean
 }
 
 // TODO: Result = void, RunOptions = TaskRunOptionsBase
@@ -93,6 +100,10 @@ export interface ITaskRun<Result, RunOptions extends TaskRunOptionsBase> {
   run(options?: null | RunOptions): PromiseOrValue<Result>
   /** Abort current and scheduled executions */
   abort(): void
+  /** Wait for current execution or immediately scheduled execution if it supported by task */
+  wait(): PromiseOrValue<void>
+  /** Wait for time window without any execution or immediately scheduled executions */
+  waitIdle(): PromiseOrValue<void>
   readonly abortSignal: IAbortSignalFast
   readonly timeController: ITimeController
 }
@@ -150,6 +161,8 @@ export interface ITaskThrottled<
 export type TaskDelayResult = {
   delay?: null | number | (() => Promise<any>)
   isRetry?: null | boolean
+  stop?: null | boolean
+  skipRun?: null | boolean
 }
 
 /**
@@ -317,6 +330,14 @@ export class TaskWrapper<
 
   run(options?: null | RunOptions): PromiseOrValue<Result> {
     return this._task.run(options)
+  }
+
+  wait(): PromiseOrValue<void> {
+    return this._task.wait()
+  }
+
+  waitIdle(): PromiseOrValue<void> {
+    return this._task.waitIdle()
   }
 
   skipDelay(): void {
@@ -600,6 +621,7 @@ export class TaskBase<
   private readonly _events: ISubject<Status> = new Subject()
   private readonly _abortController: IAbortControllerFast = null!
   private readonly _timeController: ITimeController
+  private readonly _wait: () => PromiseOrValue<void>
   private _args: Args
   private _status: Status
   private _runPromise: Promise<Result> | null = null
@@ -615,6 +637,7 @@ export class TaskBase<
     this._abortController = new AbortControllerReusable(this._options)
     this._timeController =
       this._options?.timeController ?? timeControllerDefault
+    this._wait = () => this.wait()
     this._status = {
       abortSignal: this._abortController.signal,
       timeController: this._timeController,
@@ -654,11 +677,17 @@ export class TaskBase<
     return this._events.subscribe(listener)
   }
 
-  private onStart(): void {
+  private onStart(options: undefined | null | RunOptions): void {
     const now = this._timeController.now()
     this._status = {
       ...this._status,
       isRunning: true,
+      countRetry:
+        options?.isRetry == null
+          ? null
+          : this._status.countRetry == null
+            ? 0
+            : this._status.countRetry + 1,
       firstStart: this._status.firstStart ?? now,
       lastStart: now,
       abortSignal: this._abortController.signal,
@@ -697,7 +726,7 @@ export class TaskBase<
     }
 
     const isFirst = this._status.firstStart == null
-    this.onStart()
+    this.onStart(options)
     try {
       const resultOrPromise = this._func(this._args, {
         abortSignal: this._abortController.signal,
@@ -724,8 +753,24 @@ export class TaskBase<
       this.onSuccess(resultOrPromise)
       return resultOrPromise
     } catch (error) {
+      if (
+        this._options?.logLevel == null ||
+        this._options.logLevel >= LogLevel.error
+      ) {
+        console.error('[TaskBase]', error)
+      }
       this.onError(error)
       throw error
+    }
+  }
+
+  wait(): PromiseOrValue<void> {
+    return this._runPromise?.then(EMPTY_FUNC, EMPTY_FUNC)
+  }
+
+  waitIdle(): PromiseOrValue<void> {
+    if (this._runPromise) {
+      return this._runPromise.then(this._wait, this._wait)
     }
   }
 }
@@ -739,6 +784,7 @@ export class TaskRerun<
   extends TaskWrapper<Result, Status, RunOptions, Args>
   implements ITaskRerun
 {
+  private readonly _wait: () => PromiseOrValue<void>
   private _runPromise: Promise<Result> | null = null
 
   constructor(task: ITaskBaseWithArgs<Result, Status, RunOptions, Args>) {
@@ -748,6 +794,7 @@ export class TaskRerun<
         this._runPromise = null
       }
     })
+    this._wait = () => this.wait()
   }
 
   run(options?: null | RunOptions): PromiseOrValue<Result> {
@@ -778,6 +825,20 @@ export class TaskRerun<
 
   skipRerun(): void {
     this._runPromise = null
+  }
+
+  wait(): PromiseOrValue<void> {
+    return this._runPromise?.then(EMPTY_FUNC, EMPTY_FUNC) ?? super.wait()
+  }
+
+  waitIdle(): PromiseOrValue<void> {
+    if (this._runPromise) {
+      return this._runPromise.then(this._wait, this._wait)
+    }
+    const promiseOrResult = super.wait()
+    if (isPromiseLike(promiseOrResult)) {
+      return promiseLikeToPromise(promiseOrResult).then(this._wait)
+    }
   }
 }
 
@@ -921,14 +982,6 @@ export class TaskThrottled<
 
         try {
           await super.run()
-        } catch (error) {
-          if (
-            this._options?.logLevel == null ||
-            this._options.logLevel >= LogLevel.error
-          ) {
-            console.error('[TaskThrottled] Error in throttled task', error)
-          }
-          throw error
         } finally {
           this._lastCallTime = this.timeController.now()
           this.updateNextCallTime()
@@ -977,6 +1030,82 @@ export type TaskOptionsRepeated<
   delay: TaskDelay<Result, Status>
 }
 
+/*
+export type ScheduleTaskIntervalFuncArg = {
+  abortSignal: IAbortSignalFast
+}
+
+export type ScheduleTaskIntervalFunc = (
+  args: ScheduleTaskIntervalFuncArg,
+) => Promise<void>
+
+export type ScheduleTaskIntervalOptions = {
+  func: ScheduleTaskIntervalFunc
+  delay: TaskDelay
+  skipFirst?: null | boolean
+  timeController?: null | ITimeController
+  logLevel?: null | LogLevel
+}
+
+export function scheduleTaskInterval(
+  options: ScheduleTaskIntervalOptions,
+): Unsubscribe {
+  const abortController = new AbortControllerFast()
+  const abortSignal = abortController.signal
+  const timeController = options.timeController ?? timeControllerDefault
+
+  async function process() {
+    let first = true
+    let lastError: any = null
+    let retryCount: null | number = null
+    let timeStart = timeController.now()
+    while (!abortSignal.aborted) {
+      try {
+        const __delay = options.delay({
+          error: lastError,
+          retryCount,
+          abortSignal,
+          timeStart,
+        })
+
+        if (__delay == null) {
+          return
+        }
+
+        if (!first || !options.skipFirst) {
+          await options.func({ abortSignal })
+        }
+
+        if (typeof __delay === 'number') {
+          await delay(__delay, abortSignal, timeController)
+        } else {
+          await __delay()
+        }
+
+        lastError = null
+        retryCount = null
+        timeStart = timeController.now()
+      } catch (error) {
+        if (abortSignal.aborted) {
+          return
+        }
+        lastError = error
+        retryCount = retryCount == null ? 0 : retryCount + 1
+        if (options.logLevel == null || options.logLevel >= LogLevel.error) {
+          console.error('[scheduleTaskInterval] task execution failed', error)
+        }
+      }
+      first = false
+    }
+  }
+
+  void process()
+  return () => {
+    abortController.abort()
+  }
+}
+*/
+
 export class TaskRepeated<
     Result,
     Status extends TaskStatusBase<Result>,
@@ -987,16 +1116,68 @@ export class TaskRepeated<
   implements ITaskRepeated<Result, Status, RunOptions, Args>
 {
   private readonly _options: null | TaskOptionsRepeated<Result, Status>
+  private _inProcess: boolean = false
+
   constructor(
     task: ITaskThrottled<Result, Status, RunOptions, Args>,
-    options?: null | TaskOptionsRepeated<Result, Status>,
+    options: TaskOptionsRepeated<Result, Status>,
   ) {
     super(task)
     this._options = options ?? null
   }
 
+  private async process(): Promise<void> {
+    if (this._inProcess) {
+      return
+    }
+    this._inProcess = true
+
+    try {
+      while (!this.abortSignal.aborted) {
+        const delayResult = this._options!.delay(this.status)
+
+        if (delayResult.stop) {
+          return
+        }
+
+        if (!delayResult.skipRun) {
+          try {
+            await super.run()
+            await this.waitIdle()
+          } catch {
+            // Ignore errors, because it handles in wrapped task
+          }
+        }
+
+        const _delay = delayResult.delay
+
+        if (typeof _delay === 'number') {
+          await delay(_delay, this.abortSignal, this.timeController)
+        } else if (typeof _delay === 'function') {
+          await _delay()
+        }
+      }
+    } finally {
+      this._inProcess = false
+    }
+  }
+
   run(options?: null | RunOptions): PromiseOrValue<Result> {
     this.abortSignal.throwIfAborted()
-    // TODO: implement logic
+    if (options?.immediate) {
+      return super.run(options)
+    }
+
+    void this.process()
+
+    const waitRerun = this.supportsRerun && this.status.isRunning
+    return waitObservable(this, status => !status.isRunning).then(status => {
+      if (!waitRerun) {
+        return status.lastResult!
+      }
+      return waitObservable(this, status => !status.isRunning).then(status => {
+        return status.lastResult!
+      })
+    })
   }
 }
