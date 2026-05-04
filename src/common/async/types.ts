@@ -570,14 +570,20 @@ export class TaskWithRerun<
       return promiseOrResult
     }
 
-    const runPromise = promiseOrResult.then(result => {
-      // If rerun was skipped
-      // return the result of the first run
-      if (runPromise !== this._runPromise) {
-        return result
-      }
-      return super.run(options)
-    })
+    const runPromise = promiseOrResult
+      .then(result => {
+        // If rerun was skipped
+        // return the result of the first run
+        if (runPromise !== this._runPromise) {
+          return result
+        }
+        return super.run(options)
+      })
+      .finally(() => {
+        if (runPromise === this._runPromise) {
+          this._runPromise = null
+        }
+      })
     this._runPromise = runPromise
 
     return this._runPromise
@@ -795,11 +801,12 @@ export class TaskRepeated<
     RunOptions extends TaskRunOptionsRepeated,
     Args,
   >
-  extends TaskWrapper<Result, Status, RunOptions, Args>
+  extends TaskWrapper<Result, Status, TaskRunOptionsBase, Args>
   implements ITaskRepeated<Result, Status, RunOptions, Args>
 {
   private readonly _options: null | TaskOptionsRepeated<Result, Status>
   private _inProcess: boolean = false
+  private _delayAbortController: IAbortControllerFast | null = null
 
   constructor(
     task: ITaskWrapperSource<Result, Status, RunOptions, Args>,
@@ -807,6 +814,14 @@ export class TaskRepeated<
   ) {
     super(task)
     this._options = options ?? null
+  }
+
+  skipDelay(): void {
+    if (this._delayAbortController) {
+      this._delayAbortController.abort()
+      this._delayAbortController = null
+    }
+    super.skipDelay()
   }
 
   private async process(): Promise<void> {
@@ -825,7 +840,7 @@ export class TaskRepeated<
 
         if (!delayResult.skipRun) {
           try {
-            await super.run()
+            await super.run(delayResult.isRetry ? { isRetry: true } : undefined)
             await this.waitIdle()
           } catch {
             // Ignore errors, because it handles in wrapped task
@@ -835,9 +850,23 @@ export class TaskRepeated<
         const _delay = delayResult.delay
 
         if (typeof _delay === 'number') {
-          await delay(_delay, this.abortSignal, this.timeController)
+          this._delayAbortController = new AbortControllerFast()
+          const delayAbortSignal = combineAbortSignals(
+            this._delayAbortController.signal,
+            this.abortSignal,
+          )
+          await delay(_delay, delayAbortSignal, this.timeController).catch(
+            EMPTY_FUNC,
+          )
+          this._delayAbortController = null
         } else if (typeof _delay === 'function') {
-          await _delay()
+          this._delayAbortController = new AbortControllerFast()
+          const delayAbortSignal = combineAbortSignals(
+            this._delayAbortController.signal,
+            this.abortSignal,
+          )
+          await _delay(delayAbortSignal).catch(EMPTY_FUNC)
+          this._delayAbortController = null
         }
       }
     } finally {
