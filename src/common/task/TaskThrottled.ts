@@ -26,12 +26,11 @@ export type TaskRunOptionsThrottled = TaskRunOptionsBase & {
   throttleFromEnd?: null | boolean
 }
 
-// TODO: Result = void, Status = TaskStatusBase<Result>, RunOptions = TaskRunOptionsThrottled, Args = never
 export interface ITaskThrottled<
-  Result,
-  Status extends TaskStatusBase<Result>,
-  RunOptions extends TaskRunOptionsThrottled,
-  Args,
+  Result = void,
+  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
+  RunOptions extends TaskRunOptionsThrottled = TaskRunOptionsThrottled,
+  Args = never,
 > extends ITaskBaseWithArgs<Result, Status, RunOptions, Args>,
     ITaskDelay,
     ITaskRerun {}

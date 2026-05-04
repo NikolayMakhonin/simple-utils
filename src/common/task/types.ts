@@ -6,8 +6,7 @@ import {
 } from '@flemist/async-utils'
 import { type IAbortSignalFast } from '@flemist/abort-controller-fast'
 
-// TODO: Result = void
-export type TaskStatusBase<Result> = {
+export type TaskStatusBase<Result = void> = {
   readonly abortSignal: IAbortSignalFast
   readonly timeController: ITimeController
   readonly isRunning: boolean
@@ -45,9 +44,10 @@ export type TaskStatusBase<Result> = {
   readonly countRetry?: null | number
 }
 
-// TODO: Result = void, Status = TaskStatusBase<Result>
-export interface ITaskStatus<Result, Status extends TaskStatusBase<Result>>
-  extends IObservable<Status> {
+export interface ITaskStatus<
+  Result = void,
+  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
+> extends IObservable<Status> {
   readonly status: Status
 }
 
@@ -56,8 +56,10 @@ export type TaskRunOptionsBase = {
   isRetry?: null | boolean
 }
 
-// TODO: Result = void, RunOptions = TaskRunOptionsBase
-export interface ITaskRun<Result, RunOptions extends TaskRunOptionsBase> {
+export interface ITaskRun<
+  Result = void,
+  RunOptions extends TaskRunOptionsBase = TaskRunOptionsBase,
+> {
   run(options?: null | RunOptions): PromiseOrValue<Result>
   /** Abort current and scheduled executions */
   abort(): void
@@ -69,26 +71,23 @@ export interface ITaskRun<Result, RunOptions extends TaskRunOptionsBase> {
   readonly timeController: ITimeController
 }
 
-// TODO: Result = void, Status = TaskStatusBase<Result>, RunOptions = TaskRunOptionsBase
 export interface ITaskBase<
-  Result,
-  Status extends TaskStatusBase<Result>,
-  RunOptions extends TaskRunOptionsBase,
+  Result = void,
+  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
+  RunOptions extends TaskRunOptionsBase = TaskRunOptionsBase,
 > extends ITaskStatus<Result, Status>,
     ITaskRun<Result, RunOptions> {}
 
-// TODO: Args = never
-export interface ITaskArgs<Args> {
+export interface ITaskArgs<Args = never> {
   /** Function arguments for next execution */
   args: Args
 }
 
-// TODO: Result = void, Status = TaskStatusBase<Result>, RunOptions = TaskRunOptionsBase, Args = never
 export interface ITaskBaseWithArgs<
-  Result,
-  Status extends TaskStatusBase<Result>,
-  RunOptions extends TaskRunOptionsBase,
-  Args,
+  Result = void,
+  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
+  RunOptions extends TaskRunOptionsBase = TaskRunOptionsBase,
+  Args = never,
 > extends ITaskBase<Result, Status, RunOptions>,
     ITaskArgs<Args> {}
 
@@ -116,10 +115,10 @@ export type TaskDelayResult = {
   skipRun?: null | boolean
 }
 
-// TODO: Result = void, Status = TaskStatusBase<Result>
-export type TaskDelay<Result, Status extends TaskStatusBase<Result>> = (
-  args: Status,
-) => TaskDelayResult
+export type TaskDelay<
+  Result = void,
+  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
+> = (args: Status) => TaskDelayResult
 
 export type TaskFuncOptions = {
   abortSignal: IAbortSignalFast
@@ -127,8 +126,7 @@ export type TaskFuncOptions = {
   isFirst: boolean
 }
 
-// TODO: Args = never, Result = void
-export type TaskFunc<Args, Result> = (
+export type TaskFunc<Args = never, Result = void> = (
   args: Args,
   options: TaskFuncOptions,
 ) => PromiseLikeOrValue<Result>

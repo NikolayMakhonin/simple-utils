@@ -15,10 +15,10 @@ import { TaskBase, type TaskOptionsBase } from './TaskBase'
 import { type ITaskWrapperSource, TaskWrapper } from './TaskWrapper'
 
 export type ITaskWithRerun<
-  Result,
-  Status extends TaskStatusBase<Result>,
-  RunOptions extends TaskRunOptionsBase,
-  Args,
+  Result = void,
+  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
+  RunOptions extends TaskRunOptionsBase = TaskRunOptionsBase,
+  Args = never,
 > = ITaskBaseWithArgs<Result, Status, RunOptions, Args> & ITaskRerun
 
 export class TaskWithRerun<

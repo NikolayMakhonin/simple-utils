@@ -1,4 +1,3 @@
-// TODO: Result = void, Status = TaskStatusBase<Result>
 import {
   AbortControllerFast,
   type IAbortControllerFast,
@@ -25,19 +24,18 @@ import { type ITaskWrapperSource, TaskWrapper } from './TaskWrapper'
 
 export type TaskRunOptionsRepeated = TaskRunOptionsBase & {}
 
-// TODO: Result = void, Status = TaskStatusBase<Result>, RunOptions = TaskRunOptionsRepeated, Args = never
 export interface ITaskRepeated<
-  Result,
-  Status extends TaskStatusBase<Result>,
-  RunOptions extends TaskRunOptionsRepeated,
-  Args,
+  Result = void,
+  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
+  RunOptions extends TaskRunOptionsRepeated = TaskRunOptionsRepeated,
+  Args = never,
 > extends ITaskBaseWithArgs<Result, Status, RunOptions, Args>,
     ITaskDelay,
     ITaskRerun {}
 
 export type TaskOptionsRepeated<
-  Result,
-  Status extends TaskStatusBase<Result>,
+  Result = void,
+  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
 > = TaskOptionsBase & {
   readonly delay: TaskDelay<Result, Status>
 }

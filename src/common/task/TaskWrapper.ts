@@ -13,18 +13,18 @@ import type {
 } from './types'
 
 export type ITaskWrapperSource<
-  Result,
-  Status extends TaskStatusBase<Result>,
-  RunOptions extends TaskRunOptionsBase,
-  Args,
+  Result = void,
+  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
+  RunOptions extends TaskRunOptionsBase = TaskRunOptionsBase,
+  Args = never,
 > = ITaskBase<Result, Status, RunOptions> &
   (ITaskArgs<Args> | ITaskDelay | ITaskRerun | {})
 
 export interface ITaskWrapper<
-  Result,
-  Status extends TaskStatusBase<Result>,
-  RunOptions extends TaskRunOptionsBase,
-  Args,
+  Result = void,
+  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
+  RunOptions extends TaskRunOptionsBase = TaskRunOptionsBase,
+  Args = never,
 > extends ITaskBase<Result, Status, RunOptions>,
     ITaskArgs<Args>,
     ITaskDelay,
