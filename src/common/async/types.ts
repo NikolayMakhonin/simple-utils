@@ -853,6 +853,7 @@ export class TaskRepeated<
         const delayResult = this._options!.delay(this.status)
 
         if (delayResult.stop) {
+          this.abort()
           return
         }
 
@@ -898,17 +899,24 @@ export class TaskRepeated<
       return super.run(options)
     }
 
+    const abortSignal = this.abortSignal
     void this.process()
 
     const waitRerun = this.supportsRerun && this.status.isRunning
-    return waitObservable(this, status => !status.isRunning).then(status => {
-      if (!waitRerun) {
-        return status.lastResult!
-      }
-      return waitObservable(this, status => !status.isRunning).then(status => {
-        return status.lastResult!
-      })
-    })
+    return waitObservable(this, status => !status.isRunning, abortSignal).then(
+      status => {
+        if (!waitRerun) {
+          return status.lastResult!
+        }
+        return waitObservable(
+          this,
+          status => !status.isRunning,
+          abortSignal,
+        ).then(status => {
+          return status.lastResult!
+        })
+      },
+    )
   }
 }
 

@@ -10,22 +10,24 @@
  * - DONE - process loop completed, all timers drained
  *
  * Parameters:
- * - [i] - delay call index
+ * - [i] - delay call index or exec index
  * - delayMs - numeric delay value returned
  * - stop - delay requested loop stop
  * - skipRun - delay requested skip execution
  * - isRetry - delay marked as retry
+ * - error - whether task function threw
  * - actualStart, actualEnd - execution timestamps relative to origin
  * - result - return value from task function
  * - lastEnd - status.lastEnd relative to origin at time delay was called
  * - lastHasError - status.lastHasError at time delay was called
+ * - countRetry - status.countRetry at time delay was called
  *
  * Example trace:
- * [test][delay][0] lastEnd=null lastHasError=false → delayMs=5 stop=false skipRun=false isRetry=false
- * [test][exec][0] actualStart=0 actualEnd=3 result=0
- * [test][delay][1] lastEnd=3 lastHasError=false → delayMs=5 stop=false skipRun=false isRetry=false
- * [test][exec][1] actualStart=8 actualEnd=11 result=1
- * [test][delay][2] lastEnd=11 lastHasError=false → delayMs=null stop=true skipRun=false isRetry=false
+ * [test][delay][0] lastEnd=null lastHasError=false countRetry=null → delayMs=5 stop=false skipRun=false isRetry=false
+ * [test][exec][0] actualStart=0 actualEnd=3 result=0 error=false
+ * [test][delay][1] lastEnd=3 lastHasError=false countRetry=null → delayMs=5 stop=false skipRun=false isRetry=true
+ * [test][exec][1] actualStart=8 actualEnd=11 result=1 error=true
+ * [test][delay][2] lastEnd=11 lastHasError=true countRetry=0 → delayMs=null stop=true skipRun=false isRetry=false
  * [test] DONE executions=2
  */
 import { describe, it } from 'vitest'
@@ -46,6 +48,9 @@ export type TestVariantsArgs = {
   iterationsMax: number
   delayTimeMax: number
   skipRunProbabilityPercent: number
+  errorProbabilityPercent: number
+  retryProbabilityPercent: number
+  useImmediate: boolean
 }
 
 const testVariants = createTestVariants(async (args: TestVariantsArgs) => {
@@ -77,6 +82,7 @@ type DelayCallRecord = {
   statusLastEnd: number | null
   statusLastHasError: boolean
   statusIsRunning: boolean
+  statusCountRetry: number | null | undefined
   result: TaskDelayResult
 }
 
@@ -84,12 +90,15 @@ type ExecRecord = {
   start: number
   end: number
   result: number
+  threw: boolean
 }
 
 type GeneratedDelayPlan = {
   iterations: number
   delays: number[]
   skipRunIndices: Set<number>
+  retryIndices: Set<number>
+  errorExecIndices: Set<number>
 }
 
 type TestContext = {
@@ -100,6 +109,7 @@ type TestContext = {
   execRecords: ExecRecord[]
   delayCallRecords: DelayCallRecord[]
   plan: GeneratedDelayPlan
+  useImmediate: boolean
 }
 
 type GenerateContextOptions = {
@@ -113,9 +123,10 @@ function generateDelayPlan(options: {
   args: TestVariantsArgs
 }): GeneratedDelayPlan {
   const { rnd, args } = options
-  const iterations = randomInt(rnd, 1, args.iterationsMax + 1)
+  const iterations = randomInt(rnd, 0, args.iterationsMax + 1)
   const delays: number[] = []
   const skipRunIndices = new Set<number>()
+  const retryIndices = new Set<number>()
 
   for (let i = 0; i < iterations; i++) {
     delays.push(randomInt(rnd, 0, args.delayTimeMax + 1))
@@ -125,9 +136,27 @@ function generateDelayPlan(options: {
     ) {
       skipRunIndices.add(i)
     }
+    if (
+      args.retryProbabilityPercent > 0 &&
+      randomInt(rnd, 0, 100) < args.retryProbabilityPercent
+    ) {
+      retryIndices.add(i)
+    }
   }
 
-  return { iterations, delays, skipRunIndices }
+  // Determine which executions will throw
+  const execCount = iterations - skipRunIndices.size
+  const errorExecIndices = new Set<number>()
+  for (let i = 0; i < execCount; i++) {
+    if (
+      args.errorProbabilityPercent > 0 &&
+      randomInt(rnd, 0, 100) < args.errorProbabilityPercent
+    ) {
+      errorExecIndices.add(i)
+    }
+  }
+
+  return { iterations, delays, skipRunIndices, retryIndices, errorExecIndices }
 }
 
 async function generateContext(
@@ -149,18 +178,28 @@ async function generateContext(
       const funcStart = timeController.now() - originTime
       timeController.addTime(args.executionDuration)
       const funcEnd = timeController.now() - originTime
-      const result = callCount++
-      execRecords.push({ start: funcStart, end: funcEnd, result })
+      const execIdx = callCount++
+      const shouldThrow = plan.errorExecIndices.has(execIdx)
+      execRecords.push({
+        start: funcStart,
+        end: funcEnd,
+        result: execIdx,
+        threw: shouldThrow,
+      })
       if (log) {
         console.log(
-          `[test][exec][${result}] actualStart=${funcStart} actualEnd=${funcEnd} result=${result}`,
+          `[test][exec][${execIdx}] actualStart=${funcStart} actualEnd=${funcEnd} result=${execIdx} error=${shouldThrow}`,
         )
       }
-      return result
+      if (shouldThrow) {
+        throw new Error(`exec error ${execIdx}`)
+      }
+      return execIdx
     },
     null,
     {
       timeController,
+      logLevel: LogLevel.none,
       delay(status: TaskStatusBase<any>): TaskDelayResult {
         const i = delayIndex++
         const shouldStop = i >= plan.iterations
@@ -170,6 +209,7 @@ async function generateContext(
           : {
               delay: plan.delays[i],
               skipRun: plan.skipRunIndices.has(i),
+              isRetry: plan.retryIndices.has(i) || undefined,
             }
 
         const record: DelayCallRecord = {
@@ -178,14 +218,15 @@ async function generateContext(
             status.lastEnd == null ? null : status.lastEnd - originTime,
           statusLastHasError: status.lastHasError,
           statusIsRunning: status.isRunning,
+          statusCountRetry: status.countRetry,
           result: delayResult,
         }
         delayCallRecords.push(record)
 
         if (log) {
           console.log(
-            `[test][delay][${i}] lastEnd=${record.statusLastEnd} lastHasError=${record.statusLastHasError}` +
-              ` → delayMs=${delayResult.delay ?? null} stop=${delayResult.stop ?? false} skipRun=${delayResult.skipRun ?? false}`,
+            `[test][delay][${i}] lastEnd=${record.statusLastEnd} lastHasError=${record.statusLastHasError} countRetry=${record.statusCountRetry}` +
+              ` → delayMs=${delayResult.delay ?? null} stop=${delayResult.stop ?? false} skipRun=${delayResult.skipRun ?? false} isRetry=${delayResult.isRetry ?? false}`,
           )
         }
 
@@ -202,6 +243,7 @@ async function generateContext(
     execRecords,
     delayCallRecords,
     plan,
+    useImmediate: args.useImmediate,
   }
 }
 
@@ -216,13 +258,94 @@ async function test(options: TestOptions): Promise<void> {
   const { timeController, task, execRecords, delayCallRecords, plan, log } =
     context
 
-  task.run()
+  if (context.useImmediate) {
+    let result: any
+    let caughtError: any
+    try {
+      result = await waitTimeControllerMock(
+        timeController,
+        Promise.resolve(task.run({ immediate: true })),
+        { awaitsPerIteration: 1 },
+      )
+    } catch (err) {
+      caughtError = err
+    }
+
+    if (log) {
+      console.log(
+        `[test] IMMEDIATE result=${result} error=${!!caughtError} execCount=${execRecords.length}`,
+      )
+    }
+
+    if (execRecords.length !== 1) {
+      throw new Error(
+        `immediate: execCount expected 1, actual ${execRecords.length}`,
+      )
+    }
+    if (execRecords[0].start !== 0) {
+      throw new Error(
+        `immediate: start expected 0, actual ${execRecords[0].start}`,
+      )
+    }
+    if (delayCallRecords.length !== 0) {
+      throw new Error(
+        `immediate: should not call delay, but called ${delayCallRecords.length} times`,
+      )
+    }
+    if (execRecords[0].threw) {
+      if (!caughtError) {
+        throw new Error(`immediate: expected error to propagate but it did not`)
+      }
+    } else {
+      if (caughtError) {
+        throw new Error(`immediate: unexpected error: ${caughtError.message}`)
+      }
+      if (result !== 0) {
+        throw new Error(`immediate: result expected 0, actual ${result}`)
+      }
+    }
+    return
+  }
+
+  if (plan.iterations === 0) {
+    let rejected = false
+    ;(task.run() as Promise<any>).catch(() => {
+      rejected = true
+    })
+
+    await waitTimeControllerMock(timeController, null, { timeout: 100 })
+
+    if (log) {
+      console.log(`[test] STOP-IMMEDIATELY rejected=${rejected}`)
+    }
+
+    if (delayCallRecords.length !== 1) {
+      throw new Error(
+        `stop-immediately: expected 1 delay call, actual ${delayCallRecords.length}`,
+      )
+    }
+    if (!delayCallRecords[0].result.stop) {
+      throw new Error(`stop-immediately: first delay should return stop=true`)
+    }
+    if (execRecords.length !== 0) {
+      throw new Error(
+        `stop-immediately: expected 0 executions, actual ${execRecords.length}`,
+      )
+    }
+    if (!rejected) {
+      throw new Error(`stop-immediately: run() should reject with abort error`)
+    }
+    return
+  }
+
+  const runPromise = (task.run() as Promise<any>).catch(() => {})
 
   const maxTime =
     (plan.iterations + 1) * (args.executionDuration + args.delayTimeMax + 10)
   await waitTimeControllerMock(timeController, null, {
     timeout: maxTime,
   })
+  await runPromise
 
   if (log) {
     console.log(`[test] DONE executions=${execRecords.length}`)
@@ -277,6 +400,8 @@ function checkDelayReceivesCorrectStatus(
   plan: GeneratedDelayPlan,
 ): void {
   let expectedLastEnd: number | null = null
+  let expectedLastHasError = false
+  let expectedCountRetry: number | null | undefined = undefined
   let execIdx = 0
 
   for (let i = 0; i < delayCallRecords.length; i++) {
@@ -287,9 +412,44 @@ function checkDelayReceivesCorrectStatus(
         `delay[${i}] statusLastEnd: expected ${expectedLastEnd}, actual ${record.statusLastEnd}`,
       )
     }
+    if (record.statusLastHasError !== expectedLastHasError) {
+      throw new Error(
+        `delay[${i}] statusLastHasError: expected ${expectedLastHasError}, actual ${record.statusLastHasError}`,
+      )
+    }
+    if (expectedCountRetry == null) {
+      if (record.statusCountRetry != null) {
+        throw new Error(
+          `delay[${i}] statusCountRetry: expected null/undefined, actual ${record.statusCountRetry}`,
+        )
+      }
+    } else {
+      if (record.statusCountRetry !== expectedCountRetry) {
+        throw new Error(
+          `delay[${i}] statusCountRetry: expected ${expectedCountRetry}, actual ${record.statusCountRetry}`,
+        )
+      }
+    }
 
+    // After this delay call, if not stopped and not skipped, an execution happens
     if (i < plan.iterations && !plan.skipRunIndices.has(i)) {
-      expectedLastEnd = execRecords[execIdx].end
+      const exec = execRecords[execIdx]
+      expectedLastEnd = exec.end
+      expectedLastHasError = exec.threw
+
+      // countRetry logic from TaskBase.onStart:
+      // isRetry == null → countRetry = null
+      // isRetry == true && prev countRetry == null → countRetry = 0
+      // isRetry == true && prev countRetry != null → countRetry + 1
+      const isRetry = plan.retryIndices.has(i)
+      if (!isRetry) {
+        expectedCountRetry = null
+      } else if (expectedCountRetry == null) {
+        expectedCountRetry = 0
+      } else {
+        expectedCountRetry = expectedCountRetry + 1
+      }
+
       execIdx++
     }
   }
@@ -335,216 +495,15 @@ function checkExecTiming(
 }
 
 describe('TaskRepeated', { timeout: 7 * 60 * 60 * 1000 }, () => {
-  it('stop-on-first-delay-hangs-run', async () => {
-    const timeController = new TimeControllerMock()
-    let delayCalls = 0
-
-    const task = createTaskRepeated<any, any, any, any>(
-      async () => {
-        timeController.addTime(1)
-        return 'result'
-      },
-      null,
-      {
-        timeController,
-        delay(): TaskDelayResult {
-          delayCalls++
-          return { stop: true }
-        },
-      },
-    )
-
-    let resolved = false
-    ;(task.run() as Promise<any>).then(() => {
-      resolved = true
-    })
-
-    await waitTimeControllerMock(timeController, null, { timeout: 100 })
-
-    if (delayCalls !== 1) {
-      throw new Error(`expected 1 delay call, got ${delayCalls}`)
-    }
-    if (resolved) {
-      throw new Error('run() should not resolve when delay immediately stops')
-    }
-  })
-
-  it('immediate', async () => {
-    const timeController = new TimeControllerMock()
-    const originTime = timeController.now()
-    const execRecords: ExecRecord[] = []
-    let callCount = 0
-    let delayCalls = 0
-
-    const task = createTaskRepeated<any, any, any, any>(
-      async () => {
-        const funcStart = timeController.now() - originTime
-        timeController.addTime(3)
-        const funcEnd = timeController.now() - originTime
-        const result = callCount++
-        execRecords.push({ start: funcStart, end: funcEnd, result })
-        return result
-      },
-      null,
-      {
-        timeController,
-        delay(): TaskDelayResult {
-          delayCalls++
-          return { stop: true }
-        },
-      },
-    )
-
-    const result = await waitTimeControllerMock(
-      timeController,
-      Promise.resolve(task.run({ immediate: true })),
-      { awaitsPerIteration: 1 },
-    )
-
-    if (result !== 0) {
-      throw new Error(`immediate result: expected 0, actual ${result}`)
-    }
-    if (execRecords.length !== 1) {
-      throw new Error(
-        `immediate execCount: expected 1, actual ${execRecords.length}`,
-      )
-    }
-    if (execRecords[0].start !== 0) {
-      throw new Error(
-        `immediate start: expected 0, actual ${execRecords[0].start}`,
-      )
-    }
-    if (delayCalls !== 0) {
-      throw new Error(
-        `immediate should not call delay function, but called ${delayCalls} times`,
-      )
-    }
-  })
-
-  it('isRetry', async () => {
-    const timeController = new TimeControllerMock()
-    let callCount = 0
-    let delayIndex = 0
-    const statusSnapshots: { countRetry: null | number | undefined }[] = []
-
-    const task = createTaskRepeated<any, any, any, any>(
-      async () => {
-        callCount++
-        timeController.addTime(1)
-        return callCount
-      },
-      null,
-      {
-        timeController,
-        delay(status: TaskStatusBase<any>): TaskDelayResult {
-          const i = delayIndex++
-          statusSnapshots.push({ countRetry: status.countRetry })
-          if (i >= 4) {
-            return { stop: true }
-          }
-          return { delay: 1, isRetry: i >= 2 }
-        },
-      },
-    )
-
-    task.run()
-    await waitTimeControllerMock(timeController, null, { timeout: 100 })
-
-    // delay[0]: no prev exec → countRetry null
-    // delay[1]: after exec with isRetry=undefined → countRetry null
-    // delay[2]: after exec with isRetry=undefined → countRetry null
-    // delay[3]: after exec with isRetry=true → countRetry 0 (first retry)
-    // delay[4]: after exec with isRetry=true → countRetry 1 (second retry, stop)
-    const expectedRetry: (number | null)[] = [null, null, null, 0, 1]
-    for (let i = 0; i < expectedRetry.length; i++) {
-      const expected = expectedRetry[i]
-      const actual = statusSnapshots[i].countRetry
-      if (expected == null) {
-        if (actual != null) {
-          throw new Error(`retry[${i}]: expected null, actual ${actual}`)
-        }
-      } else {
-        if (actual !== expected) {
-          throw new Error(`retry[${i}]: expected ${expected}, actual ${actual}`)
-        }
-      }
-    }
-  })
-
-  it('error-handling', async () => {
-    const timeController = new TimeControllerMock()
-    let callCount = 0
-    let delayIndex = 0
-    const statusSnapshots: { lastHasError: boolean; lastError?: any }[] = []
-
-    const task = createTaskRepeated<any, any, any, any>(
-      async () => {
-        const i = callCount++
-        timeController.addTime(1)
-        if (i === 1) {
-          throw new Error('test error')
-        }
-        return i
-      },
-      null,
-      {
-        timeController,
-        logLevel: LogLevel.none,
-        delay(status: TaskStatusBase<any>): TaskDelayResult {
-          const i = delayIndex++
-          statusSnapshots.push({
-            lastHasError: status.lastHasError,
-            lastError: status.lastError,
-          })
-          if (i >= 4) {
-            return { stop: true }
-          }
-          return { delay: 1 }
-        },
-      },
-    )
-
-    task.run()
-    await waitTimeControllerMock(timeController, null, { timeout: 100 })
-
-    // delay[0]: initial → lastHasError=false
-    // delay[1]: after exec[0] success → lastHasError=false
-    // delay[2]: after exec[1] error → lastHasError=true
-    // delay[3]: after exec[2] success → lastHasError=false
-    // delay[4]: after exec[3] success → lastHasError=false (stop)
-    if (statusSnapshots[0].lastHasError) {
-      throw new Error('error[0]: expected lastHasError=false')
-    }
-    if (statusSnapshots[1].lastHasError) {
-      throw new Error('error[1]: expected lastHasError=false')
-    }
-    if (!statusSnapshots[2].lastHasError) {
-      throw new Error('error[2]: expected lastHasError=true')
-    }
-    if (statusSnapshots[2].lastError?.message !== 'test error') {
-      throw new Error(
-        `error[2]: expected lastError.message='test error', got ${statusSnapshots[2].lastError?.message}`,
-      )
-    }
-    if (statusSnapshots[3].lastHasError) {
-      throw new Error(
-        'error[3]: expected lastHasError=false after successful exec',
-      )
-    }
-    if (callCount !== 4) {
-      throw new Error(`expected 4 task calls, got ${callCount}`)
-    }
-    if (statusSnapshots.length !== 5) {
-      throw new Error(`expected 5 delay calls, got ${statusSnapshots.length}`)
-    }
-  })
-
   it('variants', async () => {
     await testVariants({
       executionDuration: [0, 1, 3, 5],
       iterationsMax: [1, 2, 3, 5, 10],
       delayTimeMax: [0, 1, 5, 10],
       skipRunProbabilityPercent: [0, 30, 50],
+      errorProbabilityPercent: [0, 20],
+      retryProbabilityPercent: [0, 40],
+      useImmediate: [false, true],
     })({
       limitTime: 2 * 60 * 60 * 1000,
       parallel: 1,
