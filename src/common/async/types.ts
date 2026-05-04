@@ -470,6 +470,12 @@ export class TaskBase<
   }
 
   private onError(error: any): void {
+    if (
+      this._options?.logLevel == null ||
+      this._options.logLevel >= LogLevel.error
+    ) {
+      console.error('[TaskBase]', error)
+    }
     this._status = {
       ...this._status,
       isRunning: false,
@@ -514,12 +520,6 @@ export class TaskBase<
       this.onSuccess(resultOrPromise)
       return resultOrPromise
     } catch (error) {
-      if (
-        this._options?.logLevel == null ||
-        this._options.logLevel >= LogLevel.error
-      ) {
-        console.error('[TaskBase]', error)
-      }
       this.onError(error)
       throw error
     }
