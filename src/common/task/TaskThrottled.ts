@@ -4,6 +4,7 @@ import {
 } from '@flemist/abort-controller-fast'
 import { combineAbortSignals, delay, EMPTY_FUNC } from '@flemist/async-utils'
 import {
+  type ArgsDefault,
   type ITaskBaseWithArgs,
   type ITaskDelay,
   type ITaskRerun,
@@ -27,11 +28,11 @@ export type TaskRunOptionsThrottled = TaskRunOptionsBase & {
 }
 
 export interface ITaskThrottled<
+  Args = ArgsDefault,
   Result = void,
-  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
   RunOptions extends TaskRunOptionsThrottled = TaskRunOptionsThrottled,
-  Args = never,
-> extends ITaskBaseWithArgs<Result, Status, RunOptions, Args>,
+  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
+> extends ITaskBaseWithArgs<Args, Result, RunOptions, Status>,
     ITaskDelay,
     ITaskRerun {}
 
@@ -47,13 +48,13 @@ export type TaskOptionsThrottled = TaskOptionsBase & {
 }
 
 export class TaskThrottled<
-    Result,
-    Status extends TaskStatusBase<Result>,
-    RunOptions extends TaskRunOptionsThrottled,
-    Args,
+    Args = ArgsDefault,
+    Result = void,
+    RunOptions extends TaskRunOptionsThrottled = TaskRunOptionsThrottled,
+    Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
   >
-  extends TaskWrapper<Result, Status, RunOptions, Args>
-  implements ITaskThrottled<Result, Status, RunOptions, Args>
+  extends TaskWrapper<Args, Result, RunOptions, Status>
+  implements ITaskThrottled<Args, Result, RunOptions, Status>
 {
   private readonly _options: null | TaskOptionsThrottled
   private _timerAbortController: IAbortControllerFast | null = null
@@ -65,7 +66,7 @@ export class TaskThrottled<
   private _throttleFromEnd: boolean = false
 
   constructor(
-    task: ITaskWrapperSource<Result, Status, RunOptions, Args>,
+    task: ITaskWrapperSource<Args, Result, RunOptions, Status>,
     options?: null | TaskOptionsThrottled,
   ) {
     super(task)
@@ -233,39 +234,34 @@ export class TaskThrottled<
 }
 
 export function createTaskThrottled<
-  Result,
-  Status extends TaskStatusBase<Result>,
-  RunOptions extends TaskRunOptionsThrottled,
-  Args,
+  Args = ArgsDefault,
+  Result = void,
+  RunOptions extends TaskRunOptionsThrottled = TaskRunOptionsThrottled,
+  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
 >(
-  task: ITaskWrapperSource<Result, Status, RunOptions, Args>,
+  task: ITaskWrapperSource<Args, Result, RunOptions, Status>,
   options?: null | TaskOptionsThrottled,
-): ITaskThrottled<Result, Status, RunOptions, Args>
-export function createTaskThrottled<
-  Result,
-  Status extends TaskStatusBase<Result>,
-  RunOptions extends TaskRunOptionsThrottled,
-  Args,
->(
+): ITaskThrottled<Args, Result, RunOptions, Status>
+export function createTaskThrottled<Args = ArgsDefault, Result = void>(
   func: TaskFunc<Args, Result>,
   args: Args,
   options?: null | TaskOptionsThrottled,
-): ITaskThrottled<Result, Status, RunOptions, Args>
+): ITaskThrottled<Args, Result>
 export function createTaskThrottled<
-  Result,
-  Status extends TaskStatusBase<Result>,
-  RunOptions extends TaskRunOptionsThrottled,
-  Args,
+  Args = ArgsDefault,
+  Result = void,
+  RunOptions extends TaskRunOptionsThrottled = TaskRunOptionsThrottled,
+  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
 >(
   taskOrFunc:
-    | ITaskWrapperSource<Result, Status, RunOptions, Args>
+    | ITaskWrapperSource<Args, Result, RunOptions, Status>
     | TaskFunc<Args, Result>,
   argsOrOptions?: Args | (null | TaskOptionsThrottled),
   optionsArg?: null | TaskOptionsThrottled,
-): ITaskThrottled<Result, Status, RunOptions, Args> {
+): ITaskThrottled<Args, Result, RunOptions, Status> {
   if (typeof taskOrFunc === 'function') {
     return new TaskThrottled(
-      createTaskRerun(taskOrFunc, argsOrOptions as Args, optionsArg),
+      createTaskRerun(taskOrFunc, argsOrOptions as Args, optionsArg) as any,
       optionsArg,
     )
   }

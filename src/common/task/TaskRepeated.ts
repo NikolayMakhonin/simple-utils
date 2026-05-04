@@ -10,6 +10,7 @@ import {
 } from '@flemist/async-utils'
 import { waitObservable } from 'src/common/rx'
 import {
+  type ArgsDefault,
   type ITaskBaseWithArgs,
   type ITaskDelay,
   type ITaskRerun,
@@ -25,11 +26,11 @@ import { type ITaskWrapperSource, TaskWrapper } from './TaskWrapper'
 export type TaskRunOptionsRepeated = TaskRunOptionsBase & {}
 
 export interface ITaskRepeated<
+  Args = ArgsDefault,
   Result = void,
-  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
   RunOptions extends TaskRunOptionsRepeated = TaskRunOptionsRepeated,
-  Args = never,
-> extends ITaskBaseWithArgs<Result, Status, RunOptions, Args>,
+  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
+> extends ITaskBaseWithArgs<Args, Result, RunOptions, Status>,
     ITaskDelay,
     ITaskRerun {}
 
@@ -41,20 +42,20 @@ export type TaskOptionsRepeated<
 }
 
 export class TaskRepeated<
-    Result,
-    Status extends TaskStatusBase<Result>,
-    RunOptions extends TaskRunOptionsRepeated,
-    Args,
+    Args = ArgsDefault,
+    Result = void,
+    RunOptions extends TaskRunOptionsRepeated = TaskRunOptionsRepeated,
+    Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
   >
-  extends TaskWrapper<Result, Status, TaskRunOptionsBase, Args>
-  implements ITaskRepeated<Result, Status, RunOptions, Args>
+  extends TaskWrapper<Args, Result, TaskRunOptionsBase, Status>
+  implements ITaskRepeated<Args, Result, RunOptions, Status>
 {
   private readonly _options: null | TaskOptionsRepeated<Result, Status>
   private _inProcess: boolean = false
   private _delayAbortController: IAbortControllerFast | null = null
 
   constructor(
-    task: ITaskWrapperSource<Result, Status, RunOptions, Args>,
+    task: ITaskWrapperSource<Args, Result, RunOptions, Status>,
     options: TaskOptionsRepeated<Result, Status>,
   ) {
     super(task)
@@ -148,39 +149,34 @@ export class TaskRepeated<
 }
 
 export function createTaskRepeated<
-  Result,
-  Status extends TaskStatusBase<Result>,
-  RunOptions extends TaskRunOptionsRepeated,
-  Args,
+  Args = ArgsDefault,
+  Result = void,
+  RunOptions extends TaskRunOptionsRepeated = TaskRunOptionsRepeated,
+  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
 >(
-  task: ITaskWrapperSource<Result, Status, RunOptions, Args>,
+  task: ITaskWrapperSource<Args, Result, RunOptions, Status>,
   options: TaskOptionsRepeated<Result, Status>,
-): ITaskRepeated<Result, Status, RunOptions, Args>
-export function createTaskRepeated<
-  Result,
-  Status extends TaskStatusBase<Result>,
-  RunOptions extends TaskRunOptionsRepeated,
-  Args,
->(
+): ITaskRepeated<Args, Result, RunOptions, Status>
+export function createTaskRepeated<Args = ArgsDefault, Result = void>(
   func: TaskFunc<Args, Result>,
   args: Args,
-  options: TaskOptionsRepeated<Result, Status>,
-): ITaskRepeated<Result, Status, RunOptions, Args>
+  options: TaskOptionsRepeated<Result>,
+): ITaskRepeated<Args, Result>
 export function createTaskRepeated<
-  Result,
-  Status extends TaskStatusBase<Result>,
-  RunOptions extends TaskRunOptionsRepeated,
-  Args,
+  Args = ArgsDefault,
+  Result = void,
+  RunOptions extends TaskRunOptionsRepeated = TaskRunOptionsRepeated,
+  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
 >(
   taskOrFunc:
-    | ITaskWrapperSource<Result, Status, RunOptions, Args>
+    | ITaskWrapperSource<Args, Result, RunOptions, Status>
     | TaskFunc<Args, Result>,
   argsOrOptions: Args | TaskOptionsRepeated<Result, Status>,
   optionsArg?: null | TaskOptionsRepeated<Result, Status>,
-): ITaskRepeated<Result, Status, RunOptions, Args> {
+): ITaskRepeated<Args, Result, RunOptions, Status> {
   if (typeof taskOrFunc === 'function') {
     return new TaskRepeated(
-      createTaskRerun(taskOrFunc, argsOrOptions as Args, optionsArg),
+      createTaskRerun(taskOrFunc, argsOrOptions as Args, optionsArg) as any,
       optionsArg!,
     )
   }

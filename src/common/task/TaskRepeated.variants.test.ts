@@ -101,7 +101,7 @@ type GeneratedDelayPlan = {
 type TestContext = {
   log: boolean
   timeController: TimeControllerMock
-  task: ReturnType<typeof createTaskRepeated<any, any, any, any>>
+  task: ReturnType<typeof createTaskRepeated>
   originTime: number
   execRecords: ExecRecord[]
   delayCallRecords: DelayCallRecord[]
@@ -170,7 +170,7 @@ async function generateContext(
   let callCount = 0
   let delayIndex = 0
 
-  const task = createTaskRepeated<any, any, any, any>(
+  const task = createTaskRepeated(
     async () => {
       const funcStart = timeController.now() - originTime
       timeController.addTime(args.executionDuration)

@@ -5,6 +5,7 @@ import {
   type PromiseOrValue,
 } from '@flemist/async-utils'
 import {
+  type ArgsDefault,
   type ITaskBaseWithArgs,
   type ITaskRerun,
   type TaskFunc,
@@ -15,25 +16,25 @@ import { TaskBase, type TaskOptionsBase } from './TaskBase'
 import { type ITaskWrapperSource, TaskWrapper } from './TaskWrapper'
 
 export type ITaskWithRerun<
+  Args = ArgsDefault,
   Result = void,
-  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
   RunOptions extends TaskRunOptionsBase = TaskRunOptionsBase,
-  Args = never,
-> = ITaskBaseWithArgs<Result, Status, RunOptions, Args> & ITaskRerun
+  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
+> = ITaskBaseWithArgs<Args, Result, RunOptions, Status> & ITaskRerun
 
 export class TaskWithRerun<
-    Result,
-    Status extends TaskStatusBase<Result>,
-    RunOptions extends TaskRunOptionsBase,
-    Args,
+    Args = ArgsDefault,
+    Result = void,
+    RunOptions extends TaskRunOptionsBase = TaskRunOptionsBase,
+    Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
   >
-  extends TaskWrapper<Result, Status, RunOptions, Args>
-  implements ITaskWithRerun<Result, Status, RunOptions, Args>
+  extends TaskWrapper<Args, Result, RunOptions, Status>
+  implements ITaskWithRerun<Args, Result, RunOptions, Status>
 {
   private readonly _wait: () => PromiseOrValue<void>
   private _runPromise: Promise<Result> | null = null
 
-  constructor(task: ITaskWrapperSource<Result, Status, RunOptions, Args>) {
+  constructor(task: ITaskWrapperSource<Args, Result, RunOptions, Status>) {
     super(task)
     this._wait = () => this.wait()
   }
@@ -90,35 +91,30 @@ export class TaskWithRerun<
 }
 
 export function createTaskRerun<
-  Result,
-  Status extends TaskStatusBase<Result>,
-  RunOptions extends TaskRunOptionsBase,
-  Args,
+  Args = ArgsDefault,
+  Result = void,
+  RunOptions extends TaskRunOptionsBase = TaskRunOptionsBase,
+  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
 >(
-  task: ITaskWrapperSource<Result, Status, RunOptions, Args>,
-): ITaskWithRerun<Result, Status, RunOptions, Args>
-export function createTaskRerun<
-  Result,
-  Status extends TaskStatusBase<Result>,
-  RunOptions extends TaskRunOptionsBase,
-  Args,
->(
+  task: ITaskWrapperSource<Args, Result, RunOptions, Status>,
+): ITaskWithRerun<Args, Result, RunOptions, Status>
+export function createTaskRerun<Args = ArgsDefault, Result = void>(
   func: TaskFunc<Args, Result>,
   args: Args,
   options?: null | TaskOptionsBase,
-): ITaskWithRerun<Result, Status, RunOptions, Args>
+): ITaskWithRerun<Args, Result>
 export function createTaskRerun<
-  Result,
-  Status extends TaskStatusBase<Result>,
-  RunOptions extends TaskRunOptionsBase,
-  Args,
+  Args = ArgsDefault,
+  Result = void,
+  RunOptions extends TaskRunOptionsBase = TaskRunOptionsBase,
+  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
 >(
   taskOrFunc:
-    | ITaskWrapperSource<Result, Status, RunOptions, Args>
+    | ITaskWrapperSource<Args, Result, RunOptions, Status>
     | TaskFunc<Args, Result>,
   argsOrOptions?: Args | (null | TaskOptionsBase),
   optionsArg?: null | TaskOptionsBase,
-): ITaskWithRerun<Result, Status, RunOptions, Args> {
+): ITaskWithRerun<Args, Result, RunOptions, Status> {
   if (typeof taskOrFunc === 'function') {
     return new TaskWithRerun(
       new TaskBase(taskOrFunc, argsOrOptions as Args, optionsArg),

@@ -16,6 +16,7 @@ import {
 import type { Unsubscribe } from 'src/common/types'
 import { LogLevel } from 'src/common/debug'
 import {
+  type ArgsDefault,
   type ITaskBaseWithArgs,
   type TaskFunc,
   type TaskRunOptionsBase,
@@ -32,11 +33,11 @@ export type TaskOptionsBase = AbortControllerReusableOptions & {
 }
 
 export class TaskBase<
-  Result,
-  Status extends TaskStatusBase<Result>,
-  RunOptions extends TaskRunOptionsBase,
-  Args,
-> implements ITaskBaseWithArgs<Result, Status, RunOptions, Args>
+  Args = ArgsDefault,
+  Result = void,
+  RunOptions extends TaskRunOptionsBase = TaskRunOptionsBase,
+  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
+> implements ITaskBaseWithArgs<Args, Result, RunOptions, Status>
 {
   private readonly _options: null | TaskOptionsBase
   private readonly _func: TaskFunc<Args, Result>
@@ -198,15 +199,10 @@ export class TaskBase<
   }
 }
 
-export function createTask<
-  Result,
-  Status extends TaskStatusBase<Result>,
-  RunOptions extends TaskRunOptionsBase,
-  Args,
->(
+export function createTask<Args = ArgsDefault, Result = void>(
   func: TaskFunc<Args, Result>,
   args: Args,
   options?: null | TaskOptionsBase,
-): TaskBase<Result, Status, RunOptions, Args> {
+): TaskBase<Args, Result> {
   return new TaskBase(func, args, options)
 }

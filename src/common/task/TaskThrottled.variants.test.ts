@@ -60,7 +60,7 @@ const testVariants = createTestVariants(async (args: TestVariantsArgs) => {
 type TestContext = {
   log: boolean
   timeController: TimeControllerMock
-  task: ReturnType<typeof createTaskThrottled<any, any, any, any>>
+  task: ReturnType<typeof createTaskThrottled>
   originTime: number
   timeStamps: { start: number; end: number }[]
 }
@@ -79,7 +79,7 @@ async function generateContext(
   const timeStamps: { start: number; end: number }[] = []
 
   let callCount = 0
-  const task = createTaskThrottled<any, any, any, any>(
+  const task = createTaskThrottled(
     async () => {
       const funcStart = timeController.now() - originTime
       timeController.addTime(args.executionDuration)

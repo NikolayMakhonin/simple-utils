@@ -4,6 +4,7 @@ import type { Listener } from 'src/common/rx'
 import type { Unsubscribe } from 'src/common/types'
 import type { PromiseOrValue } from '@flemist/async-utils'
 import type {
+  ArgsDefault,
   ITaskArgs,
   ITaskBase,
   ITaskDelay,
@@ -13,19 +14,19 @@ import type {
 } from './types'
 
 export type ITaskWrapperSource<
+  Args = ArgsDefault,
   Result = void,
-  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
   RunOptions extends TaskRunOptionsBase = TaskRunOptionsBase,
-  Args = never,
-> = ITaskBase<Result, Status, RunOptions> &
+  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
+> = ITaskBase<Result, RunOptions, Status> &
   (ITaskArgs<Args> | ITaskDelay | ITaskRerun | {})
 
 export interface ITaskWrapper<
+  Args = ArgsDefault,
   Result = void,
-  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
   RunOptions extends TaskRunOptionsBase = TaskRunOptionsBase,
-  Args = never,
-> extends ITaskBase<Result, Status, RunOptions>,
+  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
+> extends ITaskBase<Result, RunOptions, Status>,
     ITaskArgs<Args>,
     ITaskDelay,
     ITaskRerun {
@@ -35,18 +36,18 @@ export interface ITaskWrapper<
 }
 
 export class TaskWrapper<
-  Result,
-  Status extends TaskStatusBase<Result>,
-  RunOptions extends TaskRunOptionsBase,
-  Args,
-> implements ITaskWrapper<Result, Status, RunOptions, Args>
+  Args = ArgsDefault,
+  Result = void,
+  RunOptions extends TaskRunOptionsBase = TaskRunOptionsBase,
+  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
+> implements ITaskWrapper<Args, Result, RunOptions, Status>
 {
-  protected readonly _task: ITaskWrapperSource<Result, Status, RunOptions, Args>
+  protected readonly _task: ITaskWrapperSource<Args, Result, RunOptions, Status>
   private readonly _supportsArgs: boolean
   private readonly _supportsDelay: boolean
   private readonly _supportsRerun: boolean
 
-  constructor(task: ITaskWrapperSource<Result, Status, RunOptions, Args>) {
+  constructor(task: ITaskWrapperSource<Args, Result, RunOptions, Status>) {
     this._task = task
     this._supportsArgs = 'args' in task
     this._supportsDelay = 'skipDelay' in task

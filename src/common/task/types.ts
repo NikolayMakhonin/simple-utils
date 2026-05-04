@@ -6,6 +6,8 @@ import {
 } from '@flemist/async-utils'
 import { type IAbortSignalFast } from '@flemist/abort-controller-fast'
 
+export type ArgsDefault = void | undefined | null
+
 export type TaskStatusBase<Result = void> = {
   readonly abortSignal: IAbortSignalFast
   readonly timeController: ITimeController
@@ -73,22 +75,22 @@ export interface ITaskRun<
 
 export interface ITaskBase<
   Result = void,
-  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
   RunOptions extends TaskRunOptionsBase = TaskRunOptionsBase,
+  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
 > extends ITaskStatus<Result, Status>,
     ITaskRun<Result, RunOptions> {}
 
-export interface ITaskArgs<Args = never> {
+export interface ITaskArgs<Args = ArgsDefault> {
   /** Function arguments for next execution */
   args: Args
 }
 
 export interface ITaskBaseWithArgs<
+  Args = ArgsDefault,
   Result = void,
-  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
   RunOptions extends TaskRunOptionsBase = TaskRunOptionsBase,
-  Args = never,
-> extends ITaskBase<Result, Status, RunOptions>,
+  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
+> extends ITaskBase<Result, RunOptions, Status>,
     ITaskArgs<Args> {}
 
 export interface ITaskDelay {
@@ -126,7 +128,7 @@ export type TaskFuncOptions = {
   isFirst: boolean
 }
 
-export type TaskFunc<Args = never, Result = void> = (
+export type TaskFunc<Args = ArgsDefault, Result = void> = (
   args: Args,
   options: TaskFuncOptions,
 ) => PromiseLikeOrValue<Result>
