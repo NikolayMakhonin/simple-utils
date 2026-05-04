@@ -185,8 +185,9 @@ export interface ITaskRepeated<
   Status extends TaskStatusBase<Result>,
   RunOptions extends TaskRunOptionsRepeated,
   Args,
-> extends ITaskThrottled<Result, Status, RunOptions, Args>,
-    ITaskDelay {}
+> extends ITaskBaseWithArgs<Result, Status, RunOptions, Args>,
+    ITaskDelay,
+    ITaskRerun {}
 
 export type TaskFuncOptions = {
   abortSignal: IAbortSignalFast
@@ -778,7 +779,7 @@ export class TaskThrottled<
 export type TaskOptionsRepeated<
   Result,
   Status extends TaskStatusBase<Result>,
-> = TaskOptionsThrottled & {
+> = TaskOptionsBase & {
   delay: TaskDelay<Result, Status>
 }
 
@@ -795,7 +796,7 @@ export class TaskRepeated<
   private _inProcess: boolean = false
 
   constructor(
-    task: ITaskThrottled<Result, Status, RunOptions, Args>,
+    task: ITaskRepeated<Result, Status, RunOptions, Args>,
     options: TaskOptionsRepeated<Result, Status>,
   ) {
     super(task)
