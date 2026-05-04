@@ -763,7 +763,7 @@ export class TaskThrottled<
   }
 
   skipDelay(): void {
-    this._timerTargetTime = null
+    this._nextCallTime = 0
     if (this._timerAbortController) {
       this._timerAbortController.abort()
       this._timerAbortController = null
