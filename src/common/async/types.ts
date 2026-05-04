@@ -858,3 +858,9 @@ export class TaskRepeated<
     })
   }
 }
+
+// For migration:
+// To replace toThrottled use TaskThrottled
+// To replace scheduleTaskInterval use TaskRepeated
+// To replace scheduleSync use promiseAllWait
+// To replace scheduleSync onError use subscribe
