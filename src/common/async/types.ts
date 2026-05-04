@@ -153,6 +153,12 @@ export type ITaskWithRerun<
 export type TaskRunOptionsThrottled = TaskRunOptionsBase & {
   throttleTime?: null | number
   throttleTimeMax?: null | number
+  /**
+   * false/undefined - throttle time counts from the last execution start
+   * true - throttle time counts from the last execution end;
+   *   executes immediately when never executed or enough time passed
+   */
+  throttleFromEnd?: null | boolean
 }
 
 // TODO: Result = void, Status = TaskStatusBase<Result>, RunOptions = TaskRunOptionsThrottled, Args = never
@@ -606,6 +612,12 @@ export class TaskWithRerun<
 export type TaskOptionsThrottled = TaskOptionsBase & {
   readonly throttleTimeDefault?: null | number
   readonly throttleTimeMax?: null | number
+  /**
+   * false/undefined - throttle time counts from the last execution start
+   * true - throttle time counts from the last execution end;
+   *   executes immediately when never executed or enough time passed
+   */
+  readonly throttleFromEnd?: null | boolean
 }
 
 export class TaskThrottled<
@@ -624,6 +636,7 @@ export class TaskThrottled<
   private _lastCallTime: number | null = null
   private _throttleTimeCurrent: number | null = null
   private _throttleTimeMaxCurrent: number | null = null
+  private _throttleFromEnd: boolean = false
 
   constructor(
     task: ITaskWrapperSource<Result, Status, RunOptions, Args>,
@@ -631,6 +644,7 @@ export class TaskThrottled<
   ) {
     super(task)
     this._options = options ?? null
+    this._throttleFromEnd = !!this._options?.throttleFromEnd
   }
 
   private updateThrottleTime(
@@ -656,14 +670,15 @@ export class TaskThrottled<
       return
     }
     const now = this.timeController.now()
-    let newNextCallTime = now + this._throttleTimeCurrent
-    if (this._lastCallTime == null) {
-      this._lastCallTime = now
-    }
+    let newNextCallTime =
+      this._lastCallTime == null
+        ? now
+        : this._lastCallTime + this._throttleTimeCurrent
     if (this._throttleTimeMaxCurrent != null) {
+      const lastCallTime = this._lastCallTime ?? now
       newNextCallTime = Math.min(
         newNextCallTime,
-        this._lastCallTime + this._throttleTimeMaxCurrent,
+        lastCallTime + this._throttleTimeMaxCurrent,
       )
     }
     this._nextCallTime = newNextCallTime
@@ -680,7 +695,11 @@ export class TaskThrottled<
   private update(
     throttleTime?: null | number,
     _throttleTimeMax?: null | number | false,
+    throttleFromEnd?: null | boolean,
   ): void {
+    if (throttleFromEnd != null) {
+      this._throttleFromEnd = throttleFromEnd
+    }
     this.updateThrottleTime(throttleTime, _throttleTimeMax)
     this.updateNextCallTime()
   }
@@ -692,16 +711,11 @@ export class TaskThrottled<
 
     let callTime = this._nextCallTime ?? 0
 
+    const lastCallTime = this._lastCallTime ?? now
     const callTimeMax =
       this._throttleTimeMaxCurrent == null
         ? null
-        : this._lastCallTime == null
-          ? now + this._throttleTimeMaxCurrent
-          : now +
-            Math.max(
-              0,
-              this._throttleTimeMaxCurrent - (now - this._lastCallTime),
-            )
+        : now + Math.max(0, this._throttleTimeMaxCurrent - (now - lastCallTime))
     if (callTimeMax != null) {
       callTime = Math.min(callTime, callTimeMax)
     }
@@ -743,10 +757,15 @@ export class TaskThrottled<
         this._throttleTimeCurrent = null
         this._nextCallTime = null
 
+        if (!this._throttleFromEnd) {
+          this._lastCallTime = this.timeController.now()
+        }
         try {
           await super.run()
         } finally {
-          this._lastCallTime = this.timeController.now()
+          if (this._throttleFromEnd) {
+            this._lastCallTime = this.timeController.now()
+          }
           this.updateNextCallTime()
         }
       }
@@ -779,8 +798,9 @@ export class TaskThrottled<
 
   async run(options?: null | RunOptions): Promise<Result> {
     this.abortSignal.throwIfAborted()
-    const { immediate, throttleTime, throttleTimeMax } = options ?? {}
-    this.update(immediate ? 0 : throttleTime, throttleTimeMax)
+    const { immediate, throttleTime, throttleTimeMax, throttleFromEnd } =
+      options ?? {}
+    this.update(immediate ? 0 : throttleTime, throttleTimeMax, throttleFromEnd)
     await this.process()
     return this.status.lastResult!
   }
