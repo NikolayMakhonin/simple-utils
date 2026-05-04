@@ -7,10 +7,12 @@ import {
   type ITimeController,
   timeControllerDefault,
 } from '@flemist/time-controller'
-import { PromiseOrValue } from 'src/types'
-import { combineAbortSignals } from 'src/abort-controller-fast'
-import { delay } from 'src/delay'
-import { EMPTY_FUNC } from 'src/constants'
+import {
+  combineAbortSignals,
+  delay,
+  EMPTY_FUNC,
+  type PromiseOrValue,
+} from '@flemist/async-utils'
 
 export type ThrottledFuncArgs<Args> =
   | [

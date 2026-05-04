@@ -1,5 +1,5 @@
 import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
-import { scheduleTaskInterval } from 'src/lib/global/lib/time/scheduleTaskInterval'
+import { scheduleTaskInterval } from './scheduleTaskInterval'
 import type { PromiseOrValue } from '@flemist/simple-utils'
 import type { ITimeController } from '@flemist/time-controller'
 import type { LogLevel } from '@flemist/simple-utils'

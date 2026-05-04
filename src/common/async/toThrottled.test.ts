@@ -1,7 +1,8 @@
+import { describe, it } from 'vitest'
 import { createTestVariants } from '@flemist/test-variants'
 import { TimeControllerMock } from '@flemist/time-controller'
 import { toThrottled } from './toThrottled'
-import { waitTimeControllerMock } from 'src/wait/waitTimeControllerMock'
+import { waitTimeControllerMock } from '@flemist/async-utils'
 
 describe('toThrottled', () => {
   function checkTimeStamps({
@@ -141,8 +142,7 @@ describe('toThrottled', () => {
     },
   )
 
-  it('base', async function () {
-    this.timeout(10 * 60 * 1000)
+  it('base', { timeout: 10 * 60 * 1000 }, async function () {
     for (let i = 0; i < 10; i++) {
       const result = await testVariants({
         throttleTimeDefault: [null, 0, 5, 10],
