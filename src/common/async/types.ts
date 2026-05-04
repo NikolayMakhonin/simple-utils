@@ -177,16 +177,13 @@ export type TaskDelay<Result, Status extends TaskStatusBase<Result>> = (
 ) => TaskDelayResult
 
 // TODO: Result = void, Status = TaskStatusBase<Result>
-export type TaskRunOptionsRepeated<
-  Result,
-  Status extends TaskStatusBase<Result>,
-> = TaskRunOptionsThrottled & {}
+export type TaskRunOptionsRepeated = TaskRunOptionsBase & {}
 
 // TODO: Result = void, Status = TaskStatusBase<Result>, RunOptions = TaskRunOptionsRepeated, Args = never
 export interface ITaskRepeated<
   Result,
   Status extends TaskStatusBase<Result>,
-  RunOptions extends TaskRunOptionsRepeated<Result, Status>,
+  RunOptions extends TaskRunOptionsRepeated,
   Args,
 > extends ITaskThrottled<Result, Status, RunOptions, Args>,
     ITaskDelay {}
@@ -355,253 +352,9 @@ export class TaskWrapper<
   }
 }
 
-/*
-
-export class Task<Args> implements ITaskBase<Args> {
-  private readonly _options: TaskOptions | null
-  private readonly _func: TaskFunc<Args>
-  private readonly _events: ISubject<TaskStatusBase> = new Subject()
-  private readonly _timeController: ITimeController
-  private _args: Args
-  private _status: TaskStatusBase
-  private _abortController: IAbortControllerFast = null!
-
-  constructor(func: TaskFunc<Args>, args: Args, options?: null | TaskOptions) {
-    this._options = options ?? null
-    this._timeController =
-      this._options?.timeController ?? timeControllerDefault
-    this._func = func
-    this._args = args
-    this._status = {
-      lastStart: null,
-      lastSuccess: null,
-      isRunning: false,
-    }
-    this._abortController = new AbortControllerReusable(this._options)
-  }
-
-  abort(): void {
-    this._abortController.abort()
-  }
-
-  get args(): Args {
-    return this._args
-  }
-
-  set args(value: Args) {
-    this._args = value
-  }
-
-  get status(): TaskStatusBase {
-    return this._status
-  }
-
-  subscribe(listener: (status: TaskStatusBase) => void): () => void {
-    return this._events.subscribe(listener)
-  }
-
-  private onStart(): void {
-    this._status = {
-      ...this._status,
-      lastStart: this._timeController.now(),
-      isRunning: true,
-    }
-    this._events.emit(this._status)
-  }
-
-  private onSuccess(): void {
-    this._status = {
-      ...this._status,
-      lastSuccess: this._timeController.now(),
-      isRunning: false,
-    }
-    this._events.emit(this._status)
-  }
-
-  private onError(): void {
-    this._status = {
-      ...this._status,
-      isRunning: false,
-    }
-    this._events.emit(this._status)
-  }
-
-  private _runPromise: Promise<void> | null = null
-
-  run(args?: Args): PromiseOrValue<void> {
-    this._abortController.signal.throwIfAborted()
-    if (arguments.length > 0) {
-      this._args = args!
-    }
-    if (this._runPromise) {
-      return this._runPromise
-    }
-
-    this.onStart()
-    this._events.emit(this._status)
-    try {
-      const resultOrPromise = this._func(this._args, {
-        abortSignal: this._abortController.signal,
-      })
-      if (isPromiseLike(resultOrPromise)) {
-        this._runPromise = promiseLikeToPromise(
-          resultOrPromise.then(
-            result => {
-              this._runPromise = null
-              this.onSuccess()
-              return result
-            },
-            error => {
-              this._runPromise = null
-              this.onError()
-              throw error
-            },
-          ),
-        )
-        return this._runPromise
-      } else {
-        this.onSuccess()
-        return resultOrPromise
-      }
-    } catch (error) {
-      this.onError()
-      throw error
-    }
-  }
-}
-
-export class TaskWrapper2<Args> implements ITaskBase<Args> {
-  private readonly _task: ITaskBase<Args>
-
-  constructor(task: ITaskBase<Args>) {
-    this._task = task
-  }
-
-  get args(): Args {
-    return this._task.args
-  }
-  set args(value: Args) {
-    this._task.args = value
-  }
-
-  get status(): TaskStatusBase {
-    return this._task.status
-  }
-
-  abort(): void {
-    this._task.abort()
-  }
-
-  subscribe(listener: Listener<TaskStatusBase>): Unsubscribe {
-    return this._task.subscribe(listener)
-  }
-
-  run(args?: Args): PromiseOrValue<void> {
-    return this._task.run(args)
-  }
-}
-
-export type TaskNextOptions = TaskAbortControllerOptions & {}
-
-export interface ITaskScheduled<Args> extends ITaskBase<Args> {
-  abortScheduled(): void
-}
-
-export class TaskNext<Args>
-  extends TaskWrapper<Args>
-  implements ITaskScheduled<Args>
-{
-  private readonly _abortController: IAbortControllerFast = null!
-
-  constructor(task: ITaskBase<Args>, options?: null | TaskNextOptions) {
-    super(task)
-    this._abortController = new AbortControllerReusable(options)
-    super.subscribe(status => {
-      if (!status.isRunning) {
-        this._runPromise = null
-      }
-    })
-  }
-
-  private _runPromise: Promise<void> | null = null
-
-  run(args?: Args): PromiseOrValue<void> {
-    this._abortController.signal.throwIfAborted()
-    if (arguments.length > 0) {
-      this.args = args!
-    }
-    if (this._runPromise) {
-      return this._runPromise
-    }
-
-    const isRunning = this.status.isRunning
-
-    const promiseOrResult = super.run()
-
-    if (!isRunning || !isPromiseLike(promiseOrResult)) {
-      return promiseOrResult
-    }
-
-    this._runPromise = promiseOrResult.then(() => {
-      return super.run()
-    })
-
-    return this._runPromise
-  }
-
-  abortScheduled(): void {
-    this._abortController.abort()
-  }
-}
-
-export interface ITaskDelayed<Args> extends ITaskBase<Args> {
-  runForce(args?: Args): PromiseOrValue<void>
-  abortDelay(): void
-}
-
-export type TaskThrottleOptions = TaskAbortControllerOptions & {}
-
-export class TaskDelayed<Args>
-  extends TaskWrapper<Args>
-  implements ITaskDelayed<Args>
-{
-  private readonly _abortController: IAbortControllerFast = null!
-
-  constructor(task: ITaskBase<Args>, options?: null | TaskThrottleOptions) {
-    super(task)
-    this._abortController = new AbortControllerReusable(options)
-  }
-}
-
-export type TaskRetryOptions = TaskAbortControllerOptions & {}
-
-export class TaskRetry<Args>
-  extends TaskWrapper<Args>
-  implements ITaskScheduled<Args>
-{
-  private readonly _abortController: IAbortControllerFast = null!
-
-  constructor(task: ITaskBase<Args>, options?: null | TaskRetryOptions) {
-    super(task)
-    this._abortController = new AbortControllerReusable(options)
-  }
-}
-*/
-
 export type CheckIfAbortedOptions = {
   dontThrowIfAborted?: null | boolean
 }
-
-// export function checkIfAborted(
-//   abortSignal: IAbortSignalFast,
-//   options?: null | CheckIfAbortedOptions,
-// ): boolean {
-//   if (options?.dontThrowIfAborted) {
-//     return abortSignal.aborted
-//   }
-//   abortSignal.throwIfAborted()
-//   return false
-// }
 
 export type TaskOptionsBase = TaskAbortControllerOptions &
   CheckIfAbortedOptions & {
@@ -861,7 +614,6 @@ export class TaskThrottled<
   private _timerTargetTime: number | null = null
   private _nextCallTime: number | null = null
   private _lastCallTime: number | null = null
-  private _isFirstCall: boolean = true
   private _throttleTimeCurrent: number | null = null
   private _throttleTimeMaxCurrent: number | null = null
 
@@ -1030,86 +782,10 @@ export type TaskOptionsRepeated<
   delay: TaskDelay<Result, Status>
 }
 
-/*
-export type ScheduleTaskIntervalFuncArg = {
-  abortSignal: IAbortSignalFast
-}
-
-export type ScheduleTaskIntervalFunc = (
-  args: ScheduleTaskIntervalFuncArg,
-) => Promise<void>
-
-export type ScheduleTaskIntervalOptions = {
-  func: ScheduleTaskIntervalFunc
-  delay: TaskDelay
-  skipFirst?: null | boolean
-  timeController?: null | ITimeController
-  logLevel?: null | LogLevel
-}
-
-export function scheduleTaskInterval(
-  options: ScheduleTaskIntervalOptions,
-): Unsubscribe {
-  const abortController = new AbortControllerFast()
-  const abortSignal = abortController.signal
-  const timeController = options.timeController ?? timeControllerDefault
-
-  async function process() {
-    let first = true
-    let lastError: any = null
-    let retryCount: null | number = null
-    let timeStart = timeController.now()
-    while (!abortSignal.aborted) {
-      try {
-        const __delay = options.delay({
-          error: lastError,
-          retryCount,
-          abortSignal,
-          timeStart,
-        })
-
-        if (__delay == null) {
-          return
-        }
-
-        if (!first || !options.skipFirst) {
-          await options.func({ abortSignal })
-        }
-
-        if (typeof __delay === 'number') {
-          await delay(__delay, abortSignal, timeController)
-        } else {
-          await __delay()
-        }
-
-        lastError = null
-        retryCount = null
-        timeStart = timeController.now()
-      } catch (error) {
-        if (abortSignal.aborted) {
-          return
-        }
-        lastError = error
-        retryCount = retryCount == null ? 0 : retryCount + 1
-        if (options.logLevel == null || options.logLevel >= LogLevel.error) {
-          console.error('[scheduleTaskInterval] task execution failed', error)
-        }
-      }
-      first = false
-    }
-  }
-
-  void process()
-  return () => {
-    abortController.abort()
-  }
-}
-*/
-
 export class TaskRepeated<
     Result,
     Status extends TaskStatusBase<Result>,
-    RunOptions extends TaskRunOptionsRepeated<Result, Status>,
+    RunOptions extends TaskRunOptionsRepeated,
     Args,
   >
   extends TaskWrapper<Result, Status, RunOptions, Args>
