@@ -25,9 +25,9 @@
 import { describe, it } from 'vitest'
 import { createTestVariants } from '@flemist/test-variants'
 import { TimeControllerMock } from '@flemist/time-controller'
-import { createTaskThrottled } from './types'
 import { waitTimeControllerMock } from '@flemist/async-utils'
 import { getRandomSeed, Random, randomItem } from 'src/common/random'
+import { createTaskThrottled } from './TaskThrottled'
 
 export type TestVariantsArgs = {
   seed: number

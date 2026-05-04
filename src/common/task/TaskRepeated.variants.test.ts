@@ -33,14 +33,11 @@
 import { describe, it } from 'vitest'
 import { createTestVariants } from '@flemist/test-variants'
 import { TimeControllerMock } from '@flemist/time-controller'
-import {
-  createTaskRepeated,
-  type TaskDelayResult,
-  type TaskStatusBase,
-} from './types'
+import { type TaskDelayResult, type TaskStatusBase } from './types'
 import { LogLevel } from 'src/common/debug'
 import { waitTimeControllerMock } from '@flemist/async-utils'
 import { getRandomSeed, Random, randomInt } from 'src/common/random'
+import { createTaskRepeated } from './TaskRepeated'
 
 export type TestVariantsArgs = {
   seed: number
