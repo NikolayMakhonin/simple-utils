@@ -19,7 +19,7 @@ ONCE AGAIN, IT IS VERY IMPORTANT! I don't need a mix, mixer or pipe of all the t
 import {
   type IObservable,
   type ISubject,
-  Listener,
+  type Listener,
   Subject,
   waitObservable,
 } from '../rx'
@@ -29,8 +29,8 @@ import {
 } from '@flemist/time-controller'
 import {
   isPromiseLike,
-  PromiseOrValue,
-  PromiseLikeOrValue,
+  type PromiseOrValue,
+  type PromiseLikeOrValue,
   promiseLikeToPromise,
   combineAbortSignals,
   delay,
@@ -42,7 +42,7 @@ import {
   type IAbortSignalFast,
 } from '@flemist/abort-controller-fast'
 import type { TAbortReason } from '@flemist/abort-controller-fast/dist/lib/contracts'
-import { Unsubscribe } from '../types'
+import type { Unsubscribe } from '../types'
 import { LogLevel } from '../debug'
 
 // TODO: Result = void
@@ -166,18 +166,17 @@ export interface ITaskThrottled<
     ITaskRerun {}
 
 export type TaskDelayResult = {
-  delay?: null | number | (() => Promise<any>)
+  /**
+   * null - no delay
+   * 0 - delay 0 ms (like setTimeout(func, 0))
+   * func - custom delay
+   */
+  delay?: null | number | ((abortSignal: IAbortSignalFast) => Promise<any>)
   isRetry?: null | boolean
   stop?: null | boolean
   skipRun?: null | boolean
 }
 
-/**
- * Returns:
- * - null: stop execution
- * - number: delay in milliseconds
- * - () => Promise: custom async wait function
- */
 // TODO: Result = void, Status = TaskStatusBase<Result>
 export type TaskDelay<Result, Status extends TaskStatusBase<Result>> = (
   args: Status,
@@ -278,36 +277,36 @@ export class TaskWrapper<
 > implements ITaskWrapper<Result, Status, RunOptions, Args>
 {
   protected readonly _task: ITaskWrapperSource<Result, Status, RunOptions, Args>
-  private readonly _supportArgs: boolean
-  private readonly _supportDelay: boolean
-  private readonly _supportRerun: boolean
+  private readonly _supportsArgs: boolean
+  private readonly _supportsDelay: boolean
+  private readonly _supportsRerun: boolean
   constructor(task: ITaskWrapperSource<Result, Status, RunOptions, Args>) {
     this._task = task
-    this._supportArgs = 'args' in task
-    this._supportDelay = 'skipDelay' in task
-    this._supportRerun = 'skipRerun' in task
+    this._supportsArgs = 'args' in task
+    this._supportsDelay = 'skipDelay' in task
+    this._supportsRerun = 'skipRerun' in task
   }
 
   get supportsArgs(): boolean {
-    return this._supportArgs
+    return this._supportsArgs
   }
 
   get supportsDelay(): boolean {
-    return this._supportDelay
+    return this._supportsDelay
   }
 
   get supportsRerun(): boolean {
-    return this._supportRerun
+    return this._supportsRerun
   }
 
   get args(): Args {
-    if (!this._supportArgs) {
+    if (!this._supportsArgs) {
       throw new Error('[TaskWrapper] Wrapped task does not support args')
     }
     return (this._task as ITaskArgs<Args>).args
   }
   set args(value: Args) {
-    if (!this._supportArgs) {
+    if (!this._supportsArgs) {
       throw new Error('[TaskWrapper] Wrapped task does not support args')
     }
     ;(this._task as ITaskArgs<Args>).args = value
@@ -346,14 +345,14 @@ export class TaskWrapper<
   }
 
   skipDelay(): void {
-    if (!this._supportDelay) {
+    if (!this._supportsDelay) {
       return
     }
     ;(this._task as ITaskDelay).skipDelay()
   }
 
   skipRerun(): void {
-    if (!this._supportRerun) {
+    if (!this._supportsRerun) {
       return
     }
     ;(this._task as ITaskRerun).skipRerun()
