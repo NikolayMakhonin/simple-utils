@@ -549,11 +549,6 @@ export class TaskWithRerun<
 
   constructor(task: ITaskWrapperSource<Result, Status, RunOptions, Args>) {
     super(task)
-    super.subscribe(status => {
-      if (!status.isRunning) {
-        this._runPromise = null
-      }
-    })
     this._wait = () => this.wait()
   }
 
