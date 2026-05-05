@@ -1,12 +1,15 @@
 import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
-import { delay } from '@flemist/async-utils'
 import type { PromiseOrValue } from 'src/common/types/common'
 import {
-  type ITimeController,
-  timeControllerDefault,
-} from '@flemist/time-controller'
-import { LogLevel } from 'src/common/debug/LogLevel'
-import type { TaskDelay } from './types'
+  TASK_STOP,
+  type TaskDelayPrepare,
+  type TaskStatusBase,
+} from 'src/common/task/types'
+import {
+  createTaskRepeated,
+  type TaskOptionsRepeated,
+} from 'src/common/task/TaskRepeated'
+import { waitObservable } from 'src/common/rx'
 
 export type WithRetryFuncArg = {
   abortSignal: IAbortSignalFast | null
@@ -14,13 +17,9 @@ export type WithRetryFuncArg = {
 
 export type WithRetryFunc<T> = (args: WithRetryFuncArg) => PromiseOrValue<T>
 
-export type WithRetryOptions<T> = {
+export type WithRetryOptions<T> = Omit<TaskOptionsRepeated<T>, 'delay'> & {
   func: WithRetryFunc<T>
-  /** If null - call func directly without retrying on error */
-  delay: null | undefined | TaskDelay
-  abortSignal?: null | IAbortSignalFast
-  timeController?: null | ITimeController
-  logLevel?: null | LogLevel
+  delay?: null | TaskDelayPrepare<T, TaskStatusBase<T>>
 }
 
 export async function withRetry<T>(options: WithRetryOptions<T>): Promise<T> {
@@ -28,43 +27,27 @@ export async function withRetry<T>(options: WithRetryOptions<T>): Promise<T> {
     return options.func({ abortSignal: options.abortSignal ?? null })
   }
 
-  const abortSignal = options.abortSignal ?? null
-  const timeController = options.timeController ?? timeControllerDefault
-  const timeStart = Date.now()
-  let retryCount = 0
+  const task = createTaskRepeated<null, T>(
+    (_, taskFuncOptions) => {
+      return options.func(taskFuncOptions)
+    },
+    null,
+    options as TaskOptionsRepeated<T>,
+  )
 
-  while (true) {
-    try {
-      return await options.func({ abortSignal })
-    } catch (error) {
-      if (options.logLevel == null || options.logLevel >= LogLevel.error) {
-        console.error('[withRetry] error', error)
-      }
-      if (abortSignal?.aborted) {
-        throw error
-      }
+  void task.run()
 
-      const __delay = options.delay({
-        error,
-        retryCount: retryCount++,
-        timeStart,
-        abortSignal,
-      })
-      if (__delay == null) {
-        throw error
-      }
+  await waitObservable(task, status => {
+    return status.abortSignal.aborted || status.lastSuccess != null
+  })
 
-      if (typeof __delay === 'number') {
-        await delay(__delay, abortSignal ?? undefined, timeController)
-      } else {
-        await __delay()
-      }
-
-      if (abortSignal?.aborted) {
-        throw error
-      }
-    }
+  if (task.status.lastEnd == null) {
+    task.status.abortSignal.throwIfAborted()
   }
+  if (task.status.lastHasError) {
+    throw task.status.lastError
+  }
+  return task.status.lastResult as T
 }
 
 export type CreateTaskDelayRetryOptions = {
@@ -77,7 +60,6 @@ export type CreateTaskDelayRetryOptions = {
    * 1 or null disables jitter.
    */
   jitter?: null | number
-  isRetriableError?: null | ((error: any) => boolean)
 }
 
 /** Creates a TaskDelay for retrying failed operations with exponential or fixed delays */
@@ -86,31 +68,46 @@ export function createTaskDelayRetry({
   maxTotalTime,
   delays,
   jitter,
-  isRetriableError,
-}: CreateTaskDelayRetryOptions): TaskDelay {
-  return function taskDelayRetry({ retryCount, timeStart, error }) {
+}: CreateTaskDelayRetryOptions): TaskDelayPrepare<any> {
+  return function taskDelayRetry(status) {
+    if (status.lastSuccess != null) {
+      return TASK_STOP
+    }
+
+    const failedRuns = status.lastFailedRuns ?? 0
+
     if (
-      retryCount == null ||
-      (maxRetries != null && retryCount >= maxRetries) ||
-      (maxTotalTime != null && Date.now() - timeStart > maxTotalTime)
+      (maxRetries != null && failedRuns > maxRetries) ||
+      (maxTotalTime != null &&
+        status.firstStart != null &&
+        status.timeController.now() - status.firstStart > maxTotalTime)
     ) {
-      return null
+      return TASK_STOP
     }
-    if (isRetriableError == null || isRetriableError(error)) {
-      let value: number
-      if (Array.isArray(delays)) {
-        value = delays[Math.min(retryCount, delays.length - 1)]
-      } else {
-        const mult = delays.mult ?? 2
-        value = Math.min(delays.min * mult ** retryCount, delays.max)
-      }
-      if (jitter != null && jitter !== 1) {
-        const lo = value / jitter
-        const hi = value * jitter
-        value = lo + Math.random() * (hi - lo)
-      }
-      return value
+
+    return {
+      delay: status => {
+        if (!status.lastFailedRuns) {
+          return undefined
+        }
+
+        const retryIndex = status.lastFailedRuns - 1
+
+        let value: number
+        if (Array.isArray(delays)) {
+          value = delays[Math.min(retryIndex, delays.length - 1)]
+        } else {
+          const mult = delays.mult ?? 2
+          value = Math.min(delays.min * mult ** retryIndex, delays.max)
+        }
+        if (jitter != null && jitter !== 1) {
+          const lo = value / jitter
+          const hi = value * jitter
+          value = lo + Math.random() * (hi - lo)
+        }
+
+        return value
+      },
     }
-    return null
   }
 }
