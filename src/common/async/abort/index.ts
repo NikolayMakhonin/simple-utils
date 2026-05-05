@@ -1,2 +1,2 @@
 export * from './timeoutAbortController'
-export * from './timeout'
+export * from './withTimeout'
