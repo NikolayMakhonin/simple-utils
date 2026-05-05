@@ -77,6 +77,9 @@ export class TaskRepeated<
 
         if (delayResult === TASK_STOP) {
           this.abort()
+          if (this.status.lastEnd == null) {
+            throw this.status.abortSignal.reason
+          }
           if (this.status.lastHasError) {
             throw this.status.lastError
           }

@@ -23,7 +23,9 @@ export type WithRetryOptions<T> = Omit<TaskOptionsRepeated<T>, 'delay'> & {
 
 export async function withRetry<T>(options: WithRetryOptions<T>): Promise<T> {
   if (options.delay == null) {
-    return options.func({ abortSignal: options.abortSignal ?? null })
+    const abortSignal = options.abortSignal ?? null
+    abortSignal?.throwIfAborted()
+    return options.func({ abortSignal })
   }
 
   const task = createTaskRepeated<null, T>(
@@ -37,10 +39,16 @@ export async function withRetry<T>(options: WithRetryOptions<T>): Promise<T> {
   return task.run() as Promise<T>
 }
 
+export type TaskDelayRetryExponential = {
+  min: number
+  max: number
+  mult?: null | number
+}
+
 export type CreateTaskDelayRetryOptions = {
   maxRetries?: null | number
   maxTotalTime?: null | number
-  delays: number[] | { min: number; max: number; mult?: null | number }
+  delays: null | undefined | number[] | TaskDelayRetryExponential
   /**
    * Random multiplicative jitter factor (>= 1): result uniformly distributed
    * in [value / jitter, value * jitter].
@@ -74,7 +82,11 @@ export function createTaskDelayRetry({
 
     return {
       delay: status => {
-        if (!status.lastFailedRuns) {
+        if (
+          !status.lastFailedRuns ||
+          delays == null ||
+          (Array.isArray(delays) && delays.length === 0)
+        ) {
           return undefined
         }
 

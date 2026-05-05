@@ -34,21 +34,23 @@ export type TaskStatusBase<Result = void> = {
   /**
    * Last success date in milliseconds
    * null - never succeeded
-   * lastSuccess is just the result of successPredicate of last status
-   * Note: lastSuccess can be true even if lastHasError is true
+   * Set when successPredicate returns true for last execution
+   * Note: can be non-null even if lastHasError is true
    */
   readonly lastSuccess: null | number
   /**
-   * Last not success date in milliseconds
+   * Last failure date in milliseconds
    * null - never failed
-   * lastFailed is just the result of !successPredicate of last status
-   * Note: lastFailed can be true even if lastHasError is false
+   * Set when successPredicate returns false for last execution
+   * Note: can be non-null even if lastHasError is false
    */
   readonly lastFailed: null | number
 
   /**
+   * When lastEnd != null:
    * true - lastError is set and lastResult is undefined
    * false - lastError is undefined and lastResult is set
+   * When lastEnd == null: always false (initial state, no execution completed)
    */
   readonly lastHasError: boolean
 

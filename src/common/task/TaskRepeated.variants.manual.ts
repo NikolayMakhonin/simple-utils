@@ -325,9 +325,9 @@ async function test(options: TestOptions): Promise<void> {
         `stop-immediately: expected 0 executions, actual ${execRecords.length}`,
       )
     }
-    if (!resolved) {
+    if (!rejected) {
       throw new Error(
-        `stop-immediately: run() should resolve (no lastHasError), but resolved=${resolved} rejected=${rejected}`,
+        `stop-immediately: run() should reject (stopped before first execution), but resolved=${resolved} rejected=${rejected}`,
       )
     }
     return
