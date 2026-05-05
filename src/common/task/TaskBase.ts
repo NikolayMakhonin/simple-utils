@@ -1,7 +1,4 @@
-import type {
-  IAbortControllerFast,
-  IAbortSignalFast,
-} from '@flemist/abort-controller-fast'
+import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
 import { type ISubject, type Listener, Subject } from 'src/common/rx'
 import {
   type ITimeController,
@@ -27,9 +24,16 @@ import {
   type AbortControllerReusableOptions,
 } from 'src/common/async/abort/AbortControllerReusable'
 
+export function taskSuccessPredicateDefault<T>(
+  status: TaskStatusBase<T>,
+): boolean {
+  return status.lastEnd != null && !status.lastHasError
+}
+
 export type TaskOptionsBase = AbortControllerReusableOptions & {
   readonly timeController?: null | ITimeController
   readonly logLevel?: null | LogLevel
+  readonly successPredicate?: null | ((status: TaskStatusBase<any>) => boolean)
 }
 
 export class TaskBase<
@@ -42,7 +46,7 @@ export class TaskBase<
   private readonly _options: null | TaskOptionsBase
   private readonly _func: TaskFunc<Args, Result>
   private readonly _events: ISubject<Status> = new Subject()
-  private readonly _abortController: IAbortControllerFast = null!
+  private readonly _abortController: AbortControllerReusable = null!
   private readonly _timeController: ITimeController
   private readonly _wait: () => PromiseOrValue<void>
   private _args: Args
@@ -71,6 +75,9 @@ export class TaskBase<
       lastSuccess: null,
       lastHasError: false,
     } as Status
+    this._abortController.subscribe(() => {
+      this._events.emit(this._status)
+    })
   }
 
   get args(): Args {
@@ -125,10 +132,20 @@ export class TaskBase<
       ...this._status,
       isRunning: false,
       lastEnd: now,
-      lastSuccess: now,
       lastHasError: false,
+      lastError: undefined,
       lastResult: result,
     }
+
+    const successPredicate =
+      this._options?.successPredicate ?? taskSuccessPredicateDefault
+    if (successPredicate(this._status)) {
+      this._status = {
+        ...this._status,
+        lastSuccess: now,
+      }
+    }
+
     this._events.emit(this._status)
   }
 
@@ -145,6 +162,7 @@ export class TaskBase<
       lastEnd: this.timeController.now(),
       lastHasError: true,
       lastError: error,
+      lastResult: undefined,
     }
     this._events.emit(this._status)
   }

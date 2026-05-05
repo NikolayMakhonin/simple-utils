@@ -14,7 +14,7 @@ import {
   type ITaskBaseWithArgs,
   type ITaskDelay,
   type ITaskRerun,
-  type TaskDelay,
+  type TaskDelayPrepare,
   type TaskFunc,
   type TaskRunOptionsBase,
   type TaskStatusBase,
@@ -38,7 +38,7 @@ export type TaskOptionsRepeated<
   Result = void,
   Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
 > = TaskOptionsBase & {
-  readonly delay: TaskDelay<Result, Status>
+  readonly delay: TaskDelayPrepare<Result, Status>
 }
 
 export class TaskRepeated<
@@ -77,6 +77,8 @@ export class TaskRepeated<
     this._inProcess = true
 
     try {
+      let nextIsRetry = false
+
       while (!this.abortSignal.aborted) {
         const delayResult = this._options!.delay(this.status)
 
@@ -87,12 +89,14 @@ export class TaskRepeated<
 
         if (!delayResult.skipRun) {
           try {
-            await super.run(delayResult.isRetry ? { isRetry: true } : undefined)
+            await super.run(nextIsRetry ? { isRetry: true } : undefined)
             await this.waitIdle()
           } catch {
             // Ignore errors, because it handles in wrapped task
           }
         }
+
+        nextIsRetry = false
 
         const _delay = delayResult.delay
 
@@ -112,8 +116,32 @@ export class TaskRepeated<
             this._delayAbortController.signal,
             this.abortSignal,
           )
-          await _delay(delayAbortSignal).catch(EMPTY_FUNC)
+          const delayFuncResult = await _delay(this.status, delayAbortSignal)
+
           this._delayAbortController = null
+
+          if (delayFuncResult.stop) {
+            this.abort()
+            return
+          }
+
+          if (delayFuncResult.retry) {
+            nextIsRetry = true
+          }
+
+          if (delayFuncResult.delay != null) {
+            this._delayAbortController = new AbortControllerFast()
+            const innerDelayAbortSignal = combineAbortSignals(
+              this._delayAbortController.signal,
+              this.abortSignal,
+            )
+            await delay(
+              delayFuncResult.delay,
+              innerDelayAbortSignal,
+              this.timeController,
+            ).catch(EMPTY_FUNC)
+            this._delayAbortController = null
+          }
         }
       }
     } finally {

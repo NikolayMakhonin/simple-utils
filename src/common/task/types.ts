@@ -25,16 +25,25 @@ export type TaskStatusBase<Result = void> = {
   /**
    * Last end date in milliseconds
    * null - never ended
+   * if lastEnd != null then at least lastResult or lastError is present
    */
   readonly lastEnd: null | number
   /**
    * Last success date in milliseconds
    * null - never succeeded
+   * lastSuccess is just the result of successPredicate of last status (any status)
    */
   readonly lastSuccess: null | number
   readonly lastHasError: boolean
 
+  /**
+   * Note that lastError can be undefined even if lastHasError is true
+   * in the `throw undefined` case
+   */
   readonly lastError?: any
+  /**
+   * If lastHasError is true then lastResult is undefined
+   */
   readonly lastResult?: Result
   /**
    * Retry count:
@@ -107,20 +116,41 @@ export interface ITaskRerun {
 
 export type TaskDelayResult = {
   /**
-   * null - no delay
+   * null or undefined - no delay
    * 0 - delay 0 ms (like setTimeout(func, 0))
-   * func - custom delay
    */
-  delay?: null | number | ((abortSignal: IAbortSignalFast) => Promise<any>)
-  isRetry?: null | boolean
+  delay?: null | number
+  /**
+   * true - increment retry count and pass isRetry=true to next run
+   */
+  retry?: null | boolean
   stop?: null | boolean
-  skipRun?: null | boolean
 }
 
 export type TaskDelay<
   Result = void,
   Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
-> = (args: Status) => TaskDelayResult
+> = {
+  /**
+   * null or undefined - no delay
+   * 0 - delay 0 ms (like setTimeout(func, 0))
+   * func - custom delay
+   */
+  delay?:
+    | null
+    | number
+    | ((
+        status: Status,
+        delayAbortSignal: IAbortSignalFast,
+      ) => PromiseOrValue<TaskDelayResult>)
+  stop?: null | boolean
+  skipRun?: null | boolean
+}
+
+export type TaskDelayPrepare<
+  Result = void,
+  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
+> = (status: Status) => TaskDelay<Result, Status>
 
 export type TaskFuncOptions = {
   abortSignal: IAbortSignalFast

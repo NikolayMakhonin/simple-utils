@@ -33,7 +33,7 @@
 import { describe, it } from 'vitest'
 import { createTestVariants } from '@flemist/test-variants'
 import { TimeControllerMock } from '@flemist/time-controller'
-import { type TaskDelayResult, type TaskStatusBase } from './types'
+import { type TaskDelay, type TaskStatusBase } from './types'
 import { LogLevel } from 'src/common/debug'
 import { waitTimeControllerMock } from '@flemist/async-utils'
 import { getRandomSeed, Random, randomInt } from 'src/common/random'
@@ -80,7 +80,7 @@ type DelayCallRecord = {
   statusLastHasError: boolean
   statusIsRunning: boolean
   statusCountRetry: number | null | undefined
-  result: TaskDelayResult
+  result: TaskDelay<number>
 }
 
 type ExecRecord = {
@@ -170,7 +170,7 @@ async function generateContext(
   let callCount = 0
   let delayIndex = 0
 
-  const task = createTaskRepeated(
+  const task = createTaskRepeated<null, number>(
     async () => {
       const funcStart = timeController.now() - originTime
       timeController.addTime(args.executionDuration)
@@ -197,16 +197,21 @@ async function generateContext(
     {
       timeController,
       logLevel: LogLevel.none,
-      delay(status: TaskStatusBase<any>): TaskDelayResult {
+      delay(status: TaskStatusBase<number>): TaskDelay<number> {
         const i = delayIndex++
         const shouldStop = i >= plan.iterations
 
-        const delayResult: TaskDelayResult = shouldStop
+        const isRetry = plan.retryIndices.has(i) || undefined
+        const delayResult: TaskDelay<number> = shouldStop
           ? { stop: true }
           : {
-              delay: plan.delays[i],
+              delay: isRetry
+                ? () => ({
+                    delay: plan.delays[i],
+                    retry: true,
+                  })
+                : plan.delays[i],
               skipRun: plan.skipRunIndices.has(i),
-              isRetry: plan.retryIndices.has(i) || undefined,
             }
 
         const record: DelayCallRecord = {
@@ -223,7 +228,7 @@ async function generateContext(
         if (log) {
           console.log(
             `[test][delay][${i}] lastEnd=${record.statusLastEnd} lastHasError=${record.statusLastHasError} countRetry=${record.statusCountRetry}` +
-              ` → delayMs=${delayResult.delay ?? null} stop=${delayResult.stop ?? false} skipRun=${delayResult.skipRun ?? false} isRetry=${delayResult.isRetry ?? false}`,
+              ` → delayMs=${plan.delays[i] ?? null} stop=${delayResult.stop ?? false} skipRun=${delayResult.skipRun ?? false} isRetry=${isRetry ?? false}`,
           )
         }
 
@@ -399,6 +404,7 @@ function checkDelayReceivesCorrectStatus(
   let expectedLastEnd: number | null = null
   let expectedLastHasError = false
   let expectedCountRetry: number | null | undefined = undefined
+  let nextIsRetry = false
   let execIdx = 0
 
   for (let i = 0; i < delayCallRecords.length; i++) {
@@ -428,26 +434,32 @@ function checkDelayReceivesCorrectStatus(
       }
     }
 
-    // After this delay call, if not stopped and not skipped, an execution happens
-    if (i < plan.iterations && !plan.skipRunIndices.has(i)) {
-      const exec = execRecords[execIdx]
-      expectedLastEnd = exec.end
-      expectedLastHasError = exec.threw
+    if (i < plan.iterations) {
+      // Delay function at this iteration sets nextIsRetry for the NEXT run
+      const thisRetry = plan.retryIndices.has(i)
 
-      // countRetry logic from TaskBase.onStart:
-      // isRetry == null → countRetry = null
-      // isRetry == true && prev countRetry == null → countRetry = 0
-      // isRetry == true && prev countRetry != null → countRetry + 1
-      const isRetry = plan.retryIndices.has(i)
-      if (!isRetry) {
-        expectedCountRetry = null
-      } else if (expectedCountRetry == null) {
-        expectedCountRetry = 0
-      } else {
-        expectedCountRetry = expectedCountRetry + 1
+      if (!plan.skipRunIndices.has(i)) {
+        const exec = execRecords[execIdx]
+        expectedLastEnd = exec.end
+        expectedLastHasError = exec.threw
+
+        // countRetry logic from TaskBase.onStart:
+        // isRetry == null → countRetry = null
+        // isRetry == true && prev countRetry == null → countRetry = 0
+        // isRetry == true && prev countRetry != null → countRetry + 1
+        // nextIsRetry is set by delay function result at PREVIOUS iteration
+        if (!nextIsRetry) {
+          expectedCountRetry = null
+        } else if (expectedCountRetry == null) {
+          expectedCountRetry = 0
+        } else {
+          expectedCountRetry = expectedCountRetry + 1
+        }
+
+        execIdx++
       }
 
-      execIdx++
+      nextIsRetry = thisRetry
     }
   }
 }

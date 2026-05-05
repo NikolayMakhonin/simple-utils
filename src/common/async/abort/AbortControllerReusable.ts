@@ -4,7 +4,11 @@ import {
   type IAbortSignalFast,
 } from '@flemist/abort-controller-fast'
 import { combineAbortSignals } from '@flemist/async-utils'
-import type { TAbortReason } from '@flemist/abort-controller-fast/dist/lib/contracts'
+import type {
+  IUnsubscribe,
+  TAbortReason,
+} from '@flemist/abort-controller-fast/dist/lib/contracts'
+import { type IObservable, type ISubject, Subject } from '../../rx'
 
 export type AbortControllerReusableOptions = {
   /** Global abort signal */
@@ -14,8 +18,11 @@ export type AbortControllerReusableOptions = {
 /**
  * Reusable abort controller that creates a new abort signal after each abort
  */
-export class AbortControllerReusable implements IAbortControllerFast {
+export class AbortControllerReusable
+  implements IAbortControllerFast, IObservable<TAbortReason>
+{
   private readonly _options: null | AbortControllerReusableOptions
+  private readonly _events: ISubject<TAbortReason> = new Subject()
   private _abortController: IAbortControllerFast = null!
   private _abortSignal: IAbortSignalFast = null!
 
@@ -30,6 +37,9 @@ export class AbortControllerReusable implements IAbortControllerFast {
       this._abortController.signal,
       this._options?.abortSignal,
     )
+    this._abortSignal.subscribe(reason => {
+      this._events.emit(reason)
+    })
   }
 
   abort(reason?: TAbortReason): void {
@@ -43,5 +53,9 @@ export class AbortControllerReusable implements IAbortControllerFast {
 
   get signal(): IAbortSignalFast {
     return this._abortSignal
+  }
+
+  subscribe(callback: (reason: TAbortReason) => void): IUnsubscribe {
+    return this._events.subscribe(callback)
   }
 }
