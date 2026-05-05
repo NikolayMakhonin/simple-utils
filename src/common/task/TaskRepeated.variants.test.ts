@@ -14,26 +14,26 @@
  * - delayMs - numeric delay value returned
  * - stop - delay requested loop stop
  * - skipRun - delay requested skip execution
- * - isRetry - delay marked as retry
+ * - funcDelay - whether delay is a function (vs numeric)
  * - error - whether task function threw
  * - actualStart, actualEnd - execution timestamps relative to origin
  * - result - return value from task function
  * - lastEnd - status.lastEnd relative to origin at time delay was called
  * - lastHasError - status.lastHasError at time delay was called
- * - countRetry - status.countRetry at time delay was called
+ * - lastFailedRuns - status.lastFailedRuns at time delay was called
  *
  * Example trace:
- * [test][delay][0] lastEnd=null lastHasError=false countRetry=null → delayMs=5 stop=false skipRun=false isRetry=false
+ * [test][delay][0] lastEnd=null lastHasError=false lastFailedRuns=null → delayMs=5 stop=false skipRun=false funcDelay=false
  * [test][exec][0] actualStart=0 actualEnd=3 result=0 error=false
- * [test][delay][1] lastEnd=3 lastHasError=false countRetry=null → delayMs=5 stop=false skipRun=false isRetry=true
+ * [test][delay][1] lastEnd=3 lastHasError=false lastFailedRuns=0 → delayMs=5 stop=false skipRun=false funcDelay=true
  * [test][exec][1] actualStart=8 actualEnd=11 result=1 error=true
- * [test][delay][2] lastEnd=11 lastHasError=true countRetry=0 → delayMs=null stop=true skipRun=false isRetry=false
+ * [test][delay][2] lastEnd=11 lastHasError=true lastFailedRuns=1 → delayMs=null stop=true skipRun=false funcDelay=false
  * [test] DONE executions=2
  */
 import { describe, it } from 'vitest'
 import { createTestVariants } from '@flemist/test-variants'
 import { TimeControllerMock } from '@flemist/time-controller'
-import { type TaskDelay, type TaskStatusBase } from './types'
+import { TASK_STOP, type TaskDelay, type TaskStatusBase } from './types'
 import { LogLevel } from 'src/common/debug'
 import { waitTimeControllerMock } from '@flemist/async-utils'
 import { getRandomSeed, Random, randomInt } from 'src/common/random'
@@ -46,7 +46,7 @@ export type TestVariantsArgs = {
   delayTimeMax: number
   skipRunProbabilityPercent: number
   errorProbabilityPercent: number
-  retryProbabilityPercent: number
+  funcDelayProbabilityPercent: number
   useImmediate: boolean
 }
 
@@ -79,7 +79,7 @@ type DelayCallRecord = {
   statusLastEnd: number | null
   statusLastHasError: boolean
   statusIsRunning: boolean
-  statusCountRetry: number | null | undefined
+  statusLastFailedRuns: number | null | undefined
   result: TaskDelay<number>
 }
 
@@ -94,7 +94,7 @@ type GeneratedDelayPlan = {
   iterations: number
   delays: number[]
   skipRunIndices: Set<number>
-  retryIndices: Set<number>
+  funcDelayIndices: Set<number>
   errorExecIndices: Set<number>
 }
 
@@ -123,7 +123,7 @@ function generateDelayPlan(options: {
   const iterations = randomInt(rnd, 0, args.iterationsMax + 1)
   const delays: number[] = []
   const skipRunIndices = new Set<number>()
-  const retryIndices = new Set<number>()
+  const funcDelayIndices = new Set<number>()
 
   for (let i = 0; i < iterations; i++) {
     delays.push(randomInt(rnd, 0, args.delayTimeMax + 1))
@@ -134,10 +134,10 @@ function generateDelayPlan(options: {
       skipRunIndices.add(i)
     }
     if (
-      args.retryProbabilityPercent > 0 &&
-      randomInt(rnd, 0, 100) < args.retryProbabilityPercent
+      args.funcDelayProbabilityPercent > 0 &&
+      randomInt(rnd, 0, 100) < args.funcDelayProbabilityPercent
     ) {
-      retryIndices.add(i)
+      funcDelayIndices.add(i)
     }
   }
 
@@ -153,7 +153,13 @@ function generateDelayPlan(options: {
     }
   }
 
-  return { iterations, delays, skipRunIndices, retryIndices, errorExecIndices }
+  return {
+    iterations,
+    delays,
+    skipRunIndices,
+    funcDelayIndices,
+    errorExecIndices,
+  }
 }
 
 async function generateContext(
@@ -201,16 +207,11 @@ async function generateContext(
         const i = delayIndex++
         const shouldStop = i >= plan.iterations
 
-        const isRetry = plan.retryIndices.has(i) || undefined
+        const useFuncDelay = plan.funcDelayIndices.has(i)
         const delayResult: TaskDelay<number> = shouldStop
-          ? { stop: true }
+          ? TASK_STOP
           : {
-              delay: isRetry
-                ? () => ({
-                    delay: plan.delays[i],
-                    retry: true,
-                  })
-                : plan.delays[i],
+              delay: useFuncDelay ? () => plan.delays[i] : plan.delays[i],
               skipRun: plan.skipRunIndices.has(i),
             }
 
@@ -220,15 +221,16 @@ async function generateContext(
             status.lastEnd == null ? null : status.lastEnd - originTime,
           statusLastHasError: status.lastHasError,
           statusIsRunning: status.isRunning,
-          statusCountRetry: status.countRetry,
+          statusLastFailedRuns: status.lastFailedRuns,
           result: delayResult,
         }
         delayCallRecords.push(record)
 
         if (log) {
+          const isStop = delayResult === TASK_STOP
           console.log(
-            `[test][delay][${i}] lastEnd=${record.statusLastEnd} lastHasError=${record.statusLastHasError} countRetry=${record.statusCountRetry}` +
-              ` → delayMs=${plan.delays[i] ?? null} stop=${delayResult.stop ?? false} skipRun=${delayResult.skipRun ?? false} isRetry=${isRetry ?? false}`,
+            `[test][delay][${i}] lastEnd=${record.statusLastEnd} lastHasError=${record.statusLastHasError} lastFailedRuns=${record.statusLastFailedRuns}` +
+              ` → delayMs=${plan.delays[i] ?? null} stop=${isStop} skipRun=${!isStop && (delayResult.skipRun ?? false)} funcDelay=${useFuncDelay}`,
           )
         }
 
@@ -326,8 +328,8 @@ async function test(options: TestOptions): Promise<void> {
         `stop-immediately: expected 1 delay call, actual ${delayCallRecords.length}`,
       )
     }
-    if (!delayCallRecords[0].result.stop) {
-      throw new Error(`stop-immediately: first delay should return stop=true`)
+    if (delayCallRecords[0].result !== TASK_STOP) {
+      throw new Error(`stop-immediately: first delay should return TASK_STOP`)
     }
     if (execRecords.length !== 0) {
       throw new Error(
@@ -371,8 +373,8 @@ function checkDelayCallCount(
     )
   }
   const lastDelayCall = delayCallRecords[delayCallRecords.length - 1]
-  if (!lastDelayCall.result.stop) {
-    throw new Error(`last delay call should have stop=true`)
+  if (lastDelayCall.result !== TASK_STOP) {
+    throw new Error(`last delay call should return TASK_STOP`)
   }
 }
 
@@ -403,8 +405,7 @@ function checkDelayReceivesCorrectStatus(
 ): void {
   let expectedLastEnd: number | null = null
   let expectedLastHasError = false
-  let expectedCountRetry: number | null | undefined = undefined
-  let nextIsRetry = false
+  let expectedLastFailedRuns: number | null | undefined = undefined
   let execIdx = 0
 
   for (let i = 0; i < delayCallRecords.length; i++) {
@@ -420,46 +421,34 @@ function checkDelayReceivesCorrectStatus(
         `delay[${i}] statusLastHasError: expected ${expectedLastHasError}, actual ${record.statusLastHasError}`,
       )
     }
-    if (expectedCountRetry == null) {
-      if (record.statusCountRetry != null) {
+    if (expectedLastFailedRuns == null) {
+      if (record.statusLastFailedRuns != null) {
         throw new Error(
-          `delay[${i}] statusCountRetry: expected null/undefined, actual ${record.statusCountRetry}`,
+          `delay[${i}] statusLastFailedRuns: expected null/undefined, actual ${record.statusLastFailedRuns}`,
         )
       }
     } else {
-      if (record.statusCountRetry !== expectedCountRetry) {
+      if (record.statusLastFailedRuns !== expectedLastFailedRuns) {
         throw new Error(
-          `delay[${i}] statusCountRetry: expected ${expectedCountRetry}, actual ${record.statusCountRetry}`,
+          `delay[${i}] statusLastFailedRuns: expected ${expectedLastFailedRuns}, actual ${record.statusLastFailedRuns}`,
         )
       }
     }
 
     if (i < plan.iterations) {
-      // Delay function at this iteration sets nextIsRetry for the NEXT run
-      const thisRetry = plan.retryIndices.has(i)
-
       if (!plan.skipRunIndices.has(i)) {
         const exec = execRecords[execIdx]
         expectedLastEnd = exec.end
         expectedLastHasError = exec.threw
 
-        // countRetry logic from TaskBase.onStart:
-        // isRetry == null → countRetry = null
-        // isRetry == true && prev countRetry == null → countRetry = 0
-        // isRetry == true && prev countRetry != null → countRetry + 1
-        // nextIsRetry is set by delay function result at PREVIOUS iteration
-        if (!nextIsRetry) {
-          expectedCountRetry = null
-        } else if (expectedCountRetry == null) {
-          expectedCountRetry = 0
+        if (exec.threw) {
+          expectedLastFailedRuns = (expectedLastFailedRuns ?? 0) + 1
         } else {
-          expectedCountRetry = expectedCountRetry + 1
+          expectedLastFailedRuns = 0
         }
 
         execIdx++
       }
-
-      nextIsRetry = thisRetry
     }
   }
 }
@@ -511,7 +500,7 @@ describe('TaskRepeated', { timeout: 7 * 60 * 60 * 1000 }, () => {
       delayTimeMax: [0, 1, 5, 10],
       skipRunProbabilityPercent: [0, 30, 50],
       errorProbabilityPercent: [0, 20],
-      retryProbabilityPercent: [0, 40],
+      funcDelayProbabilityPercent: [0, 40],
       useImmediate: [false, true],
     })({
       limitTime: 2 * 60 * 60 * 1000,

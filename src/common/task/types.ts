@@ -34,6 +34,7 @@ export type TaskStatusBase<Result = void> = {
    * lastSuccess is just the result of successPredicate of last status (any status)
    */
   readonly lastSuccess: null | number
+  readonly lastFailed: null | number
   readonly lastHasError: boolean
 
   /**
@@ -45,14 +46,8 @@ export type TaskStatusBase<Result = void> = {
    * If lastHasError is true then lastResult is undefined
    */
   readonly lastResult?: Result
-  /**
-   * Retry count:
-   * null - no need to retry
-   * 0 - zero retries yet
-   * 1 - first retry
-   * etc
-   */
-  readonly countRetry?: null | number
+  readonly lastSuccessRuns?: null | number
+  readonly lastFailedRuns?: null | number
 }
 
 export interface ITaskStatus<
@@ -64,7 +59,6 @@ export interface ITaskStatus<
 
 export type TaskRunOptionsBase = {
   immediate?: null | boolean
-  isRetry?: null | boolean
 }
 
 export interface ITaskRun<
@@ -114,38 +108,29 @@ export interface ITaskRerun {
   skipRerun(): void
 }
 
-export type TaskDelayResult = {
-  /**
-   * null or undefined - no delay
-   * 0 - delay 0 ms (like setTimeout(func, 0))
-   */
-  delay?: null | number
-  /**
-   * true - increment retry count and pass isRetry=true to next run
-   */
-  retry?: null | boolean
-  stop?: null | boolean
-}
+export const TASK_STOP = 'stop'
+export type TaskStop = typeof TASK_STOP
 
 export type TaskDelay<
   Result = void,
   Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
-> = {
-  /**
-   * null or undefined - no delay
-   * 0 - delay 0 ms (like setTimeout(func, 0))
-   * func - custom delay
-   */
-  delay?:
-    | null
-    | number
-    | ((
-        status: Status,
-        delayAbortSignal: IAbortSignalFast,
-      ) => PromiseOrValue<TaskDelayResult>)
-  stop?: null | boolean
-  skipRun?: null | boolean
-}
+> =
+  | {
+      /**
+       * null or undefined - no delay
+       * 0 - delay 0 ms (like setTimeout(func, 0))
+       * func - custom delay
+       */
+      delay?:
+        | null
+        | number
+        | ((
+            status: Status,
+            delayAbortSignal: IAbortSignalFast,
+          ) => PromiseOrValue<undefined | null | number | TaskStop>)
+      skipRun?: null | boolean
+    }
+  | TaskStop
 
 export type TaskDelayPrepare<
   Result = void,

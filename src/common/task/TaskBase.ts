@@ -73,6 +73,7 @@ export class TaskBase<
       lastStart: null,
       lastEnd: null,
       lastSuccess: null,
+      lastFailed: null,
       lastHasError: false,
     } as Status
     this._abortController.subscribe(() => {
@@ -108,17 +109,11 @@ export class TaskBase<
     return this._events.subscribe(listener)
   }
 
-  private onStart(options: undefined | null | RunOptions): void {
+  private onStart(): void {
     const now = this._timeController.now()
     this._status = {
       ...this._status,
       isRunning: true,
-      countRetry:
-        options?.isRetry == null
-          ? null
-          : this._status.countRetry == null
-            ? 0
-            : this._status.countRetry + 1,
       firstStart: this._status.firstStart ?? now,
       lastStart: now,
       abortSignal: this._abortController.signal,
@@ -127,26 +122,15 @@ export class TaskBase<
   }
 
   private onSuccess(result: Result): void {
-    const now = this.timeController.now()
     this._status = {
       ...this._status,
       isRunning: false,
-      lastEnd: now,
+      lastEnd: this.timeController.now(),
       lastHasError: false,
       lastError: undefined,
       lastResult: result,
     }
-
-    const successPredicate =
-      this._options?.successPredicate ?? taskSuccessPredicateDefault
-    if (successPredicate(this._status)) {
-      this._status = {
-        ...this._status,
-        lastSuccess: now,
-      }
-    }
-
-    this._events.emit(this._status)
+    this.applySuccessPredicate()
   }
 
   private onError(error: any): void {
@@ -164,6 +148,27 @@ export class TaskBase<
       lastError: error,
       lastResult: undefined,
     }
+    this.applySuccessPredicate()
+  }
+
+  private applySuccessPredicate(): void {
+    const successPredicate =
+      this._options?.successPredicate ?? taskSuccessPredicateDefault
+    if (successPredicate(this._status)) {
+      this._status = {
+        ...this._status,
+        lastSuccess: this._status.lastEnd!,
+        lastSuccessRuns: (this._status.lastSuccessRuns ?? 0) + 1,
+        lastFailedRuns: 0,
+      }
+    } else {
+      this._status = {
+        ...this._status,
+        lastFailed: this._status.lastEnd!,
+        lastSuccessRuns: 0,
+        lastFailedRuns: (this._status.lastFailedRuns ?? 0) + 1,
+      }
+    }
     this._events.emit(this._status)
   }
 
@@ -174,7 +179,7 @@ export class TaskBase<
     }
 
     const isFirst = this._status.firstStart == null
-    this.onStart(options)
+    this.onStart()
     try {
       const resultOrPromise = this._func(this._args, {
         abortSignal: this._abortController.signal,

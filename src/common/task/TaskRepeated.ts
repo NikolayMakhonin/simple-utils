@@ -14,6 +14,7 @@ import {
   type ITaskBaseWithArgs,
   type ITaskDelay,
   type ITaskRerun,
+  TASK_STOP,
   type TaskDelayPrepare,
   type TaskFunc,
   type TaskRunOptionsBase,
@@ -77,26 +78,22 @@ export class TaskRepeated<
     this._inProcess = true
 
     try {
-      let nextIsRetry = false
-
       while (!this.abortSignal.aborted) {
         const delayResult = this._options!.delay(this.status)
 
-        if (delayResult.stop) {
+        if (delayResult === TASK_STOP) {
           this.abort()
           return
         }
 
         if (!delayResult.skipRun) {
           try {
-            await super.run(nextIsRetry ? { isRetry: true } : undefined)
+            await super.run()
             await this.waitIdle()
           } catch {
             // Ignore errors, because it handles in wrapped task
           }
         }
-
-        nextIsRetry = false
 
         const _delay = delayResult.delay
 
@@ -120,27 +117,21 @@ export class TaskRepeated<
 
           this._delayAbortController = null
 
-          if (delayFuncResult.stop) {
-            this.abort()
-            return
-          }
-
-          if (delayFuncResult.retry) {
-            nextIsRetry = true
-          }
-
-          if (delayFuncResult.delay != null) {
+          if (typeof delayFuncResult === 'number') {
             this._delayAbortController = new AbortControllerFast()
             const innerDelayAbortSignal = combineAbortSignals(
               this._delayAbortController.signal,
               this.abortSignal,
             )
             await delay(
-              delayFuncResult.delay,
+              delayFuncResult,
               innerDelayAbortSignal,
               this.timeController,
             ).catch(EMPTY_FUNC)
             this._delayAbortController = null
+          } else if (delayFuncResult === TASK_STOP) {
+            this.abort()
+            return
           }
         }
       }
