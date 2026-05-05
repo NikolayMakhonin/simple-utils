@@ -8,7 +8,6 @@ import {
   EMPTY_FUNC,
   type PromiseOrValue,
 } from '@flemist/async-utils'
-import { waitObservable } from 'src/common/rx'
 import {
   type ArgsDefault,
   type ITaskBaseWithArgs,
@@ -20,7 +19,7 @@ import {
   type TaskRunOptionsBase,
   type TaskStatusBase,
 } from './types'
-import { createTaskRerun } from './TaskRerun'
+import { createTaskRerun } from './TaskWithRerun'
 import type { TaskOptionsBase } from './TaskBase'
 import { type ITaskWrapperSource, TaskWrapper } from './TaskWrapper'
 
@@ -52,7 +51,7 @@ export class TaskRepeated<
   implements ITaskRepeated<Args, Result, RunOptions, Status>
 {
   private readonly _options: null | TaskOptionsRepeated<Result, Status>
-  private _inProcess: boolean = false
+  private _runPromise: Promise<Result> | null = null
   private _delayAbortController: IAbortControllerFast | null = null
 
   constructor(
@@ -71,19 +70,17 @@ export class TaskRepeated<
     super.skipDelay()
   }
 
-  private async process(): Promise<void> {
-    if (this._inProcess) {
-      return
-    }
-    this._inProcess = true
-
+  private async _run(): Promise<Result> {
     try {
       while (!this.abortSignal.aborted) {
         const delayResult = this._options!.delay(this.status)
 
         if (delayResult === TASK_STOP) {
           this.abort()
-          return
+          if (this.status.lastHasError) {
+            throw this.status.lastError
+          }
+          return this.status.lastResult!
         }
 
         if (!delayResult.skipRun) {
@@ -131,39 +128,31 @@ export class TaskRepeated<
             this._delayAbortController = null
           } else if (delayFuncResult === TASK_STOP) {
             this.abort()
-            return
+            if (this.status.lastHasError) {
+              throw this.status.lastError
+            }
+            return this.status.lastResult!
           }
         }
       }
     } finally {
-      this._inProcess = false
+      this._runPromise = null
     }
+
+    this.abortSignal.throwIfAborted()
+    return this.status.lastResult!
   }
 
   run(options?: null | RunOptions): PromiseOrValue<Result> {
     this.abortSignal.throwIfAborted()
-    if (options?.immediate) {
-      return super.run(options)
+    if (this._runPromise && options?.immediate) {
+      void super.run(options)
     }
 
-    const abortSignal = this.abortSignal
-    void this.process()
-
-    const waitRerun = this.supportsRerun && this.status.isRunning
-    return waitObservable(this, status => !status.isRunning, abortSignal).then(
-      status => {
-        if (!waitRerun) {
-          return status.lastResult!
-        }
-        return waitObservable(
-          this,
-          status => !status.isRunning,
-          abortSignal,
-        ).then(status => {
-          return status.lastResult!
-        })
-      },
-    )
+    if (!this._runPromise) {
+      this._runPromise = this._run()
+    }
+    return this._runPromise
   }
 }
 

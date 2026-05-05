@@ -263,64 +263,53 @@ async function test(options: TestOptions): Promise<void> {
     context
 
   if (context.useImmediate) {
-    let result: any
-    let caughtError: any
-    try {
-      result = await waitTimeControllerMock(
-        timeController,
-        Promise.resolve(task.run({ immediate: true })),
-        { awaitsPerIteration: 1 },
-      )
-    } catch (err) {
-      caughtError = err
-    }
+    const runPromise = (task.run() as Promise<any>).catch(() => {})
+
+    task.run({ immediate: true })
+
+    const maxTime =
+      (plan.iterations + 1) * (args.executionDuration + args.delayTimeMax + 10)
+    await waitTimeControllerMock(timeController, null, { timeout: maxTime })
+    await runPromise
 
     if (log) {
-      console.log(
-        `[test] IMMEDIATE result=${result} error=${!!caughtError} execCount=${execRecords.length}`,
-      )
+      console.log(`[test] IMMEDIATE execCount=${execRecords.length}`)
     }
 
-    if (execRecords.length !== 1) {
+    const expectedExecCount = plan.iterations - plan.skipRunIndices.size
+    if (execRecords.length < expectedExecCount) {
       throw new Error(
-        `immediate: execCount expected 1, actual ${execRecords.length}`,
+        `immediate: execCount expected >= ${expectedExecCount}, actual ${execRecords.length}`,
       )
     }
-    if (execRecords[0].start !== 0) {
+    if (execRecords.length > 0 && execRecords[0].start !== 0) {
       throw new Error(
         `immediate: start expected 0, actual ${execRecords[0].start}`,
       )
-    }
-    if (delayCallRecords.length !== 0) {
-      throw new Error(
-        `immediate: should not call delay, but called ${delayCallRecords.length} times`,
-      )
-    }
-    if (execRecords[0].threw) {
-      if (!caughtError) {
-        throw new Error(`immediate: expected error to propagate but it did not`)
-      }
-    } else {
-      if (caughtError) {
-        throw new Error(`immediate: unexpected error: ${caughtError.message}`)
-      }
-      if (result !== 0) {
-        throw new Error(`immediate: result expected 0, actual ${result}`)
-      }
     }
     return
   }
 
   if (plan.iterations === 0) {
+    let resolved = false
     let rejected = false
-    ;(task.run() as Promise<any>).catch(() => {
-      rejected = true
-    })
+    let result: any
+    ;(task.run() as Promise<any>).then(
+      value => {
+        resolved = true
+        result = value
+      },
+      () => {
+        rejected = true
+      },
+    )
 
     await waitTimeControllerMock(timeController, null, { timeout: 100 })
 
     if (log) {
-      console.log(`[test] STOP-IMMEDIATELY rejected=${rejected}`)
+      console.log(
+        `[test] STOP-IMMEDIATELY resolved=${resolved} rejected=${rejected} result=${result}`,
+      )
     }
 
     if (delayCallRecords.length !== 1) {
@@ -336,8 +325,10 @@ async function test(options: TestOptions): Promise<void> {
         `stop-immediately: expected 0 executions, actual ${execRecords.length}`,
       )
     }
-    if (!rejected) {
-      throw new Error(`stop-immediately: run() should reject with abort error`)
+    if (!resolved) {
+      throw new Error(
+        `stop-immediately: run() should resolve (no lastHasError), but resolved=${resolved} rejected=${rejected}`,
+      )
     }
     return
   }

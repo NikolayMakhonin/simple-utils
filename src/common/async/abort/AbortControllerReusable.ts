@@ -56,6 +56,9 @@ export class AbortControllerReusable
   }
 
   subscribe(callback: (reason: TAbortReason) => void): IUnsubscribe {
+    if (this._abortSignal.aborted) {
+      callback(this._abortSignal.reason)
+    }
     return this._events.subscribe(callback)
   }
 }

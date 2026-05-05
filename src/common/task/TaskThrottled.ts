@@ -12,7 +12,7 @@ import {
   type TaskRunOptionsBase,
   type TaskStatusBase,
 } from './types'
-import { createTaskRerun } from './TaskRerun'
+import { createTaskRerun } from './TaskWithRerun'
 import type { TaskOptionsBase } from './TaskBase'
 import { type ITaskWrapperSource, TaskWrapper } from './TaskWrapper'
 

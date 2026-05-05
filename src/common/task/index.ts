@@ -1,6 +1,6 @@
 export * from './types'
 export * from './TaskBase'
 export * from './TaskWrapper'
-export * from './TaskRerun'
+export * from './TaskWithRerun'
 export * from './TaskThrottled'
 export * from './TaskRepeated'

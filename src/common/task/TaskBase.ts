@@ -45,7 +45,7 @@ export class TaskBase<
 {
   private readonly _options: null | TaskOptionsBase
   private readonly _func: TaskFunc<Args, Result>
-  private readonly _events: ISubject<Status> = new Subject()
+  private readonly _events: ISubject<Status>
   private readonly _abortController: AbortControllerReusable = null!
   private readonly _timeController: ITimeController
   private readonly _wait: () => PromiseOrValue<void>
@@ -76,6 +76,11 @@ export class TaskBase<
       lastFailed: null,
       lastHasError: false,
     } as Status
+    this._events = new Subject<Status>({
+      emitLastEvent: true,
+      hasLast: true,
+      last: this._status,
+    })
     this._abortController.subscribe(() => {
       this._events.emit(this._status)
     })
@@ -121,7 +126,7 @@ export class TaskBase<
     this._events.emit(this._status)
   }
 
-  private onSuccess(result: Result): void {
+  private onResult(result: Result): void {
     this._status = {
       ...this._status,
       isRunning: false,
@@ -191,7 +196,7 @@ export class TaskBase<
           resultOrPromise.then(
             result => {
               this._runPromise = null
-              this.onSuccess(result)
+              this.onResult(result)
               return result
             },
             error => {
@@ -203,7 +208,7 @@ export class TaskBase<
         )
         return this._runPromise
       }
-      this.onSuccess(resultOrPromise)
+      this.onResult(resultOrPromise)
       return resultOrPromise
     } catch (error) {
       this.onError(error)

@@ -11,6 +11,9 @@ export type ArgsDefault = void | undefined | null
 export type TaskStatusBase<Result = void> = {
   readonly abortSignal: IAbortSignalFast
   readonly timeController: ITimeController
+  /**
+   * true - task is currently running
+   */
   readonly isRunning: boolean
   /**
    * First start date in milliseconds
@@ -31,13 +34,27 @@ export type TaskStatusBase<Result = void> = {
   /**
    * Last success date in milliseconds
    * null - never succeeded
-   * lastSuccess is just the result of successPredicate of last status (any status)
+   * lastSuccess is just the result of successPredicate of last status
+   * Note: lastSuccess can be true even if lastHasError is true
    */
   readonly lastSuccess: null | number
+  /**
+   * Last not success date in milliseconds
+   * null - never failed
+   * lastFailed is just the result of !successPredicate of last status
+   * Note: lastFailed can be true even if lastHasError is false
+   */
   readonly lastFailed: null | number
+
+  /**
+   * true - lastError is set and lastResult is undefined
+   * false - lastError is undefined and lastResult is set
+   */
   readonly lastHasError: boolean
 
   /**
+   * If lastHasError is false then lastError is undefined
+   *
    * Note that lastError can be undefined even if lastHasError is true
    * in the `throw undefined` case
    */
@@ -46,7 +63,13 @@ export type TaskStatusBase<Result = void> = {
    * If lastHasError is true then lastResult is undefined
    */
   readonly lastResult?: Result
+  /**
+   * Count of successful runs from the last failed
+   */
   readonly lastSuccessRuns?: null | number
+  /**
+   * Count of failed runs from the last success
+   */
   readonly lastFailedRuns?: null | number
 }
 

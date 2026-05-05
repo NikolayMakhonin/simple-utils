@@ -9,7 +9,6 @@ import {
   createTaskRepeated,
   type TaskOptionsRepeated,
 } from 'src/common/task/TaskRepeated'
-import { waitObservable } from 'src/common/rx'
 
 export type WithRetryFuncArg = {
   abortSignal: IAbortSignalFast | null
@@ -35,19 +34,7 @@ export async function withRetry<T>(options: WithRetryOptions<T>): Promise<T> {
     options as TaskOptionsRepeated<T>,
   )
 
-  void task.run()
-
-  await waitObservable(task, status => {
-    return status.abortSignal.aborted || status.lastSuccess != null
-  })
-
-  if (task.status.lastEnd == null) {
-    task.status.abortSignal.throwIfAborted()
-  }
-  if (task.status.lastHasError) {
-    throw task.status.lastError
-  }
-  return task.status.lastResult as T
+  return task.run() as Promise<T>
 }
 
 export type CreateTaskDelayRetryOptions = {
