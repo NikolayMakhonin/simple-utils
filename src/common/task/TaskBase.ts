@@ -6,7 +6,6 @@ import {
 } from '@flemist/time-controller'
 import { EMPTY_FUNC } from 'src/common/constants'
 import { promiseLikeToPromise } from 'src/common/async/promise/promiseLikeToPromise'
-import type { PromiseOrValue } from 'src/common/types/common'
 import type { Unsubscribe } from 'src/common/types'
 import { LogLevel } from 'src/common/debug'
 import {
@@ -46,7 +45,7 @@ export class TaskBase<
   private readonly _events: ISubject<Status>
   private readonly _abortController: AbortControllerReusable = null!
   private readonly _timeController: ITimeController
-  private readonly _wait: () => PromiseOrValue<void>
+  private readonly _wait: () => Promise<void>
   private _args: Args
   private _status: Status
   private _runPromise: Promise<Result> | null = null
@@ -180,7 +179,7 @@ export class TaskBase<
     this.abort()
   }
 
-  run(options?: null | RunOptions): PromiseOrValue<Result> {
+  run(options?: null | RunOptions): Promise<Result> {
     this._abortController.signal.throwIfAborted()
     if (this._runPromise) {
       return this._runPromise
@@ -212,21 +211,22 @@ export class TaskBase<
         return this._runPromise
       }
       this.onResult(resultOrPromise)
-      return resultOrPromise
+      return Promise.resolve(resultOrPromise)
     } catch (error) {
       this.onError(error)
-      throw error
+      return Promise.reject(error)
     }
   }
 
-  wait(): PromiseOrValue<void> {
-    return this._runPromise?.then(EMPTY_FUNC, EMPTY_FUNC)
+  wait(): Promise<void> {
+    return this._runPromise?.then(EMPTY_FUNC, EMPTY_FUNC) ?? Promise.resolve()
   }
 
-  waitIdle(): PromiseOrValue<void> {
+  waitIdle(): Promise<void> {
     if (this._runPromise) {
       return this._runPromise.then(this._wait, this._wait)
     }
+    return Promise.resolve()
   }
 }
 

@@ -1,6 +1,4 @@
 import { EMPTY_FUNC } from 'src/common/constants'
-import { promiseLikeToPromise } from 'src/common/async/promise/promiseLikeToPromise'
-import type { PromiseOrValue } from 'src/common/types/common'
 import {
   type ArgsDefault,
   type ITaskBaseWithArgs,
@@ -11,7 +9,6 @@ import {
 } from './types'
 import { TaskBase, type TaskOptionsBase } from './TaskBase'
 import { type ITaskWrapperSource, TaskWrapper } from './TaskWrapper'
-import { isPromiseLike } from 'src/common/async/promise/isPromiseLike'
 
 export type ITaskWithRerun<
   Args = ArgsDefault,
@@ -29,7 +26,7 @@ export class TaskWithRerun<
   extends TaskWrapper<Args, Result, RunOptions, Status>
   implements ITaskWithRerun<Args, Result, RunOptions, Status>
 {
-  private readonly _wait: () => PromiseOrValue<void>
+  private readonly _wait: () => Promise<void>
   private _runPromise: Promise<Result> | null = null
 
   constructor(task: ITaskWrapperSource<Args, Result, RunOptions, Status>) {
@@ -37,20 +34,20 @@ export class TaskWithRerun<
     this._wait = () => this.wait()
   }
 
-  run(options?: null | RunOptions): PromiseOrValue<Result> {
+  run(options?: null | RunOptions): Promise<Result> {
     this.abortSignal.throwIfAborted()
     if (this._runPromise) {
       return this._runPromise
     }
 
     const isRunning = this.status.isRunning
-    const promiseOrResult = super.run(options)
+    const firstRunPromise = super.run(options)
 
-    if (!isRunning || !isPromiseLike(promiseOrResult)) {
-      return promiseOrResult
+    if (!isRunning) {
+      return firstRunPromise
     }
 
-    const runPromise = promiseOrResult
+    const runPromise = firstRunPromise
       .then(result => {
         // If rerun was skipped
         // return the result of the first run
@@ -73,18 +70,15 @@ export class TaskWithRerun<
     this._runPromise = null
   }
 
-  wait(): PromiseOrValue<void> {
+  wait(): Promise<void> {
     return this._runPromise?.then(EMPTY_FUNC, EMPTY_FUNC) ?? super.wait()
   }
 
-  waitIdle(): PromiseOrValue<void> {
+  waitIdle(): Promise<void> {
     if (this._runPromise) {
       return this._runPromise.then(this._wait, this._wait)
     }
-    const promiseOrResult = super.wait()
-    if (isPromiseLike(promiseOrResult)) {
-      return promiseLikeToPromise(promiseOrResult).then(this._wait)
-    }
+    return super.wait().then(this._wait)
   }
 }
 

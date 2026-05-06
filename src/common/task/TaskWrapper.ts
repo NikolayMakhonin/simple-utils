@@ -2,7 +2,6 @@ import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
 import type { ITimeController } from '@flemist/time-controller'
 import type { Listener } from 'src/common/rx'
 import type { Unsubscribe } from 'src/common/types'
-import type { PromiseOrValue } from 'src/common/types/common'
 import type {
   ArgsDefault,
   ITaskArgs,
@@ -100,15 +99,15 @@ export class TaskWrapper<
     return this._task.subscribe(listener)
   }
 
-  run(options?: null | RunOptions): PromiseOrValue<Result> {
+  run(options?: null | RunOptions): Promise<Result> {
     return this._task.run(options)
   }
 
-  wait(): PromiseOrValue<void> {
+  wait(): Promise<void> {
     return this._task.wait()
   }
 
-  waitIdle(): PromiseOrValue<void> {
+  waitIdle(): Promise<void> {
     return this._task.waitIdle()
   }
 

@@ -5,7 +5,6 @@ import {
 import { combineAbortSignals } from 'src/common/async/abort/combineAbortSignals'
 import { delay } from 'src/common/async/wait/delay'
 import { EMPTY_FUNC } from 'src/common/constants'
-import type { PromiseOrValue } from 'src/common/types/common'
 import {
   type ArgsDefault,
   type ITaskBaseWithArgs,
@@ -17,7 +16,6 @@ import {
   type TaskRunOptionsBase,
   type TaskStatusBase,
 } from './types'
-import { isPromiseLike } from 'src/common/async/promise/isPromiseLike'
 import { createTaskRerun } from './TaskWithRerun'
 import type { TaskOptionsBase } from './TaskBase'
 import { type ITaskWrapperSource, TaskWrapper } from './TaskWrapper'
@@ -149,13 +147,10 @@ export class TaskRepeated<
     return this.status.lastResult!
   }
 
-  run(options?: null | RunOptions): PromiseOrValue<Result> {
+  run(options?: null | RunOptions): Promise<Result> {
     this.abortSignal.throwIfAborted()
     if (this._runPromise && options?.immediate) {
-      const result = super.run(options)
-      if (isPromiseLike(result)) {
-        result.catch(EMPTY_FUNC)
-      }
+      super.run(options).catch(EMPTY_FUNC)
     }
 
     if (!this._runPromise) {

@@ -263,7 +263,7 @@ async function test(options: TestOptions): Promise<void> {
     context
 
   if (context.useImmediate) {
-    const runPromise = (task.run() as Promise<any>).catch(() => {})
+    const runPromise = task.run().catch(() => {})
 
     task.run({ immediate: true })
 
@@ -294,7 +294,7 @@ async function test(options: TestOptions): Promise<void> {
     let resolved = false
     let rejected = false
     let result: any
-    ;(task.run() as Promise<any>).then(
+    task.run().then(
       value => {
         resolved = true
         result = value
@@ -333,7 +333,7 @@ async function test(options: TestOptions): Promise<void> {
     return
   }
 
-  const runPromise = (task.run() as Promise<any>).catch(() => {})
+  const runPromise = task.run().catch(() => {})
 
   const maxTime =
     (plan.iterations + 1) * (args.executionDuration + args.delayTimeMax + 10)

@@ -98,13 +98,13 @@ export interface ITaskRun<
   Result = void,
   RunOptions extends TaskRunOptionsBase = TaskRunOptionsBase,
 > {
-  run(options?: null | RunOptions): PromiseOrValue<Result>
+  run(options?: null | RunOptions): Promise<Result>
   /** Abort current and scheduled executions */
   abort(): void
   /** Wait for current execution to complete */
-  wait(): PromiseOrValue<void>
+  wait(): Promise<void>
   /** Wait until no execution is running and no rerun is pending */
-  waitIdle(): PromiseOrValue<void>
+  waitIdle(): Promise<void>
   readonly abortSignal: IAbortSignalFast
   readonly timeController: ITimeController
 }

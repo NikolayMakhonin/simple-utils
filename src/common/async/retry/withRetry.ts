@@ -37,7 +37,7 @@ export async function withRetry<T>(options: WithRetryOptions<T>): Promise<T> {
     options as TaskOptionsRepeated<T>,
   )
 
-  return task.run() as Promise<T>
+  return task.run()
 }
 
 export type TaskDelayRetryExponential = {
