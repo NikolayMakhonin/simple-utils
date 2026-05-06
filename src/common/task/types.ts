@@ -34,15 +34,15 @@ export type TaskStatusBase<Result = void> = {
   /**
    * Last success date in milliseconds
    * null - never succeeded
-   * Set when successPredicate returns true for last execution
-   * Note: can be non-null even if lastHasError is true
+   * Determined by successPredicate, not by whether the execution threw
+   * Can be non-null even if lastHasError is true
    */
   readonly lastSuccess: null | number
   /**
    * Last failure date in milliseconds
    * null - never failed
-   * Set when successPredicate returns false for last execution
-   * Note: can be non-null even if lastHasError is false
+   * Determined by successPredicate, not by whether the execution threw
+   * Can be non-null even if lastHasError is false
    */
   readonly lastFailed: null | number
 
@@ -97,9 +97,9 @@ export interface ITaskRun<
   run(options?: null | RunOptions): PromiseOrValue<Result>
   /** Abort current and scheduled executions */
   abort(): void
-  /** Wait for current execution or immediately scheduled execution if it supported by task */
+  /** Wait for current execution to complete */
   wait(): PromiseOrValue<void>
-  /** Wait for time window without any execution or immediately scheduled executions */
+  /** Wait until no execution is running and no rerun is pending */
   waitIdle(): PromiseOrValue<void>
   readonly abortSignal: IAbortSignalFast
   readonly timeController: ITimeController
@@ -125,6 +125,7 @@ export interface ITaskBaseWithArgs<
 > extends ITaskBase<Result, RunOptions, Status>,
     ITaskArgs<Args> {}
 
+/** Task that inserts delays between executions */
 export interface ITaskDelay {
   skipDelay(): void
 }

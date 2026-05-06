@@ -1,20 +1,21 @@
-import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
+import { AbortControllerFast } from '@flemist/abort-controller-fast'
 import type { PromiseOrValue } from 'src/common/types/common'
 import {
   TASK_STOP,
   type TaskDelayPrepare,
+  type TaskFuncOptions,
   type TaskStatusBase,
 } from 'src/common/task/types'
 import {
   createTaskRepeated,
   type TaskOptionsRepeated,
 } from 'src/common/task/TaskRepeated'
+import {
+  type ITimeController,
+  timeControllerDefault,
+} from '@flemist/time-controller'
 
-export type WithRetryFuncArg = {
-  abortSignal: IAbortSignalFast | null
-}
-
-export type WithRetryFunc<T> = (args: WithRetryFuncArg) => PromiseOrValue<T>
+export type WithRetryFunc<T> = (options: TaskFuncOptions) => PromiseOrValue<T>
 
 export type WithRetryOptions<T> = Omit<TaskOptionsRepeated<T>, 'delay'> & {
   func: WithRetryFunc<T>
@@ -23,14 +24,15 @@ export type WithRetryOptions<T> = Omit<TaskOptionsRepeated<T>, 'delay'> & {
 
 export async function withRetry<T>(options: WithRetryOptions<T>): Promise<T> {
   if (options.delay == null) {
-    const abortSignal = options.abortSignal ?? null
-    abortSignal?.throwIfAborted()
-    return options.func({ abortSignal })
+    const abortSignal = options.abortSignal ?? new AbortControllerFast().signal
+    abortSignal.throwIfAborted()
+    const timeController = options.timeController ?? timeControllerDefault
+    return options.func({ abortSignal, timeController, isFirst: true })
   }
 
   const task = createTaskRepeated<null, T>(
-    (_, taskFuncOptions) => {
-      return options.func(taskFuncOptions)
+    (_, funcOptions) => {
+      return options.func(funcOptions)
     },
     null,
     options as TaskOptionsRepeated<T>,

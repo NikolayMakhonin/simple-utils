@@ -49,7 +49,7 @@ export class TaskRepeated<
   extends TaskWrapper<Args, Result, TaskRunOptionsBase, Status>
   implements ITaskRepeated<Args, Result, RunOptions, Status>
 {
-  private readonly _options: null | TaskOptionsRepeated<Result, Status>
+  private readonly _options: TaskOptionsRepeated<Result, Status>
   private _runPromise: Promise<Result> | null = null
   private _delayAbortController: IAbortControllerFast | null = null
 
@@ -58,7 +58,7 @@ export class TaskRepeated<
     options: TaskOptionsRepeated<Result, Status>,
   ) {
     super(task)
-    this._options = options ?? null
+    this._options = options
   }
 
   skipDelay(): void {
@@ -69,20 +69,24 @@ export class TaskRepeated<
     super.skipDelay()
   }
 
+  private stop(): Result {
+    this.abort()
+    if (this.status.lastEnd == null) {
+      throw this.status.abortSignal.reason
+    }
+    if (this.status.lastHasError) {
+      throw this.status.lastError
+    }
+    return this.status.lastResult!
+  }
+
   private async _run(): Promise<Result> {
     try {
       while (!this.abortSignal.aborted) {
-        const delayResult = this._options!.delay(this.status)
+        const delayResult = this._options.delay(this.status)
 
         if (delayResult === TASK_STOP) {
-          this.abort()
-          if (this.status.lastEnd == null) {
-            throw this.status.abortSignal.reason
-          }
-          if (this.status.lastHasError) {
-            throw this.status.lastError
-          }
-          return this.status.lastResult!
+          return this.stop()
         }
 
         if (!delayResult.skipRun) {
@@ -129,14 +133,7 @@ export class TaskRepeated<
             ).catch(EMPTY_FUNC)
             this._delayAbortController = null
           } else if (delayFuncResult === TASK_STOP) {
-            this.abort()
-            if (this.status.lastEnd == null) {
-              throw this.status.abortSignal.reason
-            }
-            if (this.status.lastHasError) {
-              throw this.status.lastError
-            }
-            return this.status.lastResult!
+            return this.stop()
           }
         }
       }
