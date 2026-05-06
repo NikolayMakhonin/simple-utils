@@ -17,6 +17,9 @@ importers:
       '@flemist/priority-queue':
         specifier: ^1.0.1
         version: 1.0.1
+      '@flemist/test-variants':
+        specifier: ^5.0.13
+        version: 5.0.13
       '@flemist/time-controller':
         specifier: ^1.0.4
         version: 1.0.4
@@ -30,7 +33,7 @@ importers:
         specifier: ^4.0.4
         version: 4.0.4
       setimmediate:
-        specifier: 1.0.5
+        specifier: ^1.0.5
         version: 1.0.5
       tslib:
         specifier: '>=2.8.1'
@@ -45,9 +48,6 @@ importers:
       '@eslint/js':
         specifier: 9.17.0
         version: 9.17.0
-      '@flemist/test-variants':
-        specifier: 5.0.13
-        version: 5.0.13
       '@types/eslint':
         specifier: 9.6.1
         version: 9.6.1
