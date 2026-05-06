@@ -18,8 +18,8 @@ importers:
         specifier: ^1.0.1
         version: 1.0.1
       '@flemist/test-variants':
-        specifier: ^5.0.13
-        version: 5.0.13
+        specifier: ^5.0.14
+        version: 5.0.14
       '@flemist/time-controller':
         specifier: ^1.0.4
         version: 1.0.4
@@ -380,12 +380,12 @@ packages:
     resolution: {integrity: sha512-5rc1BdJOBpLzXoyKGWjXQSSEr5S8NtPG5c4oH/mG1Dsm3/7H1QlyaHfznXbquy2B6lQ7j1sHMlFvsDO3+ULdSQ==}
     engines: {node: '>=12.9.0'}
 
-  '@flemist/simple-utils@2.1.18':
-    resolution: {integrity: sha512-0JDNo8Z6b3tHyOjpXEcg7fv/f5v6gEOlukc8ILsECnDmwfwrvWpCSJI30Ln0L2N8QXZQ0ppysASu37EcWRMzkA==}
+  '@flemist/simple-utils@2.2.2':
+    resolution: {integrity: sha512-udyo4DA5bp6D8m3yXace2TI7iDmFNbxz8zJQ0bCtjqhumDLhTHUwW1LTC/tUbb5AToufTQh7VBbu2+Elryd06A==}
     engines: {node: '>=20'}
 
-  '@flemist/test-variants@5.0.13':
-    resolution: {integrity: sha512-DmVxtVy0FN0yOP09vJDarwu/kr/TvvLvmfFQGQCvF8CyFLvJXMM7YmKfX7ho1xNN7T6se7X9WXT9cGaqeC/2bQ==}
+  '@flemist/test-variants@5.0.14':
+    resolution: {integrity: sha512-RqM/diIS5zF+uVs6oLPrh34x6mkYmoGX4wAHO8c4wUl66iPtKQmWJ5BPtb0S/d8jiT54GhAmdHdIDkBkrvRqTw==}
     engines: {node: '>=20'}
 
   '@flemist/time-controller@1.0.4':
@@ -2847,24 +2847,23 @@ snapshots:
       '@flemist/time-controller': 1.0.4
       tslib: 2.8.1
 
-  '@flemist/simple-utils@2.1.18':
+  '@flemist/simple-utils@2.2.2':
     dependencies:
       '@flemist/abort-controller-fast': 1.0.0
-      '@flemist/async-utils': 1.2.8
       '@flemist/pairing-heap': 1.0.0
       '@flemist/priority-queue': 1.0.1
-      '@flemist/test-variants': 5.0.13
+      '@flemist/test-variants': 5.0.14
       '@flemist/time-controller': 1.0.4
       '@flemist/time-limits': 2.0.4
       fflate: 0.8.2
       picomatch: 4.0.4
+      setimmediate: 1.0.5
       tslib: 2.8.1
 
-  '@flemist/test-variants@5.0.13':
+  '@flemist/test-variants@5.0.14':
     dependencies:
       '@flemist/abort-controller-fast': 1.0.0
-      '@flemist/async-utils': 1.2.8
-      '@flemist/simple-utils': 2.1.18
+      '@flemist/simple-utils': 2.2.2
       '@flemist/time-controller': 1.0.4
       '@flemist/time-limits': 2.0.4
       tslib: 2.8.1
