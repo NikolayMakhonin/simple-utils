@@ -33,7 +33,7 @@ import { describe, it } from 'vitest'
 import { createTestVariants } from '@flemist/test-variants'
 import { TimeControllerMock } from '@flemist/time-controller'
 import { AbortControllerFast } from '@flemist/abort-controller-fast'
-import { waitTimeControllerMock } from '@flemist/async-utils'
+import { waitTimeControllerMock } from 'src/common/async/wait/waitTimeControllerMock'
 import {
   getRandomSeed,
   Random,

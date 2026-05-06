@@ -1,4 +1,5 @@
-import { isPromiseLike, type PromiseOrValue } from '@flemist/async-utils'
+import { isPromiseLike } from './promise'
+import type { PromiseOrValue } from 'src/common/types/common'
 
 // TODO: write doc comments
 export interface ILazy<T = void> {

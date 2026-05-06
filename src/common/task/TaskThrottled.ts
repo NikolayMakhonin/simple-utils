@@ -2,7 +2,9 @@ import {
   AbortControllerFast,
   type IAbortControllerFast,
 } from '@flemist/abort-controller-fast'
-import { combineAbortSignals, delay, EMPTY_FUNC } from '@flemist/async-utils'
+import { combineAbortSignals } from 'src/common/async/abort/abort-controller-fast/combineAbortSignals'
+import { delay } from 'src/common/async/delay'
+import { EMPTY_FUNC } from 'src/common/constants'
 import {
   type ArgsDefault,
   type ITaskBaseWithArgs,

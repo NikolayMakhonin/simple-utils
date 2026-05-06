@@ -35,7 +35,7 @@ import { createTestVariants } from '@flemist/test-variants'
 import { TimeControllerMock } from '@flemist/time-controller'
 import { TASK_STOP, type TaskDelay, type TaskStatusBase } from './types'
 import { LogLevel } from 'src/common/debug'
-import { waitTimeControllerMock } from '@flemist/async-utils'
+import { waitTimeControllerMock } from 'src/common/async/wait/waitTimeControllerMock'
 import { getRandomSeed, Random, randomInt } from 'src/common/random'
 import { createTaskRepeated } from './TaskRepeated'
 

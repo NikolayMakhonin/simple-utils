@@ -1,6 +1,6 @@
 import type { CacheStat, ICacheStats, IStorageDb } from './types'
 import type { ConverterAsync } from '../converter'
-import { isPromiseLike } from '@flemist/async-utils'
+import { isPromiseLike } from 'src/common/async/promise'
 
 export type CacheStatOptions<Key, Stat extends CacheStat, StatStored> = {
   storage: IStorageDb<Key, StatStored>

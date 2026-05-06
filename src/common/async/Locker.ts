@@ -1,9 +1,8 @@
-import {
-  isPromiseLike,
-  type PromiseLikeOrValue,
-  promiseLikeToPromise,
-} from '@flemist/async-utils'
-import type { PromiseOrValue } from 'src/common/types/common'
+import { isPromiseLike, promiseLikeToPromise } from './promise'
+import type {
+  PromiseLikeOrValue,
+  PromiseOrValue,
+} from 'src/common/types/common'
 
 export type LockFunc = {
   <T>(handler: () => PromiseLike<T>): Promise<T>

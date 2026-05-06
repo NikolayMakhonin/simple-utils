@@ -1,4 +1,4 @@
-import { delay } from '@flemist/async-utils'
+import { delay } from 'src/common/async/delay'
 
 let delayOnErrorPromise: Promise<void> | null = null
 let delayOnErrorTime: number | null = null

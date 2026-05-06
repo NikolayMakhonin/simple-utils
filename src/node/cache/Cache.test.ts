@@ -8,7 +8,8 @@ import * as path from 'path'
 import type { NumberRange } from 'src/common/types/common'
 import type { ConvertToAsync } from 'src/common/converter/types'
 import { TimeControllerMock } from '@flemist/time-controller'
-import { waitMicrotasks, waitTimeControllerMock } from '@flemist/async-utils'
+import { waitMicrotasks } from 'src/common/async/wait/waitMicrotasks'
+import { waitTimeControllerMock } from 'src/common/async/wait/waitTimeControllerMock'
 import {
   decompressGzip,
   isGzipCompressed,

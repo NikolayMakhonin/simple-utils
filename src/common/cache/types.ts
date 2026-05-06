@@ -1,7 +1,7 @@
-import {
-  type PromiseLikeOrValue,
-  type PromiseOrValue,
-} from '@flemist/async-utils'
+import type {
+  PromiseLikeOrValue,
+  PromiseOrValue,
+} from 'src/common/types/common'
 
 export type IStorage<Key, Value> = {
   set(key: Key, value: Value): PromiseLikeOrValue<void>

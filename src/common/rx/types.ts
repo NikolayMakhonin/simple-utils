@@ -1,5 +1,5 @@
 import type { PromiseOrValue, Unsubscribe } from 'src/common/types/common'
-import type { ValueState } from '@flemist/async-utils'
+import type { ValueState } from 'src/common/async/value-state/ValueState'
 
 export type Listener<T = void> = (event: T) => PromiseOrValue<void>
 

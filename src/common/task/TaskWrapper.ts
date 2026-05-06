@@ -2,7 +2,7 @@ import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
 import type { ITimeController } from '@flemist/time-controller'
 import type { Listener } from 'src/common/rx'
 import type { Unsubscribe } from 'src/common/types'
-import type { PromiseOrValue } from '@flemist/async-utils'
+import type { PromiseOrValue } from 'src/common/types/common'
 import type {
   ArgsDefault,
   ITaskArgs,

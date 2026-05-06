@@ -2,11 +2,9 @@ import { IPool, poolRunWait } from '@flemist/time-limits'
 import { Priority, priorityCreate } from '@flemist/priority-queue'
 import { IAbortSignalFast } from '@flemist/abort-controller-fast'
 import * as fs from 'fs'
-import {
-  combineAbortSignals,
-  type PromiseOrValue,
-  useAbortController,
-} from '@flemist/async-utils'
+import { combineAbortSignals } from 'src/common/async/abort/abort-controller-fast/combineAbortSignals'
+import { useAbortController } from 'src/common/async/abort/abort-controller-fast/useAbortController'
+import type { PromiseOrValue } from 'src/common/types/common'
 import * as path from 'path'
 import { getFileId, pathResolve } from './helpers'
 import { poolFs } from 'src/node'

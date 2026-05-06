@@ -1,5 +1,5 @@
 import type { CDPSession, Page } from 'playwright'
-import { delay } from '@flemist/async-utils'
+import { delay } from 'src/common/async/delay'
 import { loadJson, saveJson } from './loadSaveJson'
 import { DIFF_NEW, DIFF_OLD, getObjectsDiff } from './getObjectsDiff'
 import * as fs from 'fs'

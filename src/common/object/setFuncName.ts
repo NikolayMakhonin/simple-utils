@@ -1,4 +1,4 @@
-import { FuncAny } from '@flemist/async-utils'
+import type { FuncAny } from 'src/common/types/common'
 
 export function setFuncName<T extends FuncAny>(func: T, name: string): T {
   Object.defineProperty(func, 'name', { value: name, configurable: true })

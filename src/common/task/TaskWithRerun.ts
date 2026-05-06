@@ -1,9 +1,6 @@
-import {
-  EMPTY_FUNC,
-  isPromiseLike,
-  promiseLikeToPromise,
-  type PromiseOrValue,
-} from '@flemist/async-utils'
+import { EMPTY_FUNC } from 'src/common/constants'
+import { isPromiseLike, promiseLikeToPromise } from 'src/common/async/promise'
+import type { PromiseOrValue } from 'src/common/types/common'
 import {
   type ArgsDefault,
   type ITaskBaseWithArgs,

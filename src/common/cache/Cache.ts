@@ -1,4 +1,5 @@
-import { isPromiseLike, type PromiseLikeOrValue } from '@flemist/async-utils'
+import { isPromiseLike } from 'src/common/async/promise'
+import type { PromiseLikeOrValue } from 'src/common/types/common'
 import type {
   CacheStat,
   ICache,

@@ -1,6 +1,6 @@
 /* eslint-disable prefer-rest-params */
 
-import { isPromiseLike } from '@flemist/async-utils'
+import { isPromiseLike } from 'src/common/async/promise'
 import {
   AbortControllerFast,
   type IAbortSignalFast,

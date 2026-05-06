@@ -20,7 +20,7 @@ import { MatcherNot } from './MatcherNot'
 import { Matcher, type MatcherArgsName } from '../Matcher'
 import { MatcherNever } from './MatcherNever'
 import { type NumberRangeOptional } from 'src/common/types/common'
-import { ValueState } from '@flemist/async-utils'
+import { ValueState } from 'src/common/async/value-state/ValueState'
 import { MatcherObjectEntry } from './MatcherObjectEntry'
 import { MatcherRef } from './MatcherRef'
 

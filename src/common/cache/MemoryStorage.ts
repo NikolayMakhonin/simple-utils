@@ -1,4 +1,4 @@
-import type { PromiseLikeOrValue } from '@flemist/async-utils'
+import type { PromiseLikeOrValue } from 'src/common/types/common'
 import type { IStorageDb } from './types'
 
 export class MemoryStorage<Key, Value> implements IStorageDb<Key, Value> {
