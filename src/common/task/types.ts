@@ -66,11 +66,15 @@ export type TaskStatusBase<Result = void> = {
    */
   readonly lastResult?: Result
   /**
-   * Count of successful runs from the last failed
+   * Count of consecutive successful runs since the last failure
+   * Resets to 0 on failure
+   * null - task never ended yet
    */
   readonly lastSuccessRuns?: null | number
   /**
-   * Count of failed runs from the last success
+   * Count of consecutive failed runs since the last success
+   * Resets to 0 on success
+   * null - task never ended yet
    */
   readonly lastFailedRuns?: null | number
 }
