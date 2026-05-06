@@ -39,7 +39,7 @@ export interface ITaskThrottled<
     ITaskRerun {}
 
 export type TaskOptionsThrottled = TaskOptionsBase & {
-  readonly throttleTimeDefault?: null | number
+  readonly throttleTime?: null | number
   readonly throttleTimeMax?: null | number
   /**
    * false/undefined - throttle time counts from the last execution start
@@ -80,8 +80,7 @@ export class TaskThrottled<
     throttleTime?: null | number,
     _throttleTimeMax?: null | number | false,
   ): void {
-    const throttleTimeNew =
-      throttleTime ?? this._options?.throttleTimeDefault ?? 0
+    const throttleTimeNew = throttleTime ?? this._options?.throttleTime ?? 0
     this._throttleTimeCurrent =
       this._throttleTimeCurrent == null
         ? throttleTimeNew

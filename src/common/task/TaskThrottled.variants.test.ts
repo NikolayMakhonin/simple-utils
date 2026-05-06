@@ -91,7 +91,7 @@ async function generateContext(
     },
     null,
     {
-      throttleTimeDefault: args.throttleTimeDefault,
+      throttleTime: args.throttleTimeDefault,
       throttleTimeMax: args.throttleTimeMax,
       throttleFromEnd: args.throttleFromEnd,
       timeController,
