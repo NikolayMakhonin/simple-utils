@@ -17,6 +17,7 @@ import {
   type TaskRunOptionsBase,
   type TaskStatusBase,
 } from './types'
+import { isPromiseLike } from 'src/common/async/promise/isPromiseLike'
 import { createTaskRerun } from './TaskWithRerun'
 import type { TaskOptionsBase } from './TaskBase'
 import { type ITaskWrapperSource, TaskWrapper } from './TaskWrapper'
@@ -150,7 +151,10 @@ export class TaskRepeated<
   run(options?: null | RunOptions): PromiseOrValue<Result> {
     this.abortSignal.throwIfAborted()
     if (this._runPromise && options?.immediate) {
-      void super.run(options)
+      const result = super.run(options)
+      if (isPromiseLike(result)) {
+        result.catch(EMPTY_FUNC)
+      }
     }
 
     if (!this._runPromise) {
