@@ -3,12 +3,12 @@ import {
   type IAbortControllerFast,
   type IAbortSignalFast,
 } from '@flemist/abort-controller-fast'
-import { combineAbortSignals } from 'src/common/async/abort/abort-controller-fast/combineAbortSignals'
+import { combineAbortSignals } from './combineAbortSignals'
 import type {
   IUnsubscribe,
   TAbortReason,
 } from '@flemist/abort-controller-fast/dist/lib/contracts'
-import { type IObservable, type ISubject, Subject } from '../../rx'
+import { type IObservable, type ISubject, Subject } from 'src/common/rx'
 
 export type AbortControllerReusableOptions = {
   /** Global abort signal */

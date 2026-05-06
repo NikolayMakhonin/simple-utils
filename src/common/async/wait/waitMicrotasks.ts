@@ -1,7 +1,7 @@
 import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
 import 'setimmediate'
-import { isPromiseLike } from 'src/common/async/promise'
-import { abortSignalToPromise } from 'src/common/async/abort/abort-controller-fast/abortSignalToPromise'
+import { abortSignalToPromise } from 'src/common/async/abort/abortSignalToPromise'
+import { isPromiseLike } from 'src/common/async/promise/isPromiseLike'
 
 export function waitMicrotasks(
   abortSignalOrPromise?: null | IAbortSignalFast | PromiseLike<any>,

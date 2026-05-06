@@ -1,4 +1,3 @@
-import { isPromiseLike } from 'src/common/async/promise'
 import type { PromiseLikeOrValue } from 'src/common/types/common'
 import type {
   CacheStat,
@@ -12,9 +11,14 @@ import {
   type ITimeController,
   timeControllerDefault,
 } from '@flemist/time-controller'
-import { type ILockerWithId, LockerWithId, promiseAllWait } from '../async'
-import type { NumberRange } from '../types'
+import {
+  type ILockerWithId,
+  LockerWithId,
+  promiseAllWait,
+} from 'src/common/async'
+import type { NumberRange } from 'src/common/types'
 import { CacheStats } from './CacheStats'
+import { isPromiseLike } from 'src/common/async/promise/isPromiseLike'
 
 export type CacheStorages<Key, Value, Error, Stat> = {
   value: IStorage<Key, Value>

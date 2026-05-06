@@ -1,5 +1,5 @@
-import { isPromiseLike } from './promise'
 import type { PromiseOrValue } from 'src/common/types/common'
+import { isPromiseLike } from './promise/isPromiseLike'
 
 // TODO: write doc comments
 export interface ILazy<T = void> {

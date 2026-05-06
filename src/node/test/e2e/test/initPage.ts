@@ -9,7 +9,7 @@ import {
   AbortControllerFast,
   IAbortSignalFast,
 } from '@flemist/abort-controller-fast'
-import { combineAbortSignals } from 'src/common/async/abort/abort-controller-fast/combineAbortSignals'
+import { combineAbortSignals } from 'src/common/async/abort/combineAbortSignals'
 import path from 'path'
 
 export type Filters = {

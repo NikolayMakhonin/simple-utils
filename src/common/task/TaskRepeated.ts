@@ -2,8 +2,8 @@ import {
   AbortControllerFast,
   type IAbortControllerFast,
 } from '@flemist/abort-controller-fast'
-import { combineAbortSignals } from 'src/common/async/abort/abort-controller-fast/combineAbortSignals'
-import { delay } from 'src/common/async/delay'
+import { combineAbortSignals } from 'src/common/async/abort/combineAbortSignals'
+import { delay } from 'src/common/async/wait/delay'
 import { EMPTY_FUNC } from 'src/common/constants'
 import type { PromiseOrValue } from 'src/common/types/common'
 import {

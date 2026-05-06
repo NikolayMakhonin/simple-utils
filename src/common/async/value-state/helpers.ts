@@ -1,4 +1,3 @@
-import { isPromiseLike } from 'src/common/async/promise'
 import { ValueState } from './ValueState'
 import type {
   AsyncOrValue,
@@ -8,6 +7,7 @@ import type {
   ValueStateUpdater,
 } from './contracts'
 import type { PromiseOrValue } from 'src/common/types/common'
+import { isPromiseLike } from 'src/common/async/promise/isPromiseLike'
 
 export function createValueState<TValue>(
   props: IValueState<TValue> = {},

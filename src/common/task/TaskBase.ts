@@ -5,7 +5,7 @@ import {
   timeControllerDefault,
 } from '@flemist/time-controller'
 import { EMPTY_FUNC } from 'src/common/constants'
-import { isPromiseLike, promiseLikeToPromise } from 'src/common/async/promise'
+import { promiseLikeToPromise } from 'src/common/async/promise/promiseLikeToPromise'
 import type { PromiseOrValue } from 'src/common/types/common'
 import type { Unsubscribe } from 'src/common/types'
 import { LogLevel } from 'src/common/debug'
@@ -20,6 +20,7 @@ import {
   AbortControllerReusable,
   type AbortControllerReusableOptions,
 } from 'src/common/async/abort/AbortControllerReusable'
+import { isPromiseLike } from 'src/common/async/promise/isPromiseLike'
 
 export function taskSuccessPredicateDefault<T>(
   status: TaskStatusBase<T>,

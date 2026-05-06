@@ -16,7 +16,7 @@ import {
   AbortError,
   type IAbortSignalFast,
 } from '@flemist/abort-controller-fast'
-import { combineAbortSignals } from 'src/common/async/abort/abort-controller-fast/combineAbortSignals'
+import { combineAbortSignals } from 'src/common/async/abort/combineAbortSignals'
 import {
   createTestVariants,
   type TestVariantsSetArgs,

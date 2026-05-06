@@ -1,4 +1,4 @@
-import { delay } from 'src/common/async/delay'
+import { delay } from 'src/common/async/wait/delay'
 
 let delayOnErrorPromise: Promise<void> | null = null
 let delayOnErrorTime: number | null = null

@@ -6,7 +6,7 @@ import {
   type ITimeController,
   timeControllerDefault,
 } from '@flemist/time-controller'
-import { rejectAsResolve } from './rejectAsResolve'
+import { rejectAsResolve } from 'src/common/async/promise/rejectAsResolve'
 
 export function delay(
   milliseconds: number | null | undefined,

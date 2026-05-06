@@ -1,8 +1,9 @@
-import { isPromiseLike, promiseLikeToPromise } from './promise'
+import { promiseLikeToPromise } from './promise/promiseLikeToPromise'
 import type {
   PromiseLikeOrValue,
   PromiseOrValue,
 } from 'src/common/types/common'
+import { isPromiseLike } from './promise/isPromiseLike'
 
 export type LockFunc = {
   <T>(handler: () => PromiseLike<T>): Promise<T>

@@ -1,10 +1,10 @@
 /* eslint-disable prefer-rest-params */
 
-import { isPromiseLike } from 'src/common/async/promise'
 import {
   AbortControllerFast,
   type IAbortSignalFast,
 } from '@flemist/abort-controller-fast'
+import { isPromiseLike } from 'src/common/async/promise/isPromiseLike'
 
 // TODO: write doc comments
 export enum ConsoleMessageLevel {

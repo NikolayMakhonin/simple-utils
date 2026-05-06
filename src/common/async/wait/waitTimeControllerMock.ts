@@ -1,9 +1,9 @@
 import { waitMicrotasks } from './waitMicrotasks'
 import { type TimeControllerMock } from '@flemist/time-controller'
 import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
-import { isPromiseLike } from 'src/common/async/promise'
-import { promiseToAbortSignal } from 'src/common/async/abort/abort-controller-fast/abortSignalToPromise'
+import { promiseToAbortSignal } from 'src/common/async/abort/abortSignalToPromise'
 import { EMPTY_FUNC } from 'src/common/constants'
+import { isPromiseLike } from 'src/common/async/promise/isPromiseLike'
 
 export type WaitTimeControllerMockOptions = {
   timeout?: null | number

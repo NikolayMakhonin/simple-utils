@@ -1,8 +1,8 @@
 import type { Expected } from './types'
 import { match } from './match'
 import { filterMatchResult, matchResultToString } from './report'
-import { isPromiseLike } from 'src/common/async/promise'
 import type { PromiseOrValue } from 'src/common/types/common'
+import { isPromiseLike } from 'src/common/async/promise/isPromiseLike'
 
 export class CheckError extends Error {
   constructor(message: string) {

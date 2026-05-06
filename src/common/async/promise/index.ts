@@ -1,0 +1,5 @@
+export * from './promiseLikeToPromise'
+export * from './promiseFinally'
+export * from './rejectAsResolve'
+export * from './promiseAllWait'
+export * from './isPromiseLike'

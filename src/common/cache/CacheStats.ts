@@ -1,6 +1,6 @@
 import type { CacheStat, ICacheStats, IStorageDb } from './types'
-import type { ConverterAsync } from '../converter'
-import { isPromiseLike } from 'src/common/async/promise'
+import type { ConverterAsync } from 'src/common/converter'
+import { isPromiseLike } from 'src/common/async/promise/isPromiseLike'
 
 export type CacheStatOptions<Key, Stat extends CacheStat, StatStored> = {
   storage: IStorageDb<Key, StatStored>

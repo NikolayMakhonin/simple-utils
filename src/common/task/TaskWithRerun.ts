@@ -1,5 +1,5 @@
 import { EMPTY_FUNC } from 'src/common/constants'
-import { isPromiseLike, promiseLikeToPromise } from 'src/common/async/promise'
+import { promiseLikeToPromise } from 'src/common/async/promise/promiseLikeToPromise'
 import type { PromiseOrValue } from 'src/common/types/common'
 import {
   type ArgsDefault,
@@ -11,6 +11,7 @@ import {
 } from './types'
 import { TaskBase, type TaskOptionsBase } from './TaskBase'
 import { type ITaskWrapperSource, TaskWrapper } from './TaskWrapper'
+import { isPromiseLike } from 'src/common/async/promise/isPromiseLike'
 
 export type ITaskWithRerun<
   Args = ArgsDefault,

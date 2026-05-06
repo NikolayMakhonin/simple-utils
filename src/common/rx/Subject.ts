@@ -1,6 +1,6 @@
 import type { ISubject, Listener } from './types'
-import { isPromiseLike } from 'src/common/async/promise'
 import { type PromiseOrValue, type Unsubscribe } from 'src/common/types/common'
+import { isPromiseLike } from 'src/common/async/promise/isPromiseLike'
 
 export type Emit<T> = (value: T) => PromiseOrValue<void>
 export type Updater<T> = (event: T) => T
