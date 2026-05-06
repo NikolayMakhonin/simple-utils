@@ -161,7 +161,7 @@ export type TaskDelay<
         | ((
             status: Status,
             delayAbortSignal: IAbortSignalFast,
-          ) => PromiseOrValue<undefined | null | number | TaskStop>)
+          ) => PromiseOrValue<void | undefined | null | number | TaskStop>)
       skipRun?: null | boolean
     }
   | TaskStop
