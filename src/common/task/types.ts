@@ -8,13 +8,17 @@ import { type IAbortSignalFast } from '@flemist/abort-controller-fast'
 
 export type ArgsDefault = void | undefined | null
 
-export type TaskStatusBase<Result = void> = {
+export type TaskStatusBase<Result = any> = {
   readonly abortSignal: IAbortSignalFast
   readonly timeController: ITimeController
   /**
    * true - task is currently running
    */
   readonly isRunning: boolean
+  /**
+   * true - when task aborted during isRunning state
+   */
+  readonly isAborted: boolean
   /**
    * First start date in milliseconds
    * null - never started
@@ -80,8 +84,8 @@ export type TaskStatusBase<Result = void> = {
 }
 
 export interface ITaskStatus<
-  Result = void,
-  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
+  Result = any,
+  Status extends TaskStatusBase<Result> = any,
 > extends IObservable<Status> {
   readonly status: Status
 }
@@ -142,7 +146,7 @@ export const TASK_STOP = 'stop'
 export type TaskStop = typeof TASK_STOP
 
 export type TaskDelay<
-  Result = void,
+  Result = any,
   Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
 > =
   | {
@@ -163,7 +167,7 @@ export type TaskDelay<
   | TaskStop
 
 export type TaskDelayPrepare<
-  Result = void,
+  Result = any,
   Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
 > = (status: Status) => TaskDelay<Result, Status>
 

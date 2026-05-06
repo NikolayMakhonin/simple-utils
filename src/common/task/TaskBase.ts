@@ -68,6 +68,7 @@ export class TaskBase<
       timeController: this._timeController,
       firstStart: null,
       isRunning: false,
+      isAborted: false,
       lastStart: null,
       lastEnd: null,
       lastSuccess: null,
@@ -117,6 +118,7 @@ export class TaskBase<
     this._status = {
       ...this._status,
       isRunning: true,
+      isAborted: this._abortController.signal.aborted,
       firstStart: this._status.firstStart ?? now,
       lastStart: now,
       abortSignal: this._abortController.signal,
@@ -128,6 +130,7 @@ export class TaskBase<
     this._status = {
       ...this._status,
       isRunning: false,
+      isAborted: this._abortController.signal.aborted,
       lastEnd: this.timeController.now(),
       lastHasError: false,
       lastError: undefined,
@@ -146,6 +149,7 @@ export class TaskBase<
     this._status = {
       ...this._status,
       isRunning: false,
+      isAborted: this._abortController.signal.aborted,
       lastEnd: this.timeController.now(),
       lastHasError: true,
       lastError: error,
@@ -172,7 +176,8 @@ export class TaskBase<
         lastFailedRuns: (this._status.lastFailedRuns ?? 0) + 1,
       }
     }
-    this._events.emit(this._status)
+    // Abort emits status event, so we don't need to emit it here
+    this.abort()
   }
 
   run(options?: null | RunOptions): PromiseOrValue<Result> {

@@ -61,11 +61,15 @@ export class TaskRepeated<
     this._options = options
   }
 
-  skipDelay(): void {
+  private abortDelay(): void {
     if (this._delayAbortController) {
       this._delayAbortController.abort()
       this._delayAbortController = null
     }
+  }
+
+  skipDelay(): void {
+    this.abortDelay()
     super.skipDelay()
   }
 
@@ -109,7 +113,7 @@ export class TaskRepeated<
           await delay(_delay, delayAbortSignal, this.timeController).catch(
             EMPTY_FUNC,
           )
-          this._delayAbortController = null
+          this.abortDelay()
         } else if (typeof _delay === 'function') {
           this._delayAbortController = new AbortControllerFast()
           const delayAbortSignal = combineAbortSignals(
@@ -118,7 +122,7 @@ export class TaskRepeated<
           )
           const delayFuncResult = await _delay(this.status, delayAbortSignal)
 
-          this._delayAbortController = null
+          this.abortDelay()
 
           if (typeof delayFuncResult === 'number') {
             this._delayAbortController = new AbortControllerFast()
@@ -131,7 +135,7 @@ export class TaskRepeated<
               innerDelayAbortSignal,
               this.timeController,
             ).catch(EMPTY_FUNC)
-            this._delayAbortController = null
+            this.abortDelay()
           } else if (delayFuncResult === TASK_STOP) {
             return this.stop()
           }

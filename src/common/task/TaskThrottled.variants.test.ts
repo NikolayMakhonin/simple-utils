@@ -15,12 +15,13 @@
  * - expectedStart - expected execution start time
  * - actualStart, actualEnd - actual execution timestamps
  * - result - return value from task.run()
+ * - isRunning, isAborted - task status after run completes
  *
  * Example trace:
  * [test][run][0] START throttleTime=null throttleTimeMax=null throttleFromEnd=null immediate=null throttleTimeEffective=5 expectedStart=0
- * [test][run][0] END actualStart=0 actualEnd=3 result=0
+ * [test][run][0] END actualStart=0 actualEnd=3 result=0 isRunning=false isAborted=false
  * [test][run][1] START throttleTime=8 throttleTimeMax=null throttleFromEnd=true immediate=null throttleTimeEffective=8 expectedStart=11
- * [test][run][1] END actualStart=11 actualEnd=14 result=1
+ * [test][run][1] END actualStart=11 actualEnd=14 result=1 isRunning=false isAborted=false
  */
 import { describe, it } from 'vitest'
 import { createTestVariants } from '@flemist/test-variants'
@@ -31,7 +32,7 @@ import { createTaskThrottled } from './TaskThrottled'
 
 export type TestVariantsArgs = {
   seed: number
-  throttleTimeDefault: number | null
+  throttleTime: number | null
   throttleTimeMax: number | null
   throttleFromEnd: boolean
   executionDuration: number
@@ -91,7 +92,7 @@ async function generateContext(
     },
     null,
     {
-      throttleTime: args.throttleTimeDefault,
+      throttleTime: args.throttleTime,
       throttleTimeMax: args.throttleTimeMax,
       throttleFromEnd: args.throttleFromEnd,
       timeController,
@@ -121,7 +122,7 @@ async function test(options: TestOptions): Promise<void> {
 
     const throttleTimeEffectiveRaw = runImmediate
       ? 0
-      : (runThrottleTime ?? args.throttleTimeDefault ?? 0)
+      : (runThrottleTime ?? args.throttleTime ?? 0)
     const throttleTimeMaxEffective =
       runThrottleTimeMax == null ? args.throttleTimeMax : runThrottleTimeMax
     const throttleTimeEffective =
@@ -167,7 +168,7 @@ async function test(options: TestOptions): Promise<void> {
 
     if (log) {
       console.log(
-        `[test][run][${i}] END actualStart=${timeStamps[i].start} actualEnd=${timeStamps[i].end} result=${result}`,
+        `[test][run][${i}] END actualStart=${timeStamps[i].start} actualEnd=${timeStamps[i].end} result=${result} isRunning=${task.status.isRunning} isAborted=${task.status.isAborted}`,
       )
     }
 
@@ -184,13 +185,19 @@ async function test(options: TestOptions): Promise<void> {
         `[${i}] end: expected ${expectedStart + args.executionDuration}, actual ${timeStamps[i].end}`,
       )
     }
+    if (task.status.isRunning) {
+      throw new Error(`[${i}] isRunning: expected false, actual true`)
+    }
+    if (task.status.isAborted) {
+      throw new Error(`[${i}] isAborted: expected false, actual true`)
+    }
   }
 }
 
 describe('toThrottled', { timeout: 7 * 60 * 60 * 1000 }, () => {
   it('variants', async () => {
     await testVariants({
-      throttleTimeDefault: Array.from({ length: 11 }, (_, i) =>
+      throttleTime: Array.from({ length: 11 }, (_, i) =>
         i === 0 ? null : i - 1,
       ),
       throttleTimeMax: Array.from({ length: 11 }, (_, i) =>

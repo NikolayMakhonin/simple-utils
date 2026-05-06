@@ -112,9 +112,10 @@ export class TaskThrottled<
     this._nextCallTime = newNextCallTime
     if (
       this._timerTargetTime != null &&
+      this._timerAbortController != null &&
       this._nextCallTime <= this._timerTargetTime
     ) {
-      this._timerAbortController!.abort()
+      this._timerAbortController.abort()
       this._timerAbortController = null
       this._timerTargetTime = null
     }
@@ -175,6 +176,7 @@ export class TaskThrottled<
             timerAbortSignal,
             this.timeController,
           ).catch(EMPTY_FUNC)
+          this.abortDelay()
         }
 
         if (this._timerTargetTime == null) {
@@ -209,12 +211,16 @@ export class TaskThrottled<
     return this._processPromise
   }
 
-  skipDelay(): void {
-    this._nextCallTime = 0
+  private abortDelay(): void {
     if (this._timerAbortController) {
       this._timerAbortController.abort()
       this._timerAbortController = null
     }
+  }
+
+  skipDelay(): void {
+    this._nextCallTime = 0
+    this.abortDelay()
   }
 
   abort() {
