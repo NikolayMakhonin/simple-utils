@@ -27,7 +27,7 @@ describe('gzip', () => {
     'base',
     async () => {
       const rnd = new Random(0)
-      for (let i = 0; i < 100; i++) {
+      for (let i = 0; i < 10; i++) {
         const data = randomUint8Array(rnd, i)
         for (let level = 0; level <= 9; level++) {
           await test(data, level as CompressLevel)

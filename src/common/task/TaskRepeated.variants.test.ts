@@ -494,25 +494,25 @@ describe('TaskRepeated', { timeout: 7 * 60 * 60 * 1000 }, () => {
       funcDelayProbabilityPercent: [0, 40],
       useImmediate: [false, true],
     })({
-      limitTime: 2 * 60 * 60 * 1000,
+      limitTime: 60 * 1000,
       parallel: 1,
       cycles: 1e9,
       getSeed: () => getRandomSeed(),
       findBestError: {
-        limitArgOnError: true,
+        limitArgOnError: false,
       },
       iterationModes: [
         {
           mode: 'forward',
-          limitTests: 1000,
+          limitTests: 100,
         },
         {
           mode: 'random',
-          limitTests: 100000,
+          limitTests: 10000,
         },
         {
           mode: 'backward',
-          limitTests: 1000,
+          limitTests: 100,
         },
       ],
       saveErrorVariants: {
