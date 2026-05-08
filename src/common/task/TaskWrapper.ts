@@ -7,6 +7,7 @@ import type {
   ITaskArgs,
   ITaskBase,
   ITaskDelay,
+  ITaskRepeat,
   ITaskRerun,
   TaskRunOptionsBase,
   TaskStatusBase,
@@ -18,7 +19,7 @@ export type ITaskWrapperSource<
   RunOptions extends TaskRunOptionsBase = TaskRunOptionsBase,
   Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
 > = ITaskBase<Result, RunOptions, Status> &
-  (ITaskArgs<Args> | ITaskDelay | ITaskRerun | {})
+  (ITaskArgs<Args> | ITaskDelay | ITaskRepeat | ITaskRerun | {})
 
 export interface ITaskWrapper<
   Args = ArgsDefault,
@@ -28,9 +29,11 @@ export interface ITaskWrapper<
 > extends ITaskBase<Result, RunOptions, Status>,
     ITaskArgs<Args>,
     ITaskDelay,
+    ITaskRepeat,
     ITaskRerun {
   readonly supportsArgs: boolean
   readonly supportsDelay: boolean
+  readonly supportsRepeat: boolean
   readonly supportsRerun: boolean
 }
 
@@ -44,12 +47,14 @@ export class TaskWrapper<
   protected readonly _task: ITaskWrapperSource<Args, Result, RunOptions, Status>
   private readonly _supportsArgs: boolean
   private readonly _supportsDelay: boolean
+  private readonly _supportsRepeat: boolean
   private readonly _supportsRerun: boolean
 
   constructor(task: ITaskWrapperSource<Args, Result, RunOptions, Status>) {
     this._task = task
     this._supportsArgs = 'args' in task
     this._supportsDelay = 'skipDelay' in task
+    this._supportsRepeat = 'skipRepeat' in task
     this._supportsRerun = 'skipRerun' in task
   }
 
@@ -59,6 +64,10 @@ export class TaskWrapper<
 
   get supportsDelay(): boolean {
     return this._supportsDelay
+  }
+
+  get supportsRepeat(): boolean {
+    return this._supportsRepeat
   }
 
   get supportsRerun(): boolean {
@@ -116,6 +125,13 @@ export class TaskWrapper<
       return
     }
     ;(this._task as ITaskDelay).skipDelay()
+  }
+
+  skipRepeat(): void {
+    if (!this._supportsRepeat) {
+      return
+    }
+    ;(this._task as ITaskRepeat).skipRepeat()
   }
 
   skipRerun(): void {

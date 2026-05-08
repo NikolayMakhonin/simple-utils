@@ -9,6 +9,7 @@ import {
   type ArgsDefault,
   type ITaskBaseWithArgs,
   type ITaskDelay,
+  type ITaskRepeat,
   type ITaskRerun,
   TASK_STOP,
   type TaskDelayPrepare,
@@ -29,6 +30,7 @@ export interface ITaskRepeated<
   Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
 > extends ITaskBaseWithArgs<Args, Result, RunOptions, Status>,
     ITaskDelay,
+    ITaskRepeat,
     ITaskRerun {}
 
 export type TaskOptionsRepeated<
@@ -50,6 +52,7 @@ export class TaskRepeated<
   private readonly _options: TaskOptionsRepeated<Result, Status>
   private _runPromise: Promise<Result> | null = null
   private _delayAbortController: IAbortControllerFast | null = null
+  private _skipRepeat: boolean = false
 
   constructor(
     task: ITaskWrapperSource<Args, Result, RunOptions, Status>,
@@ -71,8 +74,12 @@ export class TaskRepeated<
     super.skipDelay()
   }
 
-  private stop(): Result {
-    this.abort()
+  skipRepeat(): void {
+    this._skipRepeat = true
+    this.abortDelay()
+  }
+
+  private result(): Result {
     if (this.status.lastEnd == null) {
       throw this.status.abortSignal.reason
     }
@@ -84,11 +91,12 @@ export class TaskRepeated<
 
   private async _run(): Promise<Result> {
     try {
-      while (!this.abortSignal.aborted) {
+      while (!this.abortSignal.aborted && !this._skipRepeat) {
         const delayResult = this._options.delay(this.status)
 
         if (delayResult === TASK_STOP) {
-          return this.stop()
+          this.abort()
+          break
         }
 
         if (!delayResult.skipRun) {
@@ -98,6 +106,10 @@ export class TaskRepeated<
           } catch {
             // Ignore errors, because it handles in wrapped task
           }
+        }
+
+        if (this._skipRepeat || this.abortSignal.aborted) {
+          break
         }
 
         const _delay = delayResult.delay
@@ -122,6 +134,10 @@ export class TaskRepeated<
 
           this.abortDelay()
 
+          if (this._skipRepeat || this.abortSignal.aborted) {
+            break
+          }
+
           if (typeof delayFuncResult === 'number') {
             this._delayAbortController = new AbortControllerFast()
             const innerDelayAbortSignal = combineAbortSignals(
@@ -135,20 +151,23 @@ export class TaskRepeated<
             ).catch(EMPTY_FUNC)
             this.abortDelay()
           } else if (delayFuncResult === TASK_STOP) {
-            return this.stop()
+            this.abort()
+            break
           }
         }
       }
     } finally {
+      this._skipRepeat = false
       this._runPromise = null
     }
 
-    this.abortSignal.throwIfAborted()
-    return this.status.lastResult!
+    return this.result()
   }
 
   run(options?: null | RunOptions): Promise<Result> {
     this.abortSignal.throwIfAborted()
+    // Calling run() cancels any pending skipRepeat
+    this._skipRepeat = false
     if (this._runPromise && options?.immediate) {
       super.run(options).catch(EMPTY_FUNC)
     }

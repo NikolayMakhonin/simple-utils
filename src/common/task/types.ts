@@ -49,6 +49,10 @@ export type TaskStatusBase<Result = any> = {
    * Can be non-null even if lastHasError is false
    */
   readonly lastFailed: null | number
+  /**
+   * Reason for last failure from successPredicate
+   */
+  readonly lastFailedReason: any
 
   /**
    * When lastEnd != null:
@@ -141,6 +145,14 @@ export interface ITaskDelay {
 export interface ITaskRerun {
   skipRerun(): void
 }
+
+export interface ITaskRepeat {
+  skipRepeat(): void
+}
+
+export type SuccessPredicateResult =
+  | { success: true }
+  | { success?: null | false; reason: any }
 
 export const TASK_STOP = 'stop'
 export type TaskStop = typeof TASK_STOP

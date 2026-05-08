@@ -21,6 +21,9 @@
  * - lastEnd - status.lastEnd relative to origin at time delay was called
  * - lastHasError - status.lastHasError at time delay was called
  * - lastFailedRuns - status.lastFailedRuns at time delay was called
+ * - lastFailedReason - status.lastFailedReason at time delay was called
+ * - skipRepeatAt - iteration index where skipRepeat is called (null = never)
+ * - customSuccessPredicate - whether custom successPredicate is used
  *
  * Example trace:
  * [test][delay][0] lastEnd=null lastHasError=false lastFailedRuns=null → delayMs=5 stop=false skipRun=false funcDelay=false
@@ -33,7 +36,12 @@
 import { describe, it } from 'vitest'
 import { createTestVariants } from '@flemist/test-variants'
 import { TimeControllerMock } from '@flemist/time-controller'
-import { TASK_STOP, type TaskDelay, type TaskStatusBase } from './types'
+import {
+  TASK_STOP,
+  type SuccessPredicateResult,
+  type TaskDelay,
+  type TaskStatusBase,
+} from './types'
 import { LogLevel } from 'src/common/debug'
 import { waitTimeControllerMock } from 'src/common/async/wait/waitTimeControllerMock'
 import { getRandomSeed, Random, randomInt } from 'src/common/random'
@@ -48,6 +56,8 @@ export type TestVariantsArgs = {
   errorProbabilityPercent: number
   funcDelayProbabilityPercent: number
   useImmediate: boolean
+  skipRepeatProbabilityPercent: number
+  useCustomSuccessPredicate: boolean
 }
 
 const testVariants = createTestVariants(async (args: TestVariantsArgs) => {
@@ -80,6 +90,7 @@ type DelayCallRecord = {
   statusLastHasError: boolean
   statusIsRunning: boolean
   statusLastFailedRuns: number | null | undefined
+  statusLastFailedReason: any
   result: TaskDelay<number>
 }
 
@@ -96,6 +107,7 @@ type GeneratedDelayPlan = {
   skipRunIndices: Set<number>
   funcDelayIndices: Set<number>
   errorExecIndices: Set<number>
+  skipRepeatAtIteration: number | null
 }
 
 type TestContext = {
@@ -153,12 +165,22 @@ function generateDelayPlan(options: {
     }
   }
 
+  let skipRepeatAtIteration: number | null = null
+  if (
+    args.skipRepeatProbabilityPercent > 0 &&
+    iterations > 0 &&
+    randomInt(rnd, 0, 100) < args.skipRepeatProbabilityPercent
+  ) {
+    skipRepeatAtIteration = randomInt(rnd, 0, iterations)
+  }
+
   return {
     iterations,
     delays,
     skipRunIndices,
     funcDelayIndices,
     errorExecIndices,
+    skipRepeatAtIteration,
   }
 }
 
@@ -203,9 +225,24 @@ async function generateContext(
     {
       timeController,
       logLevel: LogLevel.none,
+      successPredicate: args.useCustomSuccessPredicate
+        ? (status: TaskStatusBase<number>): true | SuccessPredicateResult => {
+            if (status.lastEnd != null && !status.lastHasError) {
+              return { success: true }
+            }
+            return {
+              success: false,
+              reason: { customReason: true, error: status.lastError },
+            }
+          }
+        : null,
       delay(status: TaskStatusBase<number>): TaskDelay<number> {
         const i = delayIndex++
         const shouldStop = i >= plan.iterations
+
+        if (plan.skipRepeatAtIteration === i) {
+          task.skipRepeat()
+        }
 
         const useFuncDelay = plan.funcDelayIndices.has(i)
         const delayResult: TaskDelay<number> = shouldStop
@@ -222,6 +259,7 @@ async function generateContext(
           statusLastHasError: status.lastHasError,
           statusIsRunning: status.isRunning,
           statusLastFailedRuns: status.lastFailedRuns,
+          statusLastFailedReason: status.lastFailedReason,
           result: delayResult,
         }
         delayCallRecords.push(record)
@@ -230,7 +268,9 @@ async function generateContext(
           const isStop = delayResult === TASK_STOP
           console.log(
             `[test][delay][${i}] lastEnd=${record.statusLastEnd} lastHasError=${record.statusLastHasError} lastFailedRuns=${record.statusLastFailedRuns}` +
-              ` → delayMs=${plan.delays[i] ?? null} stop=${isStop} skipRun=${!isStop && (delayResult.skipRun ?? false)} funcDelay=${useFuncDelay}`,
+              ` lastFailedReason=${record.statusLastFailedReason === undefined ? 'undefined' : JSON.stringify(record.statusLastFailedReason)}` +
+              ` → delayMs=${plan.delays[i] ?? null} stop=${isStop} skipRun=${!isStop && (delayResult.skipRun ?? false)} funcDelay=${useFuncDelay}` +
+              ` skipRepeatHere=${plan.skipRepeatAtIteration === i}`,
           )
         }
 
@@ -276,11 +316,13 @@ async function test(options: TestOptions): Promise<void> {
       console.log(`[test] IMMEDIATE execCount=${execRecords.length}`)
     }
 
-    const expectedExecCount = plan.iterations - plan.skipRunIndices.size
-    if (execRecords.length < expectedExecCount) {
-      throw new Error(
-        `immediate: execCount expected >= ${expectedExecCount}, actual ${execRecords.length}`,
-      )
+    if (plan.skipRepeatAtIteration == null) {
+      const expectedExecCount = plan.iterations - plan.skipRunIndices.size
+      if (execRecords.length < expectedExecCount) {
+        throw new Error(
+          `immediate: execCount expected >= ${expectedExecCount}, actual ${execRecords.length}`,
+        )
+      }
     }
     if (execRecords.length > 0 && execRecords[0].start !== 0) {
       throw new Error(
@@ -346,11 +388,17 @@ async function test(options: TestOptions): Promise<void> {
     console.log(`[test] DONE executions=${execRecords.length}`)
   }
 
-  checkDelayCallCount(delayCallRecords, plan)
-  checkExecCount(execRecords, plan)
+  if (plan.skipRepeatAtIteration != null) {
+    checkSkipRepeat(delayCallRecords, execRecords, plan)
+  } else {
+    checkDelayCallCount(delayCallRecords, plan)
+    checkExecCount(execRecords, plan)
+  }
   checkDelayCalledWhenIdle(delayCallRecords)
-  checkDelayReceivesCorrectStatus(delayCallRecords, execRecords, plan)
-  checkExecTiming(execRecords, plan, args)
+  checkDelayReceivesCorrectStatus(delayCallRecords, execRecords, plan, args)
+  if (plan.skipRepeatAtIteration == null) {
+    checkExecTiming(execRecords, plan, args)
+  }
 }
 
 function checkDelayCallCount(
@@ -389,14 +437,49 @@ function checkDelayCalledWhenIdle(delayCallRecords: DelayCallRecord[]): void {
   }
 }
 
-function checkDelayReceivesCorrectStatus(
+function checkSkipRepeat(
   delayCallRecords: DelayCallRecord[],
   execRecords: ExecRecord[],
   plan: GeneratedDelayPlan,
 ): void {
+  const skipAt = plan.skipRepeatAtIteration!
+
+  // skipRepeat is called inside delay function at iteration skipAt.
+  // The delay function still returns its result, but after exec (if !skipRun),
+  // the _skipRepeat check breaks the loop.
+  // So delay calls: 0..skipAt inclusive.
+  // Execs: iterations 0..skipAt that don't have skipRun,
+  // BUT iteration skipAt's exec still runs (skipRepeat is checked AFTER exec).
+  const expectedDelayCalls = skipAt + 1
+  if (delayCallRecords.length !== expectedDelayCalls) {
+    throw new Error(
+      `skipRepeat: delay call count: expected ${expectedDelayCalls}, actual ${delayCallRecords.length}`,
+    )
+  }
+
+  let expectedExecCount = 0
+  for (let i = 0; i <= skipAt; i++) {
+    if (!plan.skipRunIndices.has(i)) {
+      expectedExecCount++
+    }
+  }
+  if (execRecords.length !== expectedExecCount) {
+    throw new Error(
+      `skipRepeat: exec count: expected ${expectedExecCount}, actual ${execRecords.length}`,
+    )
+  }
+}
+
+function checkDelayReceivesCorrectStatus(
+  delayCallRecords: DelayCallRecord[],
+  execRecords: ExecRecord[],
+  plan: GeneratedDelayPlan,
+  args: TestVariantsArgs,
+): void {
   let expectedLastEnd: number | null = null
   let expectedLastHasError = false
   let expectedLastFailedRuns: number | null | undefined = undefined
+  let expectedLastFailedReason: any = undefined
   let execIdx = 0
 
   for (let i = 0; i < delayCallRecords.length; i++) {
@@ -426,6 +509,35 @@ function checkDelayReceivesCorrectStatus(
       }
     }
 
+    if (expectedLastFailedReason === undefined) {
+      if (record.statusLastFailedReason !== undefined) {
+        throw new Error(
+          `delay[${i}] statusLastFailedReason: expected undefined, actual ${JSON.stringify(record.statusLastFailedReason)}`,
+        )
+      }
+    } else if (args.useCustomSuccessPredicate) {
+      if (
+        record.statusLastFailedReason == null ||
+        record.statusLastFailedReason.customReason !== true ||
+        record.statusLastFailedReason.error?.message !==
+          expectedLastFailedReason.message
+      ) {
+        throw new Error(
+          `delay[${i}] statusLastFailedReason: expected custom reason with error message "${expectedLastFailedReason?.message}", actual ${JSON.stringify(record.statusLastFailedReason)}`,
+        )
+      }
+    } else {
+      if (
+        record.statusLastFailedReason == null ||
+        record.statusLastFailedReason.message !==
+          expectedLastFailedReason.message
+      ) {
+        throw new Error(
+          `delay[${i}] statusLastFailedReason: expected message "${expectedLastFailedReason?.message}", actual "${record.statusLastFailedReason?.message}"`,
+        )
+      }
+    }
+
     if (i < plan.iterations) {
       if (!plan.skipRunIndices.has(i)) {
         const exec = execRecords[execIdx]
@@ -434,8 +546,10 @@ function checkDelayReceivesCorrectStatus(
 
         if (exec.threw) {
           expectedLastFailedRuns = (expectedLastFailedRuns ?? 0) + 1
+          expectedLastFailedReason = new Error(`exec error ${execIdx}`)
         } else {
           expectedLastFailedRuns = 0
+          expectedLastFailedReason = undefined
         }
 
         execIdx++
@@ -493,6 +607,8 @@ describe('TaskRepeated', { timeout: 7 * 60 * 60 * 1000 }, () => {
       errorProbabilityPercent: [0, 20],
       funcDelayProbabilityPercent: [0, 40],
       useImmediate: [false, true],
+      skipRepeatProbabilityPercent: [0, 30],
+      useCustomSuccessPredicate: [false, true],
     })({
       limitTime: 60 * 1000,
       parallel: 1,

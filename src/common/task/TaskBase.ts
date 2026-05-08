@@ -11,6 +11,7 @@ import { LogLevel } from 'src/common/debug'
 import {
   type ArgsDefault,
   type ITaskBaseWithArgs,
+  type SuccessPredicateResult,
   type TaskFunc,
   type TaskRunOptionsBase,
   type TaskStatusBase,
@@ -23,14 +24,19 @@ import { isPromiseLike } from 'src/common/async/promise/isPromiseLike'
 
 export function taskSuccessPredicateDefault<T>(
   status: TaskStatusBase<T>,
-): boolean {
-  return status.lastEnd != null && !status.lastHasError
+): true | SuccessPredicateResult {
+  if (status.lastEnd != null && !status.lastHasError) {
+    return true
+  }
+  return { reason: status.lastError }
 }
 
 export type TaskOptionsBase = AbortControllerReusableOptions & {
   readonly timeController?: null | ITimeController
   readonly logLevel?: null | LogLevel
-  readonly successPredicate?: null | ((status: TaskStatusBase<any>) => boolean)
+  readonly successPredicate?:
+    | null
+    | ((status: TaskStatusBase<any>) => true | SuccessPredicateResult)
 }
 
 export class TaskBase<
@@ -72,6 +78,7 @@ export class TaskBase<
       lastEnd: null,
       lastSuccess: null,
       lastFailed: null,
+      lastFailedReason: undefined,
       lastHasError: false,
     } as Status
     this._events = new Subject<Status>({
@@ -160,10 +167,12 @@ export class TaskBase<
   private applySuccessPredicate(): void {
     const successPredicate =
       this._options?.successPredicate ?? taskSuccessPredicateDefault
-    if (successPredicate(this._status)) {
+    const result = successPredicate(this._status)
+    if (result === true || result.success === true) {
       this._status = {
         ...this._status,
         lastSuccess: this._status.lastEnd!,
+        lastFailedReason: undefined,
         lastSuccessRuns: (this._status.lastSuccessRuns ?? 0) + 1,
         lastFailedRuns: 0,
       }
@@ -171,6 +180,7 @@ export class TaskBase<
       this._status = {
         ...this._status,
         lastFailed: this._status.lastEnd!,
+        lastFailedReason: result.reason,
         lastSuccessRuns: 0,
         lastFailedRuns: (this._status.lastFailedRuns ?? 0) + 1,
       }
