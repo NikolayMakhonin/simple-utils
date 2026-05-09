@@ -19,14 +19,14 @@ import type { TaskOptionsBase } from './TaskBase'
 import { type ITaskWrapperSource, TaskWrapper } from './TaskWrapper'
 
 export type TaskRunOptionsThrottled = TaskRunOptionsBase & {
-  throttleTime?: null | number
-  throttleTimeMax?: null | number
+  readonly throttleTime?: null | number
+  readonly throttleTimeMax?: null | number
   /**
    * false/undefined - throttle time counts from the last execution start
    * true - throttle time counts from the last execution end;
    *   executes immediately when never executed or enough time passed
    */
-  throttleFromEnd?: null | boolean
+  readonly throttleFromEnd?: null | boolean
 }
 
 export interface ITaskThrottled<

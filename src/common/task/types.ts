@@ -95,7 +95,7 @@ export interface ITaskStatus<
 }
 
 export type TaskRunOptionsBase = {
-  immediate?: null | boolean
+  readonly immediate?: null | boolean
 }
 
 export interface ITaskRun<
@@ -151,8 +151,8 @@ export interface ITaskRepeat {
 }
 
 export type SuccessPredicateResult =
-  | { success: true }
-  | { success?: null | false; reason: any }
+  | { readonly success: true }
+  | { readonly success?: null | false; readonly reason: any }
 
 export const TASK_STOP = 'stop'
 export type TaskStop = typeof TASK_STOP
@@ -167,14 +167,14 @@ export type TaskDelay<
        * 0 - delay 0 ms (like setTimeout(func, 0))
        * func - custom delay
        */
-      delay?:
+      readonly delay?:
         | null
         | number
         | ((
             status: Status,
             delayAbortSignal: IAbortSignalFast,
           ) => PromiseOrValue<void | undefined | null | number | TaskStop>)
-      skipRun?: null | boolean
+      readonly skipRun?: null | boolean
     }
   | TaskStop
 
@@ -184,9 +184,9 @@ export type TaskDelayPrepare<
 > = (status: Status) => TaskDelay<Result, Status>
 
 export type TaskFuncOptions = {
-  abortSignal: IAbortSignalFast
-  timeController: ITimeController
-  isFirst: boolean
+  readonly abortSignal: IAbortSignalFast
+  readonly timeController: ITimeController
+  readonly isFirst: boolean
 }
 
 export type TaskFunc<Args = ArgsDefault, Result = void> = (
