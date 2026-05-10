@@ -241,10 +241,10 @@ export class TaskThrottled<
   }
 }
 
-export type CreateTaskThrottledResult<Args, Result> = CreateTaskRerunResult<
-  Args,
-  Result
-> & {
+export type CreateTaskThrottledResult<
+  Args = ArgsDefault,
+  Result = void,
+> = CreateTaskRerunResult<Args, Result> & {
   throttled: ITaskThrottled<Args, Result>
 }
 

@@ -180,10 +180,10 @@ export class TaskRepeated<
   }
 }
 
-export type CreateTaskRepeatedResult<Args, Result> = CreateTaskRerunResult<
-  Args,
-  Result
-> & {
+export type CreateTaskRepeatedResult<
+  Args = ArgsDefault,
+  Result = void,
+> = CreateTaskRerunResult<Args, Result> & {
   repeated: ITaskRepeated<Args, Result>
 }
 

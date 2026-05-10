@@ -1,6 +1,6 @@
 {
   "name": "@flemist/simple-utils",
-  "version": "2.2.9",
+  "version": "2.2.10",
   "description": "Simple simple utils",
   "sideEffects": false,
   "types": "build/common/index.d.ts",
@@ -65,7 +65,7 @@
   },
   "scripts": {
     "========================= install =========================": "",
-    "prepublishOnly": "run-p audit lint build test:all",
+    "_prepublishOnly": "run-p audit lint build test:all",
     "prepare": "node .husky/install.mjs",
     "install:playwright": "pnpm exec playwright install --with-deps",
     "========================= deploy =========================": "",

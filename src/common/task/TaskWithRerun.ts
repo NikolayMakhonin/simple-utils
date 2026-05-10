@@ -87,7 +87,7 @@ export class TaskWithRerun<
   }
 }
 
-export type CreateTaskRerunResult<Args, Result> = {
+export type CreateTaskRerunResult<Args = ArgsDefault, Result = void> = {
   base: ITaskBaseWithArgs<Args, Result>
   rerun: ITaskWithRerun<Args, Result>
 }
