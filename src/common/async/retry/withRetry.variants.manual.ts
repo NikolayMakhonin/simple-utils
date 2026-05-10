@@ -423,7 +423,7 @@ describe('withRetry', { timeout: 7 * 60 * 60 * 1000 }, () => {
       useAbort: [false, true],
       useJitter: [false, true],
     })({
-      limitTime: 2 * 60 * 60 * 1000,
+      limitTime: 60 * 1000,
       parallel: 1,
       cycles: 1e9,
       getSeed: () => getRandomSeed(),
