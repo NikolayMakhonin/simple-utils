@@ -17,9 +17,10 @@ import {
   type TaskRunOptionsBase,
   type TaskStatusBase,
 } from './types'
-import { createTaskRerun } from './TaskWithRerun'
+import { createTaskRerun, type CreateTaskRerunResult } from './TaskWithRerun'
 import type { TaskOptionsBase } from './TaskBase'
 import { type ITaskWrapperSource, TaskWrapper } from './TaskWrapper'
+import { TaskStatusControllerBase } from './TaskStatusControllerBase'
 
 export type TaskRunOptionsRepeated = TaskRunOptionsBase & {}
 
@@ -36,7 +37,7 @@ export interface ITaskRepeated<
 export type TaskOptionsRepeated<
   Result = void,
   Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
-> = TaskOptionsBase & {
+> = TaskOptionsBase<Result> & {
   readonly delay: TaskDelayPrepare<Result, Status>
 }
 
@@ -46,19 +47,19 @@ export class TaskRepeated<
     RunOptions extends TaskRunOptionsRepeated = TaskRunOptionsRepeated,
     Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
   >
-  extends TaskWrapper<Args, Result, TaskRunOptionsBase, Status>
-  implements ITaskRepeated<Args, Result, RunOptions, Status>
+  extends TaskWrapper<Args, Result, RunOptions>
+  implements ITaskRepeated<Args, Result, RunOptions>
 {
-  private readonly _options: TaskOptionsRepeated<Result, Status>
+  private readonly _options: TaskOptionsRepeated<Result>
   private _runPromise: Promise<Result> | null = null
   private _delayAbortController: IAbortControllerFast | null = null
   private _skipRepeat: boolean = false
 
   constructor(
     task: ITaskWrapperSource<Args, Result, RunOptions, Status>,
-    options: TaskOptionsRepeated<Result, Status>,
+    options: TaskOptionsRepeated<Result>,
   ) {
-    super(task)
+    super(task, new TaskStatusControllerBase({}, options))
     this._options = options
   }
 
@@ -179,40 +180,22 @@ export class TaskRepeated<
   }
 }
 
-export function createTaskRepeated<
-  Args = ArgsDefault,
-  Result = void,
-  RunOptions extends TaskRunOptionsRepeated = TaskRunOptionsRepeated,
-  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
->(
-  task: ITaskWrapperSource<Args, Result, RunOptions, Status>,
-  options: TaskOptionsRepeated<Result, Status>,
-): ITaskRepeated<Args, Result, RunOptions, Status>
+export type CreateTaskRepeatedResult<Args, Result> = CreateTaskRerunResult<
+  Args,
+  Result
+> & {
+  repeated: ITaskRepeated<Args, Result>
+}
+
 export function createTaskRepeated<Args = ArgsDefault, Result = void>(
   func: TaskFunc<Args, Result>,
   args: Args,
   options: TaskOptionsRepeated<Result>,
-): ITaskRepeated<Args, Result>
-export function createTaskRepeated<
-  Args = ArgsDefault,
-  Result = void,
-  RunOptions extends TaskRunOptionsRepeated = TaskRunOptionsRepeated,
-  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
->(
-  taskOrFunc:
-    | ITaskWrapperSource<Args, Result, RunOptions, Status>
-    | TaskFunc<Args, Result>,
-  argsOrOptions: Args | TaskOptionsRepeated<Result, Status>,
-  optionsArg?: null | TaskOptionsRepeated<Result, Status>,
-): ITaskRepeated<Args, Result, RunOptions, Status> {
-  if (typeof taskOrFunc === 'function') {
-    return new TaskRepeated(
-      createTaskRerun(taskOrFunc, argsOrOptions as Args, optionsArg) as any,
-      optionsArg!,
-    )
+): CreateTaskRepeatedResult<Args, Result> {
+  const base = createTaskRerun(func, args, options)
+  const repeated = new TaskRepeated(base.rerun, options)
+  return {
+    ...base,
+    repeated,
   }
-  return new TaskRepeated(
-    taskOrFunc,
-    argsOrOptions as TaskOptionsRepeated<Result, Status>,
-  )
 }

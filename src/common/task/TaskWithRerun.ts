@@ -9,6 +9,7 @@ import {
 } from './types'
 import { TaskBase, type TaskOptionsBase } from './TaskBase'
 import { type ITaskWrapperSource, TaskWrapper } from './TaskWrapper'
+import { TaskStatusControllerBase } from './TaskStatusControllerBase'
 
 export interface ITaskWithRerun<
   Args = ArgsDefault,
@@ -24,14 +25,17 @@ export class TaskWithRerun<
     RunOptions extends TaskRunOptionsBase = TaskRunOptionsBase,
     Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
   >
-  extends TaskWrapper<Args, Result, RunOptions, Status>
-  implements ITaskWithRerun<Args, Result, RunOptions, Status>
+  extends TaskWrapper<Args, Result, RunOptions>
+  implements ITaskWithRerun<Args, Result, RunOptions>
 {
   private readonly _wait: () => Promise<void>
   private _runPromise: Promise<Result> | null = null
 
-  constructor(task: ITaskWrapperSource<Args, Result, RunOptions, Status>) {
-    super(task)
+  constructor(
+    task: ITaskWrapperSource<Args, Result, RunOptions, Status>,
+    options?: null | TaskOptionsBase<Result>,
+  ) {
+    super(task, new TaskStatusControllerBase({}, options))
     this._wait = () => this.wait()
   }
 
@@ -83,35 +87,20 @@ export class TaskWithRerun<
   }
 }
 
-export function createTaskRerun<
-  Args = ArgsDefault,
-  Result = void,
-  RunOptions extends TaskRunOptionsBase = TaskRunOptionsBase,
-  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
->(
-  task: ITaskWrapperSource<Args, Result, RunOptions, Status>,
-): ITaskWithRerun<Args, Result, RunOptions, Status>
+export type CreateTaskRerunResult<Args, Result> = {
+  base: ITaskBaseWithArgs<Args, Result>
+  rerun: ITaskWithRerun<Args, Result>
+}
+
 export function createTaskRerun<Args = ArgsDefault, Result = void>(
   func: TaskFunc<Args, Result>,
   args: Args,
-  options?: null | TaskOptionsBase,
-): ITaskWithRerun<Args, Result>
-export function createTaskRerun<
-  Args = ArgsDefault,
-  Result = void,
-  RunOptions extends TaskRunOptionsBase = TaskRunOptionsBase,
-  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
->(
-  taskOrFunc:
-    | ITaskWrapperSource<Args, Result, RunOptions, Status>
-    | TaskFunc<Args, Result>,
-  argsOrOptions?: Args | (null | TaskOptionsBase),
-  optionsArg?: null | TaskOptionsBase,
-): ITaskWithRerun<Args, Result, RunOptions, Status> {
-  if (typeof taskOrFunc === 'function') {
-    return new TaskWithRerun(
-      new TaskBase(taskOrFunc, argsOrOptions as Args, optionsArg),
-    )
+  options?: null | TaskOptionsBase<Result>,
+): CreateTaskRerunResult<Args, Result> {
+  const base = new TaskBase(func, args, options)
+  const rerun = new TaskWithRerun(base, options)
+  return {
+    base,
+    rerun,
   }
-  return new TaskWithRerun(taskOrFunc)
 }

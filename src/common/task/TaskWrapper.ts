@@ -1,6 +1,6 @@
 import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
+import { type Listener } from 'src/common/rx'
 import type { ITimeController } from '@flemist/time-controller'
-import type { Listener } from 'src/common/rx'
 import type { Unsubscribe } from 'src/common/types'
 import type {
   ArgsDefault,
@@ -12,6 +12,7 @@ import type {
   TaskRunOptionsBase,
   TaskStatusBase,
 } from './types'
+import { type ITaskStatusControllerBase } from './TaskStatusControllerBase'
 
 export type ITaskWrapperSource<
   Args = ArgsDefault,
@@ -45,13 +46,18 @@ export class TaskWrapper<
 > implements ITaskWrapper<Args, Result, RunOptions, Status>
 {
   protected readonly _task: ITaskWrapperSource<Args, Result, RunOptions, Status>
+  private readonly _statusController: ITaskStatusControllerBase<Result, Status>
   private readonly _supportsArgs: boolean
   private readonly _supportsDelay: boolean
   private readonly _supportsRepeat: boolean
   private readonly _supportsRerun: boolean
 
-  constructor(task: ITaskWrapperSource<Args, Result, RunOptions, Status>) {
+  constructor(
+    task: ITaskWrapperSource<Args, Result, RunOptions, Status>,
+    statusController: ITaskStatusControllerBase<Result, Status>,
+  ) {
     this._task = task
+    this._statusController = statusController
     this._supportsArgs = 'args' in task
     this._supportsDelay = 'skipDelay' in task
     this._supportsRepeat = 'skipRepeat' in task
@@ -89,27 +95,28 @@ export class TaskWrapper<
   }
 
   get status(): Status {
-    return this._task.status
+    return this._statusController.status
   }
 
   abort(): void {
     this._task.abort()
+    this._statusController.abort()
   }
 
   get abortSignal(): IAbortSignalFast {
-    return this._task.abortSignal
+    return this._statusController.abortSignal
   }
 
   get timeController(): ITimeController {
-    return this._task.timeController
+    return this._statusController.timeController
   }
 
   subscribe(listener: Listener<Status>): Unsubscribe {
-    return this._task.subscribe(listener)
+    return this._statusController.subscribe(listener)
   }
 
   run(options?: null | RunOptions): Promise<Result> {
-    return this._task.run(options)
+    return this._statusController.run(() => this._task.run(options))
   }
 
   wait(): Promise<void> {

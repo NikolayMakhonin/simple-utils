@@ -29,7 +29,7 @@ export async function withRetry<T>(options: WithRetryOptions<T>): Promise<T> {
     return options.func({ abortSignal, timeController, isFirst: true })
   }
 
-  const task = createTaskRepeated<null, T>(
+  const { repeated } = createTaskRepeated<null, T>(
     (_, funcOptions) => {
       return options.func(funcOptions)
     },
@@ -37,7 +37,7 @@ export async function withRetry<T>(options: WithRetryOptions<T>): Promise<T> {
     options as TaskOptionsRepeated<T>,
   )
 
-  return task.run()
+  return repeated.run()
 }
 
 export type TaskDelayRetryExponential = {

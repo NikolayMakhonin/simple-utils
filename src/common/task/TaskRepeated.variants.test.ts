@@ -45,7 +45,7 @@ import {
 import { LogLevel } from 'src/common/debug'
 import { waitTimeControllerMock } from 'src/common/async/wait/waitTimeControllerMock'
 import { getRandomSeed, Random, randomInt } from 'src/common/random'
-import { createTaskRepeated } from './TaskRepeated'
+import { createTaskRepeated, type ITaskRepeated } from './TaskRepeated'
 
 export type TestVariantsArgs = {
   seed: number
@@ -113,7 +113,7 @@ type GeneratedDelayPlan = {
 type TestContext = {
   log: boolean
   timeController: TimeControllerMock
-  task: ReturnType<typeof createTaskRepeated>
+  task: ITaskRepeated<null, number>
   originTime: number
   execRecords: ExecRecord[]
   delayCallRecords: DelayCallRecord[]
@@ -198,7 +198,7 @@ async function generateContext(
   let callCount = 0
   let delayIndex = 0
 
-  const task = createTaskRepeated<null, number>(
+  const { repeated: task } = createTaskRepeated<null, number>(
     async () => {
       const funcStart = timeController.now() - originTime
       timeController.addTime(args.executionDuration)
@@ -614,6 +614,7 @@ describe('TaskRepeated', { timeout: 7 * 60 * 60 * 1000 }, () => {
       parallel: 1,
       cycles: 1e9,
       getSeed: () => getRandomSeed(),
+      timeout: 1000,
       findBestError: {
         limitArgOnError: false,
       },

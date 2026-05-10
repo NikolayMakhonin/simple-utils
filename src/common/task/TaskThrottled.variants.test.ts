@@ -28,7 +28,7 @@ import { createTestVariants } from '@flemist/test-variants'
 import { TimeControllerMock } from '@flemist/time-controller'
 import { waitTimeControllerMock } from 'src/common/async/wait/waitTimeControllerMock'
 import { getRandomSeed, Random, randomItem } from 'src/common/random'
-import { createTaskThrottled } from './TaskThrottled'
+import { createTaskThrottled, type ITaskThrottled } from './TaskThrottled'
 
 export type TestVariantsArgs = {
   seed: number
@@ -61,7 +61,7 @@ const testVariants = createTestVariants(async (args: TestVariantsArgs) => {
 type TestContext = {
   log: boolean
   timeController: TimeControllerMock
-  task: ReturnType<typeof createTaskThrottled>
+  task: ITaskThrottled<null, number>
   originTime: number
   timeStamps: { start: number; end: number }[]
 }
@@ -80,7 +80,7 @@ async function generateContext(
   const timeStamps: { start: number; end: number }[] = []
 
   let callCount = 0
-  const task = createTaskThrottled(
+  const { throttled: task } = createTaskThrottled(
     async () => {
       const funcStart = timeController.now() - originTime
       timeController.addTime(args.executionDuration)
@@ -218,6 +218,7 @@ describe('toThrottled', { timeout: 7 * 60 * 60 * 1000 }, () => {
       parallel: 1,
       cycles: 1e9,
       getSeed: () => getRandomSeed(),
+      timeout: 1000,
       findBestError: {
         limitArgOnError: false,
       },

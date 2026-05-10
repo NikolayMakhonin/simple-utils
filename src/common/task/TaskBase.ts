@@ -1,9 +1,5 @@
-import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
-import { type ISubject, type Listener, Subject } from 'src/common/rx'
-import {
-  type ITimeController,
-  timeControllerDefault,
-} from '@flemist/time-controller'
+import { type Listener } from 'src/common/rx'
+import type { ITimeController } from '@flemist/time-controller'
 import { EMPTY_FUNC } from 'src/common/constants'
 import { promiseLikeToPromise } from 'src/common/async/promise/promiseLikeToPromise'
 import type { Unsubscribe } from 'src/common/types'
@@ -11,84 +7,52 @@ import { LogLevel } from 'src/common/debug'
 import {
   type ArgsDefault,
   type ITaskBaseWithArgs,
-  type SuccessPredicateResult,
   type TaskFunc,
   type TaskRunOptionsBase,
   type TaskStatusBase,
+  type TaskSuccessPredicate,
 } from './types'
-import {
-  AbortControllerReusable,
-  type AbortControllerReusableOptions,
-} from 'src/common/async/abort/AbortControllerReusable'
-import { isPromiseLike } from 'src/common/async/promise/isPromiseLike'
+import { type AbortControllerReusableOptions } from 'src/common/async/abort/AbortControllerReusable'
+import { TaskStatusControllerBase } from './TaskStatusControllerBase'
 
-export function taskSuccessPredicateDefault<T>(
-  status: TaskStatusBase<T>,
-): true | SuccessPredicateResult {
-  if (status.lastEnd != null && !status.lastHasError) {
-    return true
-  }
-  return { reason: status.lastError }
-}
-
-export type TaskOptionsBase = AbortControllerReusableOptions & {
+export type TaskOptionsBase<Result> = AbortControllerReusableOptions & {
   readonly timeController?: null | ITimeController
   readonly logLevel?: null | LogLevel
-  readonly successPredicate?:
-    | null
-    | ((status: TaskStatusBase<any>) => true | SuccessPredicateResult)
+  readonly successPredicate?: null | TaskSuccessPredicate<
+    Result,
+    TaskStatusBase<Result>
+  >
 }
 
 export class TaskBase<
   Args = ArgsDefault,
   Result = void,
   RunOptions extends TaskRunOptionsBase = TaskRunOptionsBase,
-  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
-> implements ITaskBaseWithArgs<Args, Result, RunOptions, Status>
+> implements ITaskBaseWithArgs<Args, Result, RunOptions, TaskStatusBase<Result>>
 {
-  private readonly _options: null | TaskOptionsBase
+  private readonly _options: null | TaskOptionsBase<Result>
   private readonly _func: TaskFunc<Args, Result>
-  private readonly _events: ISubject<Status>
-  private readonly _abortController: AbortControllerReusable = null!
-  private readonly _timeController: ITimeController
   private readonly _wait: () => Promise<void>
+  private readonly _statusController: TaskStatusControllerBase<
+    Result,
+    TaskStatusBase<Result>
+  >
   private _args: Args
-  private _status: Status
   private _runPromise: Promise<Result> | null = null
 
   constructor(
     func: TaskFunc<Args, Result>,
     args: Args,
-    options?: null | TaskOptionsBase,
+    options?: null | TaskOptionsBase<Result>,
   ) {
     this._options = options ?? null
     this._func = func
     this._args = args
-    this._abortController = new AbortControllerReusable(this._options)
-    this._timeController =
-      this._options?.timeController ?? timeControllerDefault
     this._wait = () => this.wait()
-    this._status = {
-      abortSignal: this._abortController.signal,
-      timeController: this._timeController,
-      firstStart: null,
-      isRunning: false,
-      isAborted: false,
-      lastStart: null,
-      lastEnd: null,
-      lastSuccess: null,
-      lastFailed: null,
-      lastFailedReason: undefined,
-      lastHasError: false,
-    } as Status
-    this._events = new Subject<Status>({
-      emitLastEvent: true,
-      hasLast: true,
-      last: this._status,
-    })
-    this._abortController.subscribe(() => {
-      this._events.emit(this._status)
-    })
+    this._statusController = new TaskStatusControllerBase<
+      Result,
+      TaskStatusBase<Result>
+    >({}, this._options)
   }
 
   get args(): Args {
@@ -99,133 +63,58 @@ export class TaskBase<
     this._args = value
   }
 
-  get status(): Status {
-    return this._status
+  get status(): TaskStatusBase<Result> {
+    return this._statusController.status
   }
 
   abort(): void {
-    this._abortController.abort()
+    this._statusController.abort()
   }
 
-  get abortSignal(): IAbortSignalFast {
-    return this._abortController.signal
+  subscribe(listener: Listener<TaskStatusBase<Result>>): Unsubscribe {
+    return this._statusController.subscribe(listener)
   }
 
-  get timeController(): ITimeController {
-    return this._timeController
-  }
-
-  subscribe(listener: Listener<Status>): Unsubscribe {
-    return this._events.subscribe(listener)
-  }
-
-  private onStart(): void {
-    const now = this._timeController.now()
-    this._status = {
-      ...this._status,
-      isRunning: true,
-      isAborted: this._abortController.signal.aborted,
-      firstStart: this._status.firstStart ?? now,
-      lastStart: now,
-      abortSignal: this._abortController.signal,
-    }
-    this._events.emit(this._status)
-  }
-
-  private onResult(result: Result): void {
-    this._status = {
-      ...this._status,
-      isRunning: false,
-      isAborted: this._abortController.signal.aborted,
-      lastEnd: this.timeController.now(),
-      lastHasError: false,
-      lastError: undefined,
-      lastResult: result,
-    }
-    this.applySuccessPredicate()
-  }
-
-  private onError(error: any): void {
+  private logError(error: any): void {
     if (
       this._options?.logLevel == null ||
       this._options.logLevel >= LogLevel.error
     ) {
       console.error('[TaskBase]', error)
     }
-    this._status = {
-      ...this._status,
-      isRunning: false,
-      isAborted: this._abortController.signal.aborted,
-      lastEnd: this.timeController.now(),
-      lastHasError: true,
-      lastError: error,
-      lastResult: undefined,
-    }
-    this.applySuccessPredicate()
-  }
-
-  private applySuccessPredicate(): void {
-    const successPredicate =
-      this._options?.successPredicate ?? taskSuccessPredicateDefault
-    const result = successPredicate(this._status)
-    if (result === true || result.success === true) {
-      this._status = {
-        ...this._status,
-        lastSuccess: this._status.lastEnd!,
-        lastFailedReason: undefined,
-        lastSuccessRuns: (this._status.lastSuccessRuns ?? 0) + 1,
-        lastFailedRuns: 0,
-      }
-    } else {
-      this._status = {
-        ...this._status,
-        lastFailed: this._status.lastEnd!,
-        lastFailedReason: result.reason,
-        lastSuccessRuns: 0,
-        lastFailedRuns: (this._status.lastFailedRuns ?? 0) + 1,
-      }
-    }
-    // Abort emits status event, so we don't need to emit it here
-    this.abort()
   }
 
   run(options?: null | RunOptions): Promise<Result> {
-    this._abortController.signal.throwIfAborted()
+    this._statusController.abortSignal.throwIfAborted()
     if (this._runPromise) {
       return this._runPromise
     }
 
-    const isFirst = this._status.firstStart == null
-    this.onStart()
-    try {
-      const resultOrPromise = this._func(this._args, {
-        abortSignal: this._abortController.signal,
-        timeController: this.timeController,
+    const isFirst = this._statusController.status.firstStart == null
+
+    const resultOrPromise = this._statusController.run(() =>
+      this._func(this._args, {
+        abortSignal: this._statusController.abortSignal,
+        timeController: this._statusController.timeController,
         isFirst,
-      })
-      if (isPromiseLike(resultOrPromise)) {
-        this._runPromise = promiseLikeToPromise(
-          resultOrPromise.then(
-            result => {
-              this._runPromise = null
-              this.onResult(result)
-              return result
-            },
-            error => {
-              this._runPromise = null
-              this.onError(error)
-              throw error
-            },
-          ),
-        )
-        return this._runPromise
-      }
-      this.onResult(resultOrPromise)
-      return Promise.resolve(resultOrPromise)
-    } catch (error) {
-      this.onError(error)
-      return Promise.reject(error)
-    }
+      }),
+    )
+
+    this._runPromise = promiseLikeToPromise(
+      resultOrPromise.then(
+        result => {
+          this._runPromise = null
+          return result
+        },
+        error => {
+          this._runPromise = null
+          this.logError(error)
+          throw error
+        },
+      ),
+    )
+
+    return this._runPromise
   }
 
   wait(): Promise<void> {
@@ -243,7 +132,7 @@ export class TaskBase<
 export function createTask<Args = ArgsDefault, Result = void>(
   func: TaskFunc<Args, Result>,
   args: Args,
-  options?: null | TaskOptionsBase,
+  options?: null | TaskOptionsBase<Result>,
 ): TaskBase<Args, Result> {
   return new TaskBase(func, args, options)
 }

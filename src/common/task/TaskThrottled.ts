@@ -14,9 +14,10 @@ import {
   type TaskRunOptionsBase,
   type TaskStatusBase,
 } from './types'
-import { createTaskRerun } from './TaskWithRerun'
+import { createTaskRerun, type CreateTaskRerunResult } from './TaskWithRerun'
 import type { TaskOptionsBase } from './TaskBase'
 import { type ITaskWrapperSource, TaskWrapper } from './TaskWrapper'
+import { TaskStatusControllerBase } from './TaskStatusControllerBase'
 
 export type TaskRunOptionsThrottled = TaskRunOptionsBase & {
   readonly throttleTime?: null | number
@@ -38,7 +39,7 @@ export interface ITaskThrottled<
     ITaskDelay,
     ITaskRerun {}
 
-export type TaskOptionsThrottled = TaskOptionsBase & {
+export type TaskOptionsThrottled<Result> = TaskOptionsBase<Result> & {
   readonly throttleTime?: null | number
   readonly throttleTimeMax?: null | number
   /**
@@ -55,10 +56,10 @@ export class TaskThrottled<
     RunOptions extends TaskRunOptionsThrottled = TaskRunOptionsThrottled,
     Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
   >
-  extends TaskWrapper<Args, Result, RunOptions, Status>
-  implements ITaskThrottled<Args, Result, RunOptions, Status>
+  extends TaskWrapper<Args, Result, RunOptions>
+  implements ITaskThrottled<Args, Result, RunOptions>
 {
-  private readonly _options: null | TaskOptionsThrottled
+  private readonly _options: null | TaskOptionsThrottled<Result>
   private _timerAbortController: IAbortControllerFast | null = null
   private _timerTargetTime: number | null = null
   private _nextCallTime: number | null = null
@@ -69,9 +70,9 @@ export class TaskThrottled<
 
   constructor(
     task: ITaskWrapperSource<Args, Result, RunOptions, Status>,
-    options?: null | TaskOptionsThrottled,
+    options?: null | TaskOptionsThrottled<Result>,
   ) {
-    super(task)
+    super(task, new TaskStatusControllerBase({}, options))
     this._options = options ?? null
     this._throttleFromEnd = !!this._options?.throttleFromEnd
   }
@@ -240,40 +241,22 @@ export class TaskThrottled<
   }
 }
 
-export function createTaskThrottled<
-  Args = ArgsDefault,
-  Result = void,
-  RunOptions extends TaskRunOptionsThrottled = TaskRunOptionsThrottled,
-  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
->(
-  task: ITaskWrapperSource<Args, Result, RunOptions, Status>,
-  options?: null | TaskOptionsThrottled,
-): ITaskThrottled<Args, Result, RunOptions, Status>
+export type CreateTaskThrottledResult<Args, Result> = CreateTaskRerunResult<
+  Args,
+  Result
+> & {
+  throttled: ITaskThrottled<Args, Result>
+}
+
 export function createTaskThrottled<Args = ArgsDefault, Result = void>(
   func: TaskFunc<Args, Result>,
   args: Args,
-  options?: null | TaskOptionsThrottled,
-): ITaskThrottled<Args, Result>
-export function createTaskThrottled<
-  Args = ArgsDefault,
-  Result = void,
-  RunOptions extends TaskRunOptionsThrottled = TaskRunOptionsThrottled,
-  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
->(
-  taskOrFunc:
-    | ITaskWrapperSource<Args, Result, RunOptions, Status>
-    | TaskFunc<Args, Result>,
-  argsOrOptions?: Args | (null | TaskOptionsThrottled),
-  optionsArg?: null | TaskOptionsThrottled,
-): ITaskThrottled<Args, Result, RunOptions, Status> {
-  if (typeof taskOrFunc === 'function') {
-    return new TaskThrottled(
-      createTaskRerun(taskOrFunc, argsOrOptions as Args, optionsArg) as any,
-      optionsArg,
-    )
+  options?: null | TaskOptionsThrottled<Result>,
+): CreateTaskThrottledResult<Args, Result> {
+  const base = createTaskRerun(func, args, options)
+  const throttled = new TaskThrottled(base.rerun, options)
+  return {
+    ...base,
+    throttled,
   }
-  return new TaskThrottled(
-    taskOrFunc,
-    argsOrOptions as null | TaskOptionsThrottled,
-  )
 }

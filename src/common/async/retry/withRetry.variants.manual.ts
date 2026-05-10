@@ -427,6 +427,7 @@ describe('withRetry', { timeout: 7 * 60 * 60 * 1000 }, () => {
       parallel: 1,
       cycles: 1e9,
       getSeed: () => getRandomSeed(),
+      timeout: 1000,
       findBestError: {
         limitArgOnError: true,
       },
@@ -449,7 +450,6 @@ describe('withRetry', { timeout: 7 * 60 * 60 * 1000 }, () => {
         attemptsPerVariant: 10,
         useToFindBestError: false,
       },
-      timeout: 2000,
     })
   })
 })

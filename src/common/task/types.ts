@@ -109,8 +109,6 @@ export interface ITaskRun<
   wait(): Promise<void>
   /** Wait until no execution is running and no rerun is pending */
   waitIdle(): Promise<void>
-  readonly abortSignal: IAbortSignalFast
-  readonly timeController: ITimeController
 }
 
 export interface ITaskBase<
@@ -153,6 +151,11 @@ export interface ITaskRepeat {
 export type SuccessPredicateResult =
   | { readonly success: true }
   | { readonly success?: null | false; readonly reason: any }
+
+export type TaskSuccessPredicate<
+  Result,
+  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
+> = (status: Status) => true | SuccessPredicateResult
 
 export const TASK_STOP = 'stop'
 export type TaskStop = typeof TASK_STOP
