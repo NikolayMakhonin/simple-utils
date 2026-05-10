@@ -37,9 +37,8 @@ import { describe, it } from 'vitest'
 import { createTestVariants } from '@flemist/test-variants'
 import { TimeControllerMock } from '@flemist/time-controller'
 import {
-  TASK_STOP,
   type SuccessPredicateResult,
-  type TaskDelay,
+  type TaskRepeatStrategyBefore,
   type TaskStatusBase,
 } from './types'
 import { LogLevel } from 'src/common/debug'
@@ -91,7 +90,7 @@ type DelayCallRecord = {
   statusIsRunning: boolean
   statusLastFailedRuns: number | null | undefined
   statusLastFailedReason: any
-  result: TaskDelay<number>
+  result: TaskRepeatStrategyBefore<number>
 }
 
 type ExecRecord = {
@@ -236,7 +235,9 @@ async function generateContext(
             }
           }
         : null,
-      delay(status: TaskStatusBase<number>): TaskDelay<number> {
+      repeatStrategy(
+        status: TaskStatusBase<number>,
+      ): TaskRepeatStrategyBefore<number> {
         const i = delayIndex++
         const shouldStop = i >= plan.iterations
 
@@ -245,8 +246,8 @@ async function generateContext(
         }
 
         const useFuncDelay = plan.funcDelayIndices.has(i)
-        const delayResult: TaskDelay<number> = shouldStop
-          ? TASK_STOP
+        const delayResult: TaskRepeatStrategyBefore<number> = shouldStop
+          ? { stop: true }
           : {
               delay: useFuncDelay ? () => plan.delays[i] : plan.delays[i],
               skipRun: plan.skipRunIndices.has(i),
@@ -265,7 +266,7 @@ async function generateContext(
         delayCallRecords.push(record)
 
         if (log) {
-          const isStop = delayResult === TASK_STOP
+          const isStop = delayResult.stop === true
           console.log(
             `[test][delay][${i}] lastEnd=${record.statusLastEnd} lastHasError=${record.statusLastHasError} lastFailedRuns=${record.statusLastFailedRuns}` +
               ` lastFailedReason=${record.statusLastFailedReason === undefined ? 'undefined' : JSON.stringify(record.statusLastFailedReason)}` +
@@ -359,8 +360,8 @@ async function test(options: TestOptions): Promise<void> {
         `stop-immediately: expected 1 delay call, actual ${delayCallRecords.length}`,
       )
     }
-    if (delayCallRecords[0].result !== TASK_STOP) {
-      throw new Error(`stop-immediately: first delay should return TASK_STOP`)
+    if (!delayCallRecords[0].result.stop) {
+      throw new Error(`stop-immediately: first delay should have stop: true`)
     }
     if (execRecords.length !== 0) {
       throw new Error(
@@ -412,8 +413,8 @@ function checkDelayCallCount(
     )
   }
   const lastDelayCall = delayCallRecords[delayCallRecords.length - 1]
-  if (lastDelayCall.result !== TASK_STOP) {
-    throw new Error(`last delay call should return TASK_STOP`)
+  if (!lastDelayCall.result.stop) {
+    throw new Error(`last delay call should have stop: true`)
   }
 }
 

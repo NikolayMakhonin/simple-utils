@@ -1,12 +1,16 @@
 import type {
   TaskRepeatStrategy,
-  TaskRepeatStrategyBefore,
+  TaskRepeatStrategyAfter,
+  TaskRepeatStrategyDelay,
   TaskStatusBase,
 } from './types'
+import type { PromiseOrValue } from 'src/common/types/common'
+import { isPromiseLike } from 'src/common/async'
 
 /**
- * Merges multiple repeat strategies into one applying consequently
- * Not null/undefined values overwrite previous values
+ * Merges multiple repeat strategies into one applying sequentially
+ * Non-null values from later strategies overwrite earlier
+ * Delay functions are started simultaneously, awaited sequentially
  */
 export function mergeRepeatStrategies<
   Result = any,
@@ -15,7 +19,9 @@ export function mergeRepeatStrategies<
   ...strategies: TaskRepeatStrategy<Result, Status>[]
 ): TaskRepeatStrategy<Result, Status> {
   return function merged(status) {
-    let result: TaskRepeatStrategyBefore<Result, Status> | undefined
+    let stop: boolean | null | undefined
+    let skipRun: boolean | null | undefined
+    const delays: (number | TaskRepeatStrategyDelay<Result, Status>)[] = []
 
     for (let i = 0, len = strategies.length; i < len; i++) {
       const strategyResult = strategies[i](status)
@@ -23,18 +29,91 @@ export function mergeRepeatStrategies<
         continue
       }
 
-      if (result == null) {
-        result = strategyResult
-        continue
+      if (strategyResult.stop != null) {
+        stop = strategyResult.stop
       }
-
-      result = {
-        stop: strategyResult.stop ?? result.stop,
-        skipRun: strategyResult.skipRun ?? result.skipRun,
-        delay: strategyResult.delay ?? result.delay,
+      if (strategyResult.skipRun != null) {
+        skipRun = strategyResult.skipRun
+      }
+      if (strategyResult.delay != null) {
+        delays.push(strategyResult.delay)
       }
     }
 
-    return result
+    if (stop == null && skipRun == null && delays.length === 0) {
+      return undefined
+    }
+
+    if (stop) {
+      return { stop }
+    }
+
+    if (delays.length === 0) {
+      return { stop, skipRun }
+    }
+
+    return {
+      stop,
+      skipRun,
+      delay: mergeDelays<Result, Status>(delays),
+    }
+  }
+}
+
+function mergeDelays<
+  Result = any,
+  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
+>(
+  delays: (number | TaskRepeatStrategyDelay<Result, Status>)[],
+): number | TaskRepeatStrategyDelay<Result, Status> {
+  if (delays.length === 1) {
+    return delays[0]
+  }
+
+  return async function mergedDelay(status, delayAbortSignal) {
+    const promises: PromiseOrValue<
+      void | undefined | null | number | TaskRepeatStrategyAfter
+    >[] = []
+
+    for (let i = 0, len = delays.length; i < len; i++) {
+      const _delay = delays[i]
+      if (typeof _delay === 'function') {
+        promises.push(_delay(status, delayAbortSignal))
+      } else {
+        promises.push(_delay)
+      }
+    }
+
+    let resultStop: boolean | null | undefined
+    let resultDelay: number | null | undefined
+
+    for (let i = 0, len = promises.length; i < len; i++) {
+      const promiseOrValue = promises[i]
+      const result = isPromiseLike(promiseOrValue)
+        ? await promiseOrValue
+        : promiseOrValue
+      if (result == null) {
+        continue
+      }
+      if (typeof result === 'number') {
+        resultDelay = result
+      } else {
+        if (result.stop != null) {
+          resultStop = result.stop
+        }
+        if (result.delay != null) {
+          resultDelay = result.delay
+        }
+      }
+      if (resultStop) {
+        return { stop: resultStop }
+      }
+    }
+
+    if (resultStop == null && resultDelay == null) {
+      return undefined
+    }
+
+    return { stop: resultStop, delay: resultDelay }
   }
 }

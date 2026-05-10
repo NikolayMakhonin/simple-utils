@@ -157,34 +157,75 @@ export type TaskSuccessPredicate<
   Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
 > = (status: Status) => true | SuccessPredicateResult
 
-export const TASK_STOP = 'stop'
-export type TaskStop = typeof TASK_STOP
-
-export type TaskDelay<
+/**
+ * Action before execution and initializing action after execution
+ * for a single iteration of a repeated task
+ *
+ * null/undefined - not set and does not overwrite previous value when merging multiple strategies
+ */
+export type TaskRepeatStrategyBefore<
   Result = any,
   Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
-> =
-  | {
-      /**
-       * null or undefined - no delay
-       * 0 - delay 0 ms (like setTimeout(func, 0))
-       * func - custom delay
-       */
-      readonly delay?:
-        | null
-        | number
-        | ((
-            status: Status,
-            delayAbortSignal: IAbortSignalFast,
-          ) => PromiseOrValue<void | undefined | null | number | TaskStop>)
-      readonly skipRun?: null | boolean
-    }
-  | TaskStop
+> = {
+  /** Stop repeating */
+  readonly stop?: null | boolean
+  /** Skip task execution this iteration and go to delay directly, if delay is set */
+  readonly skipRun?: null | boolean
+  /**
+   * Applied after execution
+   *
+   * - -1 - no delay
+   * - 0 - delay 0 ms, like setTimeout(func, 0)
+   * - number - delay in ms
+   * - function - wait inside the function and N ms after
+   */
+  readonly delay?: null | number | TaskRepeatStrategyDelay<Result, Status>
+}
 
-export type TaskDelayPrepare<
+/**
+ * Applied after execution
+ *
+ * @returns additional delay and/or stop execution
+ * - -1 - no delay
+ * - 0 - delay 0 ms, like setTimeout(func, 0)
+ * - number - delay in ms
+ */
+export type TaskRepeatStrategyDelay<
   Result = any,
   Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
-> = (status: Status) => TaskDelay<Result, Status>
+> = (
+  status: Status,
+  delayAbortSignal: IAbortSignalFast,
+) => PromiseOrValue<void | undefined | null | number | TaskRepeatStrategyAfter>
+
+/**
+ * Actions after execution for a single iteration of a repeated task
+ *
+ * null/undefined - not set and does not overwrite previous value when merging multiple strategies
+ */
+export type TaskRepeatStrategyAfter = {
+  /** Stop repeating */
+  readonly stop?: null | boolean
+  /**
+   * -1 - no delay
+   * 0 - delay 0 ms, like setTimeout(func, 0)
+   * number - delay in ms
+   */
+  readonly delay?: null | number
+}
+
+/**
+ * Controls repeated task behavior by deciding each iteration
+ * Called before task execution with status reflecting all previous iterations
+ *
+ * null/undefined - not set and does not overwrite previous value when merging multiple strategies
+ */
+export type TaskRepeatStrategy<
+  Result = any,
+  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
+> = (
+  status: Status,
+) => void | undefined | null | TaskRepeatStrategyBefore<Result, Status>
 
 export type TaskFuncOptions = {
   readonly abortSignal: IAbortSignalFast

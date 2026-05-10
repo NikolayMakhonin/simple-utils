@@ -1,6 +1,7 @@
 import {
   AbortControllerFast,
   type IAbortControllerFast,
+  type IAbortSignalFast,
 } from '@flemist/abort-controller-fast'
 import { combineAbortSignals } from 'src/common/async/abort/combineAbortSignals'
 import { delay } from 'src/common/async/wait/delay'
@@ -11,16 +12,21 @@ import {
   type ITaskDelay,
   type ITaskRepeat,
   type ITaskRerun,
-  TASK_STOP,
-  type TaskDelayPrepare,
+  type TaskRepeatStrategy,
   type TaskFunc,
   type TaskRunOptionsBase,
   type TaskStatusBase,
 } from './types'
+import { isPromiseLike } from 'src/common/async'
 import { createTaskRerun, type CreateTaskRerunResult } from './TaskWithRerun'
 import type { TaskOptionsBase } from './TaskBase'
 import { type ITaskWrapperSource, TaskWrapper } from './TaskWrapper'
 import { TaskStatusControllerBase } from './TaskStatusControllerBase'
+import {
+  type ITaskThrottled,
+  type TaskOptionsThrottled,
+  TaskThrottled,
+} from './TaskThrottled'
 
 export type TaskRunOptionsRepeated = TaskRunOptionsBase & {}
 
@@ -38,7 +44,7 @@ export type TaskOptionsRepeated<
   Result = void,
   Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
 > = TaskOptionsBase<Result> & {
-  readonly delay: TaskDelayPrepare<Result, Status>
+  readonly repeatStrategy: TaskRepeatStrategy<Result, Status>
 }
 
 export class TaskRepeated<
@@ -70,6 +76,14 @@ export class TaskRepeated<
     }
   }
 
+  private createDelayAbortSignal(): IAbortSignalFast {
+    this._delayAbortController = new AbortControllerFast()
+    return combineAbortSignals(
+      this._delayAbortController.signal,
+      this.abortSignal,
+    )
+  }
+
   skipDelay(): void {
     this.abortDelay()
     super.skipDelay()
@@ -93,14 +107,14 @@ export class TaskRepeated<
   private async _run(): Promise<Result> {
     try {
       while (!this.abortSignal.aborted && !this._skipRepeat) {
-        const delayResult = this._options.delay(this.status)
+        const strategyResult = this._options.repeatStrategy(this.status)
 
-        if (delayResult === TASK_STOP) {
+        if (strategyResult?.stop) {
           this.abort()
           break
         }
 
-        if (!delayResult.skipRun) {
+        if (!strategyResult?.skipRun) {
           try {
             await super.run()
             await this.waitIdle()
@@ -113,51 +127,52 @@ export class TaskRepeated<
           break
         }
 
-        const _delay = delayResult.delay
+        const _delay = strategyResult?.delay
 
         if (typeof _delay === 'number') {
-          this._delayAbortController = new AbortControllerFast()
-          const delayAbortSignal = combineAbortSignals(
-            this._delayAbortController.signal,
-            this.abortSignal,
-          )
-          await delay(_delay, delayAbortSignal, this.timeController).catch(
-            EMPTY_FUNC,
-          )
-          this.abortDelay()
+          if (_delay >= 0) {
+            const delayAbortSignal = this.createDelayAbortSignal()
+            await delay(_delay, delayAbortSignal, this.timeController).catch(
+              EMPTY_FUNC,
+            )
+            this.abortDelay()
+          }
         } else if (typeof _delay === 'function') {
-          this._delayAbortController = new AbortControllerFast()
-          const delayAbortSignal = combineAbortSignals(
-            this._delayAbortController.signal,
-            this.abortSignal,
-          )
-          const delayFuncResult = await _delay(this.status, delayAbortSignal)
-
-          this.abortDelay()
+          const delayAbortSignal = this.createDelayAbortSignal()
+          const delayResultOrPromise = _delay(this.status, delayAbortSignal)
+          const delayFuncResult = isPromiseLike(delayResultOrPromise)
+            ? await delayResultOrPromise
+            : delayResultOrPromise
 
           if (this._skipRepeat || this.abortSignal.aborted) {
             break
           }
 
+          let afterDelay: number | null | undefined
+
           if (typeof delayFuncResult === 'number') {
-            this._delayAbortController = new AbortControllerFast()
-            const innerDelayAbortSignal = combineAbortSignals(
-              this._delayAbortController.signal,
-              this.abortSignal,
-            )
+            afterDelay = delayFuncResult
+          } else if (delayFuncResult != null) {
+            if (delayFuncResult.stop) {
+              this.abort()
+              break
+            }
+            afterDelay = delayFuncResult.delay
+          }
+
+          if (afterDelay != null && afterDelay >= 0) {
             await delay(
-              delayFuncResult,
-              innerDelayAbortSignal,
+              afterDelay,
+              delayAbortSignal,
               this.timeController,
             ).catch(EMPTY_FUNC)
-            this.abortDelay()
-          } else if (delayFuncResult === TASK_STOP) {
-            this.abort()
-            break
           }
+
+          this.abortDelay()
         }
       }
     } finally {
+      this.abortDelay()
       this._skipRepeat = false
       this._runPromise = null
     }
@@ -197,5 +212,25 @@ export function createTaskRepeated<Args = ArgsDefault, Result = void>(
   return {
     ...base,
     repeated,
+  }
+}
+
+export type CreateTaskRepeatedThrottledResult<
+  Args = ArgsDefault,
+  Result = void,
+> = CreateTaskRepeatedResult<Args, Result> & {
+  throttled: ITaskThrottled<Args, Result>
+}
+
+export function createTaskRepeatedThrottled<Args = ArgsDefault, Result = void>(
+  func: TaskFunc<Args, Result>,
+  args: Args,
+  options: TaskOptionsRepeated<Result> & TaskOptionsThrottled<Result>,
+): CreateTaskRepeatedThrottledResult<Args, Result> {
+  const base = createTaskRepeated(func, args, options)
+  const throttled = new TaskThrottled(base.repeated, options)
+  return {
+    ...base,
+    throttled,
   }
 }

@@ -41,7 +41,8 @@ import {
   randomBoolean,
 } from 'src/common/random'
 import { LogLevel } from 'src/common/debug'
-import { withRetry, createTaskDelayRetry } from './withRetry'
+import { withRetry } from './withRetry'
+import { repeatStrategyRetry } from 'src/common/task/repeatStrategyRetry'
 
 export type TestVariantsArgs = {
   seed: number
@@ -168,7 +169,7 @@ async function test(options: TestOptions): Promise<void> {
     )
   }
 
-  const delayOption = createTaskDelayRetry({
+  const retryStrategy = repeatStrategyRetry({
     maxRetries: plan.maxRetries,
     maxTotalTime: plan.maxTotalTime,
     delays:
@@ -210,7 +211,7 @@ async function test(options: TestOptions): Promise<void> {
       }
       return i
     },
-    delay: delayOption,
+    repeatStrategy: retryStrategy,
     abortSignal: abortController?.signal ?? null,
     timeController,
     logLevel: LogLevel.none,
