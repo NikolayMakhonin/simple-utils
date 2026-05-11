@@ -184,14 +184,14 @@ export class TaskRepeated<
   }
 
   run(options?: null | RunOptions): Promise<Result> {
-    // Calling run() cancels any pending skipRepeat
-    this._skipRepeat = false
-    if (this.status.isRunning && options?.immediate) {
+    if (options?.immediate) {
       // Abort pending delay to prevent a second execution after it completes
       this.skipDelay()
       // Execute immediately, bypassing repeatStrategy that may skip or stop
       super.runInternal().catch(EMPTY_FUNC)
     }
+    // Calling run() cancels any pending skipRepeat
+    this._skipRepeat = false
     return super.run(options)
   }
 }
