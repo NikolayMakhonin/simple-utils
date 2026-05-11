@@ -105,7 +105,7 @@ export class TaskRepeated<
     return this.statusInner.lastResult!
   }
 
-  async runInternal(): Promise<Result> {
+  protected async runInternal(): Promise<Result> {
     try {
       while (!this.abortSignal.aborted && !this._skipRepeat) {
         const strategyResult = this._options.repeatStrategy(this.statusInner)

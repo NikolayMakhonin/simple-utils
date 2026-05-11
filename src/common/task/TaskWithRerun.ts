@@ -39,7 +39,7 @@ export class TaskWithRerun<
     this._wait = () => this.wait()
   }
 
-  runInternal(options?: null | RunOptions): Promise<Result> {
+  protected runInternal(options?: null | RunOptions): Promise<Result> {
     if (this._rerunPromise) {
       return this._rerunPromise
     }

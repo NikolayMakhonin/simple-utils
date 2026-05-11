@@ -244,7 +244,7 @@ export class TaskThrottled<
     return super.run()
   }
 
-  async runInternal(): Promise<Result> {
+  protected async runInternal(): Promise<Result> {
     await this.process()
     return this.statusInner.lastResult!
   }
