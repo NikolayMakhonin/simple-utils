@@ -241,7 +241,7 @@ export class TaskThrottled<
     const { immediate, throttleTime, throttleTimeMax, throttleFromEnd } =
       options ?? {}
     this.update(immediate ? 0 : throttleTime, throttleTimeMax, throttleFromEnd)
-    return super.run()
+    return super.run(options)
   }
 
   protected async runInternal(): Promise<Result> {

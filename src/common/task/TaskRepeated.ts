@@ -187,9 +187,12 @@ export class TaskRepeated<
     // Calling run() cancels any pending skipRepeat
     this._skipRepeat = false
     if (this.status.isRunning && options?.immediate) {
-      super.runInternal(options).catch(EMPTY_FUNC)
+      // Abort pending delay to prevent a second execution after it completes
+      this.skipDelay()
+      // Execute immediately, bypassing repeatStrategy that may skip or stop
+      super.runInternal().catch(EMPTY_FUNC)
     }
-    return super.run()
+    return super.run(options)
   }
 }
 

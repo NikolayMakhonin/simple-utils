@@ -39,13 +39,13 @@ export class TaskWithRerun<
     this._wait = () => this.wait()
   }
 
-  protected runInternal(options?: null | RunOptions): Promise<Result> {
+  protected runInternal(): Promise<Result> {
     if (this._rerunPromise) {
       return this._rerunPromise
     }
 
     const isRunning = this.statusInner.isRunning
-    const firstRunPromise = super.runInternal(options)
+    const firstRunPromise = super.runInternal()
 
     if (!isRunning) {
       return firstRunPromise
@@ -58,7 +58,7 @@ export class TaskWithRerun<
         if (runPromise !== this._rerunPromise) {
           return result
         }
-        return super.runInternal(options)
+        return super.runInternal()
       })
       .finally(() => {
         if (runPromise === this._rerunPromise) {
