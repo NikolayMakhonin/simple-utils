@@ -18,8 +18,8 @@ import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
 import type { PromiseLikeOrValue } from '../types/common'
 
 export interface ITaskStatusControllerBase<
-  Result,
-  Status extends TaskStatusBase<Result>,
+  Result = void,
+  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
 > extends ITaskStatus<Result, Status> {
   run(func: () => PromiseLikeOrValue<Result>): Promise<Result>
   abort(): void
@@ -27,7 +27,7 @@ export interface ITaskStatusControllerBase<
   readonly timeController: ITimeController
 }
 
-export type TaskStatusControllerBaseOptions<Result> =
+export type TaskStatusControllerBaseOptions<Result = void> =
   AbortControllerReusableOptions & {
     timeController?: null | ITimeController
     successPredicate?: null | TaskSuccessPredicate<
@@ -46,7 +46,7 @@ export function taskSuccessPredicateDefault<T>(
 }
 
 export class TaskStatusControllerBase<
-  Result,
+  Result = void,
   Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
 > implements ITaskStatusControllerBase<Result, Status>
 {

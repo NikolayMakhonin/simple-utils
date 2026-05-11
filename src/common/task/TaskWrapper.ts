@@ -51,6 +51,7 @@ export class TaskWrapper<
   private readonly _supportsDelay: boolean
   private readonly _supportsRepeat: boolean
   private readonly _supportsRerun: boolean
+  private _runPromise: Promise<Result> | null = null
 
   constructor(
     task: ITaskWrapperSource<Args, Result, RunOptions, Status>,
@@ -98,6 +99,10 @@ export class TaskWrapper<
     return this._statusController.status
   }
 
+  protected get statusInner(): Status {
+    return this._task.status
+  }
+
   abort(): void {
     this._task.abort()
     this._statusController.abort()
@@ -115,8 +120,20 @@ export class TaskWrapper<
     return this._statusController.subscribe(listener)
   }
 
+  protected runInternal(options?: null | RunOptions): Promise<Result> {
+    return this._task.run(options)
+  }
+
   run(options?: null | RunOptions): Promise<Result> {
-    return this._statusController.run(() => this._task.run(options))
+    this.abortSignal.throwIfAborted()
+    if (!this._runPromise) {
+      this._runPromise = this._statusController
+        .run(() => this.runInternal(options))
+        .finally(() => {
+          this._runPromise = null
+        })
+    }
+    return this._runPromise
   }
 
   wait(): Promise<void> {

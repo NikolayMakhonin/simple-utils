@@ -1,10 +1,6 @@
 import { AbortControllerFast } from '@flemist/abort-controller-fast'
 import type { PromiseLikeOrValue } from 'src/common/types/common'
-import {
-  type TaskRepeatStrategy,
-  type TaskFuncOptions,
-  type TaskStatusBase,
-} from 'src/common/task/types'
+import { type TaskFuncOptions } from 'src/common/task/types'
 import {
   createTaskRepeated,
   type TaskOptionsRepeated,
@@ -15,13 +11,14 @@ export type WithRetryFunc<T> = (
   options: TaskFuncOptions,
 ) => PromiseLikeOrValue<T>
 
-export type WithRetryOptions<T> = Omit<
-  TaskOptionsRepeated<T>,
-  'repeatStrategy'
-> & {
+export type WithRetryOptions<T> = {
   func: WithRetryFunc<T>
-  repeatStrategy?: null | TaskRepeatStrategy<T, TaskStatusBase<T>>
-}
+} & (
+  | (Omit<TaskOptionsRepeated<T>, 'repeatStrategy'> & {
+      repeatStrategy?: null
+    })
+  | TaskOptionsRepeated<T>
+)
 
 export async function withRetry<T>(options: WithRetryOptions<T>): Promise<T> {
   if (options.repeatStrategy == null) {
@@ -36,10 +33,7 @@ export async function withRetry<T>(options: WithRetryOptions<T>): Promise<T> {
       return options.func(funcOptions)
     },
     null,
-    {
-      ...options,
-      repeatStrategy: options.repeatStrategy,
-    },
+    options,
   )
 
   return repeated.run()

@@ -25,7 +25,7 @@ export function repeatStrategyRetry({
   delays,
   jitter,
 }: RepeatStrategyRetryOptions): TaskRepeatStrategy {
-  return function retryStrategy(status: TaskStatusBase) {
+  return function retryStrategy(status) {
     if (status.lastSuccessRuns) {
       return { stop: true }
     }
@@ -42,7 +42,7 @@ export function repeatStrategyRetry({
     }
 
     return {
-      delay: (status: TaskStatusBase) => {
+      delay: status => {
         if (
           !status.lastFailedRuns ||
           delays == null ||

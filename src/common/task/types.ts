@@ -89,7 +89,7 @@ export type TaskStatusBase<Result = any> = {
 
 export interface ITaskStatus<
   Result = any,
-  Status extends TaskStatusBase<Result> = any,
+  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
 > extends IObservable<Status> {
   readonly status: Status
 }
@@ -153,7 +153,7 @@ export type SuccessPredicateResult =
   | { readonly success?: null | false; readonly reason: any }
 
 export type TaskSuccessPredicate<
-  Result,
+  Result = any,
   Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
 > = (status: Status) => true | SuccessPredicateResult
 

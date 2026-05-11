@@ -15,7 +15,7 @@ import {
 import { type AbortControllerReusableOptions } from 'src/common/async/abort/AbortControllerReusable'
 import { TaskStatusControllerBase } from './TaskStatusControllerBase'
 
-export type TaskOptionsBase<Result> = AbortControllerReusableOptions & {
+export type TaskOptionsBase<Result = void> = AbortControllerReusableOptions & {
   readonly timeController?: null | ITimeController
   readonly logLevel?: null | LogLevel
   readonly successPredicate?: null | TaskSuccessPredicate<

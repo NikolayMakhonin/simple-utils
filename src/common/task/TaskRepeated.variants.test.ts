@@ -45,6 +45,7 @@ import { LogLevel } from 'src/common/debug'
 import { waitTimeControllerMock } from 'src/common/async/wait/waitTimeControllerMock'
 import { getRandomSeed, Random, randomInt } from 'src/common/random'
 import { createTaskRepeated, type ITaskRepeated } from './TaskRepeated'
+import { EMPTY_FUNC } from '../constants'
 
 export type TestVariantsArgs = {
   seed: number
@@ -304,7 +305,7 @@ async function test(options: TestOptions): Promise<void> {
     context
 
   if (context.useImmediate) {
-    const runPromise = task.run().catch(() => {})
+    const runPromise = task.run().catch(EMPTY_FUNC)
 
     task.run({ immediate: true })
 
@@ -376,7 +377,7 @@ async function test(options: TestOptions): Promise<void> {
     return
   }
 
-  const runPromise = task.run().catch(() => {})
+  const runPromise = task.run().catch(EMPTY_FUNC)
 
   const maxTime =
     (plan.iterations + 1) * (args.executionDuration + args.delayTimeMax + 10)

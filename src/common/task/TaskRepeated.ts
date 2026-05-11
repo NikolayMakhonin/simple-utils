@@ -1,5 +1,6 @@
 import {
   AbortControllerFast,
+  AbortError,
   type IAbortControllerFast,
   type IAbortSignalFast,
 } from '@flemist/abort-controller-fast'
@@ -57,7 +58,6 @@ export class TaskRepeated<
   implements ITaskRepeated<Args, Result, RunOptions>
 {
   private readonly _options: TaskOptionsRepeated<Result>
-  private _runPromise: Promise<Result> | null = null
   private _delayAbortController: IAbortControllerFast | null = null
   private _skipRepeat: boolean = false
 
@@ -95,19 +95,20 @@ export class TaskRepeated<
   }
 
   private result(): Result {
-    if (this.status.lastEnd == null) {
-      throw this.status.abortSignal.reason
+    if (this.statusInner.lastEnd == null) {
+      this.abortSignal.throwIfAborted()
+      throw new AbortError('Task stopped before first execution')
     }
-    if (this.status.lastHasError) {
-      throw this.status.lastError
+    if (this.statusInner.lastHasError) {
+      throw this.statusInner.lastError
     }
-    return this.status.lastResult!
+    return this.statusInner.lastResult!
   }
 
-  private async _run(): Promise<Result> {
+  async runInternal(): Promise<Result> {
     try {
       while (!this.abortSignal.aborted && !this._skipRepeat) {
-        const strategyResult = this._options.repeatStrategy(this.status)
+        const strategyResult = this._options.repeatStrategy(this.statusInner)
 
         if (strategyResult?.stop) {
           this.abort()
@@ -116,7 +117,7 @@ export class TaskRepeated<
 
         if (!strategyResult?.skipRun) {
           try {
-            await super.run()
+            await super.runInternal()
             await this.waitIdle()
           } catch {
             // Ignore errors, because it handles in wrapped task
@@ -139,7 +140,10 @@ export class TaskRepeated<
           }
         } else if (typeof _delay === 'function') {
           const delayAbortSignal = this.createDelayAbortSignal()
-          const delayResultOrPromise = _delay(this.status, delayAbortSignal)
+          const delayResultOrPromise = _delay(
+            this.statusInner,
+            delayAbortSignal,
+          )
           const delayFuncResult = isPromiseLike(delayResultOrPromise)
             ? await delayResultOrPromise
             : delayResultOrPromise
@@ -174,24 +178,18 @@ export class TaskRepeated<
     } finally {
       this.abortDelay()
       this._skipRepeat = false
-      this._runPromise = null
     }
 
     return this.result()
   }
 
   run(options?: null | RunOptions): Promise<Result> {
-    this.abortSignal.throwIfAborted()
     // Calling run() cancels any pending skipRepeat
     this._skipRepeat = false
-    if (this._runPromise && options?.immediate) {
-      super.run(options).catch(EMPTY_FUNC)
+    if (this.status.isRunning && options?.immediate) {
+      super.runInternal(options).catch(EMPTY_FUNC)
     }
-
-    if (!this._runPromise) {
-      this._runPromise = this._run()
-    }
-    return this._runPromise
+    return super.run()
   }
 }
 

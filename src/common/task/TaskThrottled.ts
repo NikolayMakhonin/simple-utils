@@ -39,9 +39,12 @@ export interface ITaskThrottled<
     ITaskDelay,
     ITaskRerun {}
 
-export type TaskOptionsThrottled<Result> = TaskOptionsBase<Result> & {
+export type ThrottleOptionsTime = {
   readonly throttleTime?: null | number
   readonly throttleTimeMax?: null | number
+}
+
+export type ThrottleOptions = ThrottleOptionsTime & {
   /**
    * false/undefined - throttle time counts from the last execution start
    * true - throttle time counts from the last execution end;
@@ -49,6 +52,9 @@ export type TaskOptionsThrottled<Result> = TaskOptionsBase<Result> & {
    */
   readonly throttleFromEnd?: null | boolean
 }
+
+export type TaskOptionsThrottled<Result = void> = TaskOptionsBase<Result> &
+  ThrottleOptions
 
 export class TaskThrottled<
     Args = ArgsDefault,
@@ -192,7 +198,7 @@ export class TaskThrottled<
           this._lastCallTime = this.timeController.now()
         }
         try {
-          await super.run()
+          await super.runInternal()
         } finally {
           if (this._throttleFromEnd) {
             this._lastCallTime = this.timeController.now()
@@ -231,13 +237,16 @@ export class TaskThrottled<
     super.abort()
   }
 
-  async run(options?: null | RunOptions): Promise<Result> {
-    this.abortSignal.throwIfAborted()
+  run(options?: null | RunOptions): Promise<Result> {
     const { immediate, throttleTime, throttleTimeMax, throttleFromEnd } =
       options ?? {}
     this.update(immediate ? 0 : throttleTime, throttleTimeMax, throttleFromEnd)
+    return super.run()
+  }
+
+  async runInternal(): Promise<Result> {
     await this.process()
-    return this.status.lastResult!
+    return this.statusInner.lastResult!
   }
 }
 
