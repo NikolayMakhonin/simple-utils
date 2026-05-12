@@ -91,6 +91,10 @@ export interface ITaskStatus<
   Result = any,
   Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
 > extends IObservable<Status> {
+  /**
+   * Status reflects this task's run() as a whole,
+   * including all internal stages (delays, retries, iterations, task execution, etc)
+   */
   readonly status: Status
 }
 
@@ -189,6 +193,8 @@ export type TaskRepeatStrategyBefore<
  * - -1 - no delay
  * - 0 - delay 0 ms, like setTimeout(func, 0)
  * - number - delay in ms
+ *
+ * @param status - status of inner task execution
  */
 export type TaskRepeatStrategyDelay<
   Result = any,
@@ -219,6 +225,8 @@ export type TaskRepeatStrategyAfter = {
  * Called before task execution with status reflecting all previous iterations
  *
  * null/undefined - not set and does not overwrite previous value when merging multiple strategies
+ *
+ * @param status - status of inner task execution
  */
 export type TaskRepeatStrategy<
   Result = any,
