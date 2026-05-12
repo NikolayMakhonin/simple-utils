@@ -1,6 +1,6 @@
 import type { TaskRepeatStrategy, TaskStatusBase } from './types'
 
-export type RepeatStrategyRetryExponential = {
+export type RetryDelaysExponential = {
   min: number
   max: number
   mult?: null | number
@@ -9,7 +9,7 @@ export type RepeatStrategyRetryExponential = {
 export type RepeatStrategyRetryOptions = {
   maxRetries?: null | number
   maxTotalTime?: null | number
-  delays: null | undefined | number[] | RepeatStrategyRetryExponential
+  delays: null | undefined | number[] | RetryDelaysExponential
   /**
    * Random multiplicative jitter factor (>= 1): result uniformly distributed
    * in [value / jitter, value * jitter].
