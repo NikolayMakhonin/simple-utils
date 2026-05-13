@@ -114,6 +114,14 @@ export class TaskBase<
       ),
     )
 
+    // Suppress unhandled rejection when error logging is disabled
+    if (
+      this._options?.logLevel != null &&
+      this._options.logLevel < LogLevel.error
+    ) {
+      this._runPromise.catch(EMPTY_FUNC)
+    }
+
     return this._runPromise
   }
 

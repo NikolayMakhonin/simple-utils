@@ -1,6 +1,8 @@
 import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
 import { type Listener } from 'src/common/rx'
 import type { ITimeController } from '@flemist/time-controller'
+import { EMPTY_FUNC } from 'src/common/constants'
+import { LogLevel } from 'src/common/debug'
 import type { Unsubscribe } from 'src/common/types'
 import type {
   ArgsDefault,
@@ -38,6 +40,14 @@ export interface ITaskWrapper<
   readonly supportsRerun: boolean
 }
 
+export type TaskWrapperOptions<
+  Result = void,
+  Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
+> = {
+  statusController: ITaskStatusControllerBase<Result, Status>
+  logLevel?: null | LogLevel
+}
+
 export class TaskWrapper<
   Args = ArgsDefault,
   Result = void,
@@ -47,6 +57,7 @@ export class TaskWrapper<
 {
   protected readonly _task: ITaskWrapperSource<Args, Result, RunOptions, Status>
   private readonly _statusController: ITaskStatusControllerBase<Result, Status>
+  private readonly _logLevel: null | LogLevel
   private readonly _supportsArgs: boolean
   private readonly _supportsDelay: boolean
   private readonly _supportsRepeat: boolean
@@ -56,10 +67,11 @@ export class TaskWrapper<
 
   constructor(
     task: ITaskWrapperSource<Args, Result, RunOptions, Status>,
-    statusController: ITaskStatusControllerBase<Result, Status>,
+    options: TaskWrapperOptions<Result, Status>,
   ) {
     this._task = task
-    this._statusController = statusController
+    this._statusController = options.statusController
+    this._logLevel = options.logLevel ?? null
     this._supportsArgs = 'args' in task
     this._supportsDelay = 'skipDelay' in task
     this._supportsRepeat = 'skipRepeat' in task
@@ -134,6 +146,10 @@ export class TaskWrapper<
         .finally(() => {
           this._runPromise = null
         })
+      // Suppress unhandled rejection when error logging is disabled
+      if (this._logLevel != null && this._logLevel < LogLevel.error) {
+        this._runPromise.catch(EMPTY_FUNC)
+      }
     }
     return this._runPromise
   }

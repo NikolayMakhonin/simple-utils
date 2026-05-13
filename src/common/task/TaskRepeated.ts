@@ -65,7 +65,10 @@ export class TaskRepeated<
     task: ITaskWrapperSource<Args, Result, RunOptions, Status>,
     options: TaskOptionsRepeated<Result>,
   ) {
-    super(task, new TaskStatusControllerBase({}, options))
+    super(task, {
+      statusController: new TaskStatusControllerBase({}, options),
+      logLevel: options.logLevel,
+    })
     this._options = options
   }
 

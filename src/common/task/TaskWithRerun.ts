@@ -35,7 +35,10 @@ export class TaskWithRerun<
     task: ITaskWrapperSource<Args, Result, RunOptions, Status>,
     options?: null | TaskOptionsBase<Result>,
   ) {
-    super(task, new TaskStatusControllerBase({}, options))
+    super(task, {
+      statusController: new TaskStatusControllerBase({}, options),
+      logLevel: options?.logLevel,
+    })
     this._wait = () => this.wait()
   }
 
