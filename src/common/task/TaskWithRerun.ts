@@ -28,8 +28,8 @@ export class TaskWithRerun<
   extends TaskWrapper<Args, Result, RunOptions>
   implements ITaskWithRerun<Args, Result, RunOptions>
 {
-  private readonly _wait: () => Promise<void>
-  private _rerunPromise: Promise<Result> | null = null
+  readonly #wait: () => Promise<void>
+  #rerunPromise: Promise<Result> | null = null
 
   constructor(
     task: ITaskWrapperSource<Args, Result, RunOptions, Status>,
@@ -39,12 +39,12 @@ export class TaskWithRerun<
       statusController: new TaskStatusControllerBase({}, options),
       logLevel: options?.logLevel,
     })
-    this._wait = () => this.wait()
+    this.#wait = () => this.wait()
   }
 
   protected runInternal(): Promise<Result> {
-    if (this._rerunPromise) {
-      return this._rerunPromise
+    if (this.#rerunPromise) {
+      return this.#rerunPromise
     }
 
     const isRunning = this.statusInner.isRunning
@@ -58,34 +58,34 @@ export class TaskWithRerun<
       .then(result => {
         // If rerun was skipped
         // return the result of the first run
-        if (runPromise !== this._rerunPromise) {
+        if (runPromise !== this.#rerunPromise) {
           return result
         }
         return super.runInternal()
       })
       .finally(() => {
-        if (runPromise === this._rerunPromise) {
-          this._rerunPromise = null
+        if (runPromise === this.#rerunPromise) {
+          this.#rerunPromise = null
         }
       })
-    this._rerunPromise = runPromise
+    this.#rerunPromise = runPromise
 
-    return this._rerunPromise
+    return this.#rerunPromise
   }
 
   skipRerun(): void {
-    this._rerunPromise = null
+    this.#rerunPromise = null
   }
 
   wait(): Promise<void> {
-    return this._rerunPromise?.then(EMPTY_FUNC, EMPTY_FUNC) ?? super.wait()
+    return this.#rerunPromise?.then(EMPTY_FUNC, EMPTY_FUNC) ?? super.wait()
   }
 
   waitIdle(): Promise<void> {
-    if (this._rerunPromise) {
-      return this._rerunPromise.then(this._wait, this._wait)
+    if (this.#rerunPromise) {
+      return this.#rerunPromise.then(this.#wait, this.#wait)
     }
-    return super.wait().then(this._wait)
+    return super.wait().then(this.#wait)
   }
 }
 

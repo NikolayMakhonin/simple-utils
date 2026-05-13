@@ -30,32 +30,32 @@ export type IFileStorage = IStorage<string, Uint8Array> & {
 }
 
 export class FileStorage implements IFileStorage {
-  private readonly _options: FileStorageOptions
+  readonly #options: FileStorageOptions
 
   constructor(options: FileStorageOptions) {
-    this._options = options
+    this.#options = options
   }
 
   get options(): FileStorageOptionsBase {
-    return this._options
+    return this.#options
   }
 
   async set(key: string, value: Uint8Array): Promise<void> {
-    const subPath = this._options.converterSubPath.to(key)
-    const filePath = path.join(this._options.dir, subPath)
-    const tmpFileName = this._options.getTempFileName
-      ? this._options.getTempFileName(key)
+    const subPath = this.#options.converterSubPath.to(key)
+    const filePath = path.join(this.#options.dir, subPath)
+    const tmpFileName = this.#options.getTempFileName
+      ? this.#options.getTempFileName(key)
       : generateTempFileName()
-    const tmpPath = path.join(this._options.tmpDir, tmpFileName)
-    await writeFileThroughTmp(filePath, tmpPath, value, this._options.pool)
+    const tmpPath = path.join(this.#options.tmpDir, tmpFileName)
+    await writeFileThroughTmp(filePath, tmpPath, value, this.#options.pool)
   }
 
   async get(key: string): Promise<Uint8Array | undefined> {
-    const subPath = this._options.converterSubPath.to(key)
-    const filePath = path.join(this._options.dir, subPath)
+    const subPath = this.#options.converterSubPath.to(key)
+    const filePath = path.join(this.#options.dir, subPath)
     try {
       const data = await poolRunWait({
-        pool: this._options.pool ?? poolFs,
+        pool: this.#options.pool ?? poolFs,
         count: 1,
         func: () => {
           return fs.promises.readFile(filePath)
@@ -71,11 +71,11 @@ export class FileStorage implements IFileStorage {
   }
 
   async delete(key: string): Promise<void> {
-    const subPath = this._options.converterSubPath.to(key)
-    const filePath = path.join(this._options.dir, subPath)
+    const subPath = this.#options.converterSubPath.to(key)
+    const filePath = path.join(this.#options.dir, subPath)
     try {
       await poolRunWait({
-        pool: this._options.pool ?? poolFs,
+        pool: this.#options.pool ?? poolFs,
         count: 1,
         func: () => {
           return fs.promises.unlink(filePath)
@@ -97,15 +97,15 @@ export class FileStorage implements IFileStorage {
   async getKeys(): Promise<string[]> {
     try {
       const entries = await readDirRecursive(
-        this._options.dir,
-        this._options.pool,
+        this.#options.dir,
+        this.#options.pool,
       )
       const keys: string[] = []
       entries.forEach(([subPath, entity]) => {
         if (!entity.isFile()) {
           return
         }
-        const key = this._options.converterSubPath.from(subPath)
+        const key = this.#options.converterSubPath.from(subPath)
         if (key == null) {
           return
         }

@@ -7,19 +7,19 @@ import {
 import { match } from '../match'
 
 export class MatcherRef<T> extends Matcher<T> {
-  private _hasExpected: boolean = false
-  private _expected: Expected<T> = undefined as any
+  // #hasExpected: boolean = false
+  #expected: Expected<T> = undefined as any
   get expected(): Expected<T> {
-    return this._expected
+    return this.#expected
   }
 
   set expected(value: Expected<T>) {
-    this._expected = value
-    this._hasExpected = true
+    this.#expected = value
+    // this.#hasExpected = true
   }
 
   match(actual: T): MatchResult3 {
-    const matchResult = match(actual, this._expected)
+    const matchResult = match(actual, this.#expected)
     const nested: MatchResultNested[] = [
       {
         result: matchResult,

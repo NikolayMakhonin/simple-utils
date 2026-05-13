@@ -15,31 +15,31 @@ export type LazyOptions<T> = {
 
 // TODO: write doc comments
 export class Lazy<T = void> implements ILazy<T> {
-  private readonly _options: LazyOptions<T>
-  private _hasValue: boolean = false
-  private _promiseOrValue: PromiseOrValue<T> | null = null
+  readonly #options: LazyOptions<T>
+  #hasValue: boolean = false
+  #promiseOrValue: PromiseOrValue<T> | null = null
 
   constructor(options: LazyOptions<T>) {
-    this._options = options
+    this.#options = options
   }
 
   run(): PromiseOrValue<T> {
-    if (!this._hasValue) {
-      let promiseOrValue = this._options.func()
+    if (!this.#hasValue) {
+      let promiseOrValue = this.#options.func()
 
       const onResolve = (value: T) => {
-        if (!this._options.persist) {
-          this._promiseOrValue = null
-          this._hasValue = false
+        if (!this.#options.persist) {
+          this.#promiseOrValue = null
+          this.#hasValue = false
         } else {
-          this._promiseOrValue = value
+          this.#promiseOrValue = value
         }
         return value
       }
       const onReject = (error: any) => {
-        if (!this._options.persist) {
-          this._promiseOrValue = null
-          this._hasValue = false
+        if (!this.#options.persist) {
+          this.#promiseOrValue = null
+          this.#hasValue = false
         }
         throw error
       }
@@ -47,23 +47,23 @@ export class Lazy<T = void> implements ILazy<T> {
       if (isPromiseLike(promiseOrValue)) {
         promiseOrValue = promiseOrValue.then(onResolve, onReject)
       } else {
-        if (!this._options.persist) {
+        if (!this.#options.persist) {
           return promiseOrValue
         }
       }
 
-      this._promiseOrValue = promiseOrValue
-      this._hasValue = true
+      this.#promiseOrValue = promiseOrValue
+      this.#hasValue = true
     }
-    return this._promiseOrValue!
+    return this.#promiseOrValue!
   }
 
   set(value: PromiseOrValue<T>): void {
-    if (!this._options.persist) {
+    if (!this.#options.persist) {
       throw new Error('[Lazy][set] Cannot set value when persist is false')
     }
-    this._hasValue = true
-    this._promiseOrValue = value
+    this.#hasValue = true
+    this.#promiseOrValue = value
   }
 }
 
@@ -80,30 +80,30 @@ export type LazyWithIdOptions<Id, Result> = {
 
 // TODO: write doc comments
 export class LazyWithId<Id, Result = void> implements ILazyWithId<Id, Result> {
-  private readonly _options: LazyWithIdOptions<Id, Result>
-  private _promiseOrValues: Map<Id, PromiseOrValue<Result>> = new Map()
+  readonly #options: LazyWithIdOptions<Id, Result>
+  #promiseOrValues: Map<Id, PromiseOrValue<Result>> = new Map()
 
   constructor(options: LazyWithIdOptions<Id, Result>) {
-    this._options = options
+    this.#options = options
   }
 
   run(id: Id): PromiseOrValue<Result> {
-    if (this._promiseOrValues.has(id)) {
-      const promiseOrValue = this._promiseOrValues.get(id)
+    if (this.#promiseOrValues.has(id)) {
+      const promiseOrValue = this.#promiseOrValues.get(id)
       return promiseOrValue!
     }
-    let promiseOrValue = this._options.func(id)
+    let promiseOrValue = this.#options.func(id)
     const onResolve = (value: Result) => {
-      if (!this._options.persist) {
-        this._promiseOrValues.delete(id)
+      if (!this.#options.persist) {
+        this.#promiseOrValues.delete(id)
       } else {
-        this._promiseOrValues.set(id, value)
+        this.#promiseOrValues.set(id, value)
       }
       return value
     }
     const onReject = (error: any) => {
-      if (!this._options.persist) {
-        this._promiseOrValues.delete(id)
+      if (!this.#options.persist) {
+        this.#promiseOrValues.delete(id)
       }
       throw error
     }
@@ -111,22 +111,22 @@ export class LazyWithId<Id, Result = void> implements ILazyWithId<Id, Result> {
     if (isPromiseLike(promiseOrValue)) {
       promiseOrValue = promiseOrValue.then(onResolve, onReject)
     } else {
-      if (!this._options.persist) {
+      if (!this.#options.persist) {
         return promiseOrValue
       }
     }
 
-    this._promiseOrValues.set(id, promiseOrValue)
+    this.#promiseOrValues.set(id, promiseOrValue)
 
     return promiseOrValue
   }
 
   set(id: Id, value: PromiseOrValue<Result>): void {
-    if (!this._options.persist) {
+    if (!this.#options.persist) {
       throw new Error(
         '[LazyWithId][set] Cannot set value when persist is false',
       )
     }
-    this._promiseOrValues.set(id, value)
+    this.#promiseOrValues.set(id, value)
   }
 }

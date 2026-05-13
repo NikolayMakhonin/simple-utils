@@ -5,29 +5,28 @@ import {
 import type { Unsubscribe } from 'src/common/types'
 
 export class AbortSignalCombined implements IAbortSignalFast {
-  private readonly _abortController: AbortControllerFast =
-    new AbortControllerFast()
-  private _subscriptionCount: number = 0
-  private _unsubscribes: Unsubscribe[] | null = null
-  private readonly _abortSignals: (IAbortSignalFast | null | undefined)[]
-  private readonly _onAbort: (reason: any) => void
+  readonly #abortController: AbortControllerFast = new AbortControllerFast()
+  #subscriptionCount: number = 0
+  #unsubscribes: Unsubscribe[] | null = null
+  readonly #abortSignals: (IAbortSignalFast | null | undefined)[]
+  readonly #onAbort: (reason: any) => void
 
   constructor(...abortSignals: (IAbortSignalFast | null | undefined)[]) {
-    this._abortSignals = abortSignals
-    this._onAbort = reason => {
+    this.#abortSignals = abortSignals
+    this.#onAbort = reason => {
       this.onAbort(reason)
     }
   }
 
   private updateAborted() {
-    if (this._abortController.signal.aborted) {
+    if (this.#abortController.signal.aborted) {
       return true
     }
-    if (this._subscriptionCount === 0) {
-      for (let i = 0; i < this._abortSignals.length; i++) {
-        const abortSignal = this._abortSignals[i]
+    if (this.#subscriptionCount === 0) {
+      for (let i = 0; i < this.#abortSignals.length; i++) {
+        const abortSignal = this.#abortSignals[i]
         if (abortSignal != null && abortSignal.aborted) {
-          this._abortController.abort(abortSignal.reason)
+          this.#abortController.abort(abortSignal.reason)
           return true
         }
       }
@@ -41,56 +40,56 @@ export class AbortSignalCombined implements IAbortSignalFast {
 
   get reason() {
     this.updateAborted()
-    return this._abortController.signal.reason
+    return this.#abortController.signal.reason
   }
 
   throwIfAborted() {
     this.updateAborted()
-    this._abortController.signal.throwIfAborted()
+    this.#abortController.signal.throwIfAborted()
   }
 
   private unsubscribeAll() {
-    if (this._unsubscribes == null) {
+    if (this.#unsubscribes == null) {
       return
     }
-    const unsubscribes = this._unsubscribes
-    this._unsubscribes = null
+    const unsubscribes = this.#unsubscribes
+    this.#unsubscribes = null
     for (let i = 0, len = unsubscribes.length; i < len; i++) {
       unsubscribes[i]()
     }
   }
 
   private subscribeAll() {
-    this._unsubscribes = []
-    for (let i = 0; i < this._abortSignals.length; i++) {
-      if (this._unsubscribes == null) {
+    this.#unsubscribes = []
+    for (let i = 0; i < this.#abortSignals.length; i++) {
+      if (this.#unsubscribes == null) {
         break
       }
-      const abortSignal = this._abortSignals[i]
+      const abortSignal = this.#abortSignals[i]
       if (abortSignal == null) {
         continue
       }
-      this._unsubscribes.push(abortSignal.subscribe(this._onAbort))
+      this.#unsubscribes.push(abortSignal.subscribe(this.#onAbort))
     }
   }
 
   private onAbort(reason: any) {
     this.unsubscribeAll()
-    this._abortController.abort(reason)
+    this.#abortController.abort(reason)
   }
 
   subscribe(callback: (reason?: any) => void): Unsubscribe {
     if (this.aborted) {
-      return this._abortController.signal.subscribe(callback)
+      return this.#abortController.signal.subscribe(callback)
     }
 
-    this._subscriptionCount++
-    if (this._subscriptionCount === 1) {
+    this.#subscriptionCount++
+    if (this.#subscriptionCount === 1) {
       this.subscribeAll()
     }
 
     const unsubscribe: Unsubscribe =
-      this._abortController.signal.subscribe(callback)
+      this.#abortController.signal.subscribe(callback)
 
     let unsubscribed = false
 
@@ -100,8 +99,8 @@ export class AbortSignalCombined implements IAbortSignalFast {
       }
       unsubscribed = true
       unsubscribe()
-      this._subscriptionCount--
-      if (this._subscriptionCount === 0) {
+      this.#subscriptionCount--
+      if (this.#subscriptionCount === 0) {
         this.unsubscribeAll()
       }
     }

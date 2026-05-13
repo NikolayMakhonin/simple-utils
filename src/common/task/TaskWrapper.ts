@@ -56,60 +56,60 @@ export class TaskWrapper<
 > implements ITaskWrapper<Args, Result, RunOptions, Status>
 {
   protected readonly _task: ITaskWrapperSource<Args, Result, RunOptions, Status>
-  private readonly _statusController: ITaskStatusControllerBase<Result, Status>
-  private readonly _logLevel: null | LogLevel
-  private readonly _supportsArgs: boolean
-  private readonly _supportsDelay: boolean
-  private readonly _supportsRepeat: boolean
-  private readonly _supportsRerun: boolean
-  private _runOptions: null | RunOptions = null
-  private _runPromise: Promise<Result> | null = null
+  readonly #statusController: ITaskStatusControllerBase<Result, Status>
+  readonly #logLevel: null | LogLevel
+  readonly #supportsArgs: boolean
+  readonly #supportsDelay: boolean
+  readonly #supportsRepeat: boolean
+  readonly #supportsRerun: boolean
+  #runOptions: null | RunOptions = null
+  #runPromise: Promise<Result> | null = null
 
   constructor(
     task: ITaskWrapperSource<Args, Result, RunOptions, Status>,
     options: TaskWrapperOptions<Result, Status>,
   ) {
     this._task = task
-    this._statusController = options.statusController
-    this._logLevel = options.logLevel ?? null
-    this._supportsArgs = 'args' in task
-    this._supportsDelay = 'skipDelay' in task
-    this._supportsRepeat = 'skipRepeat' in task
-    this._supportsRerun = 'skipRerun' in task
+    this.#statusController = options.statusController
+    this.#logLevel = options.logLevel ?? null
+    this.#supportsArgs = 'args' in task
+    this.#supportsDelay = 'skipDelay' in task
+    this.#supportsRepeat = 'skipRepeat' in task
+    this.#supportsRerun = 'skipRerun' in task
   }
 
   get supportsArgs(): boolean {
-    return this._supportsArgs
+    return this.#supportsArgs
   }
 
   get supportsDelay(): boolean {
-    return this._supportsDelay
+    return this.#supportsDelay
   }
 
   get supportsRepeat(): boolean {
-    return this._supportsRepeat
+    return this.#supportsRepeat
   }
 
   get supportsRerun(): boolean {
-    return this._supportsRerun
+    return this.#supportsRerun
   }
 
   get args(): Args {
-    if (!this._supportsArgs) {
+    if (!this.#supportsArgs) {
       throw new Error('[TaskWrapper] Wrapped task does not support args')
     }
     return (this._task as ITaskArgs<Args>).args
   }
 
   set args(value: Args) {
-    if (!this._supportsArgs) {
+    if (!this.#supportsArgs) {
       throw new Error('[TaskWrapper] Wrapped task does not support args')
     }
     ;(this._task as ITaskArgs<Args>).args = value
   }
 
   get status(): Status {
-    return this._statusController.status
+    return this.#statusController.status
   }
 
   protected get statusInner(): Status {
@@ -118,40 +118,40 @@ export class TaskWrapper<
 
   abort(reason?: any): void {
     this._task.abort(reason)
-    this._statusController.abort(reason)
+    this.#statusController.abort(reason)
   }
 
   get abortSignal(): IAbortSignalFast {
-    return this._statusController.abortSignal
+    return this.#statusController.abortSignal
   }
 
   get timeController(): ITimeController {
-    return this._statusController.timeController
+    return this.#statusController.timeController
   }
 
   subscribe(listener: Listener<Status>): Unsubscribe {
-    return this._statusController.subscribe(listener)
+    return this.#statusController.subscribe(listener)
   }
 
   protected runInternal(): Promise<Result> {
-    return this._task.run(this._runOptions)
+    return this._task.run(this.#runOptions)
   }
 
   run(options?: null | RunOptions): Promise<Result> {
-    this._runOptions = options ?? null
+    this.#runOptions = options ?? null
     this.abortSignal.throwIfAborted()
-    if (!this._runPromise) {
-      this._runPromise = this._statusController
+    if (!this.#runPromise) {
+      this.#runPromise = this.#statusController
         .run(() => this.runInternal())
         .finally(() => {
-          this._runPromise = null
+          this.#runPromise = null
         })
       // Suppress unhandled rejection when error logging is disabled
-      if (this._logLevel != null && this._logLevel < LogLevel.error) {
-        this._runPromise.catch(EMPTY_FUNC)
+      if (this.#logLevel != null && this.#logLevel < LogLevel.error) {
+        this.#runPromise.catch(EMPTY_FUNC)
       }
     }
-    return this._runPromise
+    return this.#runPromise
   }
 
   wait(): Promise<void> {
@@ -163,21 +163,21 @@ export class TaskWrapper<
   }
 
   skipDelay(): void {
-    if (!this._supportsDelay) {
+    if (!this.#supportsDelay) {
       return
     }
     ;(this._task as ITaskDelay).skipDelay()
   }
 
   skipRepeat(): void {
-    if (!this._supportsRepeat) {
+    if (!this.#supportsRepeat) {
       return
     }
     ;(this._task as ITaskRepeat).skipRepeat()
   }
 
   skipRerun(): void {
-    if (!this._supportsRerun) {
+    if (!this.#supportsRerun) {
       return
     }
     ;(this._task as ITaskRerun).skipRerun()

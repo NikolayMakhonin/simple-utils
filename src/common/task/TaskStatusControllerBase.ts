@@ -50,14 +50,11 @@ export class TaskStatusControllerBase<
   Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
 > implements ITaskStatusControllerBase<Result, Status>
 {
-  private readonly _options:
-    | undefined
-    | null
-    | TaskStatusControllerBaseOptions<Result>
-  private readonly _abortController: AbortControllerReusable = null!
-  private readonly _events: ISubject<Status>
-  private readonly _timeController: ITimeController
-  private _status: Status
+  readonly #options: undefined | null | TaskStatusControllerBaseOptions<Result>
+  readonly #abortController: AbortControllerReusable = null!
+  readonly #events: ISubject<Status>
+  readonly #timeController: ITimeController
+  #status: Status
 
   constructor(
     initialStatus: Omit<
@@ -80,13 +77,13 @@ export class TaskStatusControllerBase<
     >,
     options: undefined | null | TaskStatusControllerBaseOptions<Result>,
   ) {
-    this._options = options
-    this._abortController = new AbortControllerReusable(this._options)
-    this._timeController =
-      this._options?.timeController ?? timeControllerDefault
-    this._status = {
-      abortSignal: this._abortController.signal,
-      timeController: this._timeController,
+    this.#options = options
+    this.#abortController = new AbortControllerReusable(this.#options)
+    this.#timeController =
+      this.#options?.timeController ?? timeControllerDefault
+    this.#status = {
+      abortSignal: this.#abortController.signal,
+      timeController: this.#timeController,
       firstStart: null,
       isRunning: false,
       isAborted: false,
@@ -98,43 +95,43 @@ export class TaskStatusControllerBase<
       lastHasError: false,
       ...initialStatus,
     } as Status
-    this._events = new Subject({
+    this.#events = new Subject({
       emitLastEvent: true,
       hasLast: true,
-      last: this._status,
+      last: this.#status,
     })
-    this._abortController.subscribe(() => {
-      this._events.emit(this._status)
+    this.#abortController.subscribe(() => {
+      this.#events.emit(this.#status)
     })
   }
 
   get status(): Status {
-    return this._status
+    return this.#status
   }
 
   subscribe(listener: Listener<Status>): Unsubscribe {
-    return this._events.subscribe(listener)
+    return this.#events.subscribe(listener)
   }
 
   protected onStart(): void {
-    const now = this._timeController.now()
-    this._status = {
-      ...this._status,
-      abortSignal: this._abortController.signal,
+    const now = this.#timeController.now()
+    this.#status = {
+      ...this.#status,
+      abortSignal: this.#abortController.signal,
       isRunning: true,
-      isAborted: this._abortController.signal.aborted,
-      firstStart: this._status.firstStart ?? now,
+      isAborted: this.#abortController.signal.aborted,
+      firstStart: this.#status.firstStart ?? now,
       lastStart: now,
     }
-    this._events.emit(this._status)
+    this.#events.emit(this.#status)
   }
 
   protected onResult(result: Result): void {
-    this._status = {
-      ...this._status,
+    this.#status = {
+      ...this.#status,
       isRunning: false,
-      isAborted: this._abortController.signal.aborted,
-      lastEnd: this._timeController.now(),
+      isAborted: this.#abortController.signal.aborted,
+      lastEnd: this.#timeController.now(),
       lastHasError: false,
       lastError: undefined,
       lastResult: result,
@@ -143,11 +140,11 @@ export class TaskStatusControllerBase<
   }
 
   protected onError(error: any): void {
-    this._status = {
-      ...this._status,
+    this.#status = {
+      ...this.#status,
       isRunning: false,
-      isAborted: this._abortController.signal.aborted,
-      lastEnd: this._timeController.now(),
+      isAborted: this.#abortController.signal.aborted,
+      lastEnd: this.#timeController.now(),
       lastHasError: true,
       lastError: error,
       lastResult: undefined,
@@ -157,23 +154,23 @@ export class TaskStatusControllerBase<
 
   protected applySuccessPredicate(): void {
     const successPredicate =
-      this._options?.successPredicate ?? taskSuccessPredicateDefault
-    const result = successPredicate(this._status)
+      this.#options?.successPredicate ?? taskSuccessPredicateDefault
+    const result = successPredicate(this.#status)
     if (result === true || result.success === true) {
-      this._status = {
-        ...this._status,
-        lastSuccess: this._status.lastEnd!,
+      this.#status = {
+        ...this.#status,
+        lastSuccess: this.#status.lastEnd!,
         lastFailedReason: undefined,
-        lastSuccessRuns: (this._status.lastSuccessRuns ?? 0) + 1,
+        lastSuccessRuns: (this.#status.lastSuccessRuns ?? 0) + 1,
         lastFailedRuns: 0,
       }
     } else {
-      this._status = {
-        ...this._status,
-        lastFailed: this._status.lastEnd!,
+      this.#status = {
+        ...this.#status,
+        lastFailed: this.#status.lastEnd!,
         lastFailedReason: result.reason,
         lastSuccessRuns: 0,
-        lastFailedRuns: (this._status.lastFailedRuns ?? 0) + 1,
+        lastFailedRuns: (this.#status.lastFailedRuns ?? 0) + 1,
       }
     }
     // Abort emits status event, so we don't need to emit it here
@@ -193,14 +190,14 @@ export class TaskStatusControllerBase<
   }
 
   abort(reason?: any): void {
-    this._abortController.abort(reason)
+    this.#abortController.abort(reason)
   }
 
   get abortSignal(): IAbortSignalFast {
-    return this._abortController.signal
+    return this.#abortController.signal
   }
 
   get timeController(): ITimeController {
-    return this._timeController
+    return this.#timeController
   }
 }

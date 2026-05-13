@@ -57,9 +57,9 @@ export class TaskRepeated<
   extends TaskWrapper<Args, Result, RunOptions>
   implements ITaskRepeated<Args, Result, RunOptions>
 {
-  private readonly _options: TaskOptionsRepeated<Result>
-  private _delayAbortController: IAbortControllerFast | null = null
-  private _skipRepeat: boolean = false
+  readonly #options: TaskOptionsRepeated<Result>
+  #delayAbortController: IAbortControllerFast | null = null
+  #skipRepeat: boolean = false
 
   constructor(
     task: ITaskWrapperSource<Args, Result, RunOptions, Status>,
@@ -69,20 +69,20 @@ export class TaskRepeated<
       statusController: new TaskStatusControllerBase({}, options),
       logLevel: options.logLevel,
     })
-    this._options = options
+    this.#options = options
   }
 
   private abortDelay(): void {
-    if (this._delayAbortController) {
-      this._delayAbortController.abort()
-      this._delayAbortController = null
+    if (this.#delayAbortController) {
+      this.#delayAbortController.abort()
+      this.#delayAbortController = null
     }
   }
 
   private createDelayAbortSignal(): IAbortSignalFast {
-    this._delayAbortController = new AbortControllerFast()
+    this.#delayAbortController = new AbortControllerFast()
     return combineAbortSignals(
-      this._delayAbortController.signal,
+      this.#delayAbortController.signal,
       this.abortSignal,
     )
   }
@@ -93,7 +93,7 @@ export class TaskRepeated<
   }
 
   skipRepeat(): void {
-    this._skipRepeat = true
+    this.#skipRepeat = true
     this.abortDelay()
   }
 
@@ -110,8 +110,8 @@ export class TaskRepeated<
 
   protected async runInternal(): Promise<Result> {
     try {
-      while (!this.abortSignal.aborted && !this._skipRepeat) {
-        const strategyResult = this._options.repeatStrategy(this.statusInner)
+      while (!this.abortSignal.aborted && !this.#skipRepeat) {
+        const strategyResult = this.#options.repeatStrategy(this.statusInner)
 
         if (strategyResult?.stop) {
           this.abort(strategyResult.stopReason)
@@ -127,7 +127,7 @@ export class TaskRepeated<
           }
         }
 
-        if (this._skipRepeat || this.abortSignal.aborted) {
+        if (this.#skipRepeat || this.abortSignal.aborted) {
           break
         }
 
@@ -151,7 +151,7 @@ export class TaskRepeated<
             ? await delayResultOrPromise
             : delayResultOrPromise
 
-          if (this._skipRepeat || this.abortSignal.aborted) {
+          if (this.#skipRepeat || this.abortSignal.aborted) {
             break
           }
 
@@ -180,7 +180,7 @@ export class TaskRepeated<
       }
     } finally {
       this.abortDelay()
-      this._skipRepeat = false
+      this.#skipRepeat = false
     }
 
     return this.result()
@@ -194,7 +194,7 @@ export class TaskRepeated<
       super.runInternal().catch(EMPTY_FUNC)
     }
     // Calling run() cancels any pending skipRepeat
-    this._skipRepeat = false
+    this.#skipRepeat = false
     return super.run(options)
   }
 }

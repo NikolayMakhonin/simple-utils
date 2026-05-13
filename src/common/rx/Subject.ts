@@ -22,18 +22,18 @@ export type SubjectOptions<T> = {
 }
 
 export class Subject<T = void> implements ISubject<T> {
-  private readonly _listeners = new Map<object, (event: T) => void>()
-  private readonly _listenersAdd = new Map<object, (event: T) => void>()
-  private readonly _startStopNotifier: null | StartStopNotifier<T>
-  private readonly _emit: ((value: T) => PromiseOrValue<void>) | null
-  private readonly _update: ((updater: (event: T) => T) => void) | null
-  private _unsubscribeNotifier: null | Unsubscribe = null
-  private readonly _emitLast: boolean
-  private _hasLast: boolean
-  private _last: T | undefined = undefined
-  private _emitting: boolean = false
-  private _subscribing: boolean = false
-  private readonly _actionOnCycle: ActionOnCycle
+  readonly #listeners = new Map<object, (event: T) => void>()
+  readonly #listenersAdd = new Map<object, (event: T) => void>()
+  readonly #startStopNotifier: null | StartStopNotifier<T>
+  readonly #emit: ((value: T) => PromiseOrValue<void>) | null
+  readonly #update: ((updater: (event: T) => T) => void) | null
+  #unsubscribeNotifier: null | Unsubscribe = null
+  readonly #emitLast: boolean
+  #hasLast: boolean
+  #last: T | undefined = undefined
+  #emitting: boolean = false
+  #subscribing: boolean = false
+  readonly #actionOnCycle: ActionOnCycle
 
   constructor({
     emitLastEvent,
@@ -42,98 +42,98 @@ export class Subject<T = void> implements ISubject<T> {
     last,
     actionOnCycle,
   }: SubjectOptions<T> = {}) {
-    this._startStopNotifier = startStopNotifier ?? null
-    this._emit = startStopNotifier ? value => this.emit(value) : null
-    this._update = startStopNotifier ? updater => this.update(updater) : null
-    this._emitLast = emitLastEvent ?? false
-    this._hasLast = hasLast ?? false
-    this._last = last
-    this._actionOnCycle = actionOnCycle ?? false
+    this.#startStopNotifier = startStopNotifier ?? null
+    this.#emit = startStopNotifier ? value => this.emit(value) : null
+    this.#update = startStopNotifier ? updater => this.update(updater) : null
+    this.#emitLast = emitLastEvent ?? false
+    this.#hasLast = hasLast ?? false
+    this.#last = last
+    this.#actionOnCycle = actionOnCycle ?? false
   }
 
   get hasLast(): boolean {
-    return this._hasLast
+    return this.#hasLast
   }
 
   get last(): T | undefined {
-    return this._last
+    return this.#last
   }
 
   get hasListeners(): boolean {
-    return this._listeners.size > 0
+    return this.#listeners.size > 0
   }
 
   subscribe(listener: Listener<T>): Unsubscribe {
     const id = {}
-    if (this._emitting) {
-      this._listenersAdd.set(id, listener)
+    if (this.#emitting) {
+      this.#listenersAdd.set(id, listener)
     } else {
-      this._listeners.set(id, listener)
+      this.#listeners.set(id, listener)
     }
-    if (this._subscribing && this._actionOnCycle === 'throw') {
+    if (this.#subscribing && this.#actionOnCycle === 'throw') {
       throw new Error('[Rx][Subject] Circular subscription detected')
     }
     if (
-      this._hasLast ||
-      (this._subscribing && this._actionOnCycle === 'emitLast')
+      this.#hasLast ||
+      (this.#subscribing && this.#actionOnCycle === 'emitLast')
     ) {
-      listener(this._last!)
+      listener(this.#last!)
     }
     if (
-      this._startStopNotifier &&
-      this._listeners.size + this._listenersAdd.size === 1
+      this.#startStopNotifier &&
+      this.#listeners.size + this.#listenersAdd.size === 1
     ) {
       try {
-        this._subscribing = true
-        this._unsubscribeNotifier =
-          this._startStopNotifier(this._emit!, this._update!) ?? null
+        this.#subscribing = true
+        this.#unsubscribeNotifier =
+          this.#startStopNotifier(this.#emit!, this.#update!) ?? null
       } finally {
-        this._subscribing = false
+        this.#subscribing = false
       }
     }
     return () => {
-      this._listeners.delete(id)
-      this._listenersAdd.delete(id)
+      this.#listeners.delete(id)
+      this.#listenersAdd.delete(id)
       if (
-        this._startStopNotifier &&
-        this._listeners.size === 0 &&
-        this._listenersAdd.size === 0
+        this.#startStopNotifier &&
+        this.#listeners.size === 0 &&
+        this.#listenersAdd.size === 0
       ) {
-        const unsubscribeNotifier = this._unsubscribeNotifier
-        this._unsubscribeNotifier = null
+        const unsubscribeNotifier = this.#unsubscribeNotifier
+        this.#unsubscribeNotifier = null
         unsubscribeNotifier?.()
       }
     }
   }
 
   emit(event: T): PromiseOrValue<void> {
-    if (this._emitting) {
-      if (this._actionOnCycle === 'throw') {
+    if (this.#emitting) {
+      if (this.#actionOnCycle === 'throw') {
         throw new Error('[Rx][Subject] Circular emit detected')
       }
-      if (this._actionOnCycle === 'emitLast') {
-        this._last = event
-        this._hasLast = true
+      if (this.#actionOnCycle === 'emitLast') {
+        this.#last = event
+        this.#hasLast = true
       }
       return
     }
     const onFinally = () => {
-      if (this._listenersAdd.size > 0) {
-        this._listenersAdd.forEach((listener, id) => {
-          this._listeners.set(id, listener)
+      if (this.#listenersAdd.size > 0) {
+        this.#listenersAdd.forEach((listener, id) => {
+          this.#listeners.set(id, listener)
         })
-        this._listenersAdd.clear()
+        this.#listenersAdd.clear()
       }
-      this._emitting = false
+      this.#emitting = false
     }
     try {
-      this._emitting = true
-      if (this._emitLast) {
-        this._last = event
-        this._hasLast = true
+      this.#emitting = true
+      if (this.#emitLast) {
+        this.#last = event
+        this.#hasLast = true
       }
       let promises: PromiseLike<void>[] | undefined
-      this._listeners.forEach(listener => {
+      this.#listeners.forEach(listener => {
         const promiseOrValue = listener(event)
         if (isPromiseLike(promiseOrValue)) {
           if (!promises) {
@@ -156,12 +156,12 @@ export class Subject<T = void> implements ISubject<T> {
   }
 
   update(updater: (event: T) => T): PromiseOrValue<void> {
-    if (!this._emitLast) {
+    if (!this.#emitLast) {
       throw new Error(
         '[Rx][Subject] update available only for subjects with emitLastEvent',
       )
     }
-    const newEvent = updater(this._last!)
+    const newEvent = updater(this.#last!)
     return this.emit(newEvent)
   }
 }

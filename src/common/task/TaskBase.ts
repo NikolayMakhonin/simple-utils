@@ -30,84 +30,84 @@ export class TaskBase<
   RunOptions extends TaskRunOptionsBase = TaskRunOptionsBase,
 > implements ITaskBaseWithArgs<Args, Result, RunOptions, TaskStatusBase<Result>>
 {
-  private readonly _options: null | TaskOptionsBase<Result>
-  private readonly _func: TaskFunc<Args, Result>
-  private readonly _wait: () => Promise<void>
-  private readonly _statusController: TaskStatusControllerBase<
+  readonly #options: null | TaskOptionsBase<Result>
+  readonly #func: TaskFunc<Args, Result>
+  readonly #wait: () => Promise<void>
+  readonly #statusController: TaskStatusControllerBase<
     Result,
     TaskStatusBase<Result>
   >
-  private _args: Args
-  private _runPromise: Promise<Result> | null = null
+  #args: Args
+  #runPromise: Promise<Result> | null = null
 
   constructor(
     func: TaskFunc<Args, Result>,
     args: Args,
     options?: null | TaskOptionsBase<Result>,
   ) {
-    this._options = options ?? null
-    this._func = func
-    this._args = args
-    this._wait = () => this.wait()
-    this._statusController = new TaskStatusControllerBase<
+    this.#options = options ?? null
+    this.#func = func
+    this.#args = args
+    this.#wait = () => this.wait()
+    this.#statusController = new TaskStatusControllerBase<
       Result,
       TaskStatusBase<Result>
-    >({}, this._options)
+    >({}, this.#options)
   }
 
   get args(): Args {
-    return this._args
+    return this.#args
   }
 
   set args(value: Args) {
-    this._args = value
+    this.#args = value
   }
 
   get status(): TaskStatusBase<Result> {
-    return this._statusController.status
+    return this.#statusController.status
   }
 
   abort(reason?: any): void {
-    this._statusController.abort(reason)
+    this.#statusController.abort(reason)
   }
 
   subscribe(listener: Listener<TaskStatusBase<Result>>): Unsubscribe {
-    return this._statusController.subscribe(listener)
+    return this.#statusController.subscribe(listener)
   }
 
   private logError(error: any): void {
     if (
-      this._options?.logLevel == null ||
-      this._options.logLevel >= LogLevel.error
+      this.#options?.logLevel == null ||
+      this.#options.logLevel >= LogLevel.error
     ) {
       console.error('[TaskBase]', error)
     }
   }
 
   run(options?: null | RunOptions): Promise<Result> {
-    this._statusController.abortSignal.throwIfAborted()
-    if (this._runPromise) {
-      return this._runPromise
+    this.#statusController.abortSignal.throwIfAborted()
+    if (this.#runPromise) {
+      return this.#runPromise
     }
 
-    const isFirst = this._statusController.status.firstStart == null
+    const isFirst = this.#statusController.status.firstStart == null
 
-    const resultOrPromise = this._statusController.run(() =>
-      this._func(this._args, {
-        abortSignal: this._statusController.abortSignal,
-        timeController: this._statusController.timeController,
+    const resultOrPromise = this.#statusController.run(() =>
+      this.#func(this.#args, {
+        abortSignal: this.#statusController.abortSignal,
+        timeController: this.#statusController.timeController,
         isFirst,
       }),
     )
 
-    this._runPromise = promiseLikeToPromise(
+    this.#runPromise = promiseLikeToPromise(
       resultOrPromise.then(
         result => {
-          this._runPromise = null
+          this.#runPromise = null
           return result
         },
         error => {
-          this._runPromise = null
+          this.#runPromise = null
           this.logError(error)
           throw error
         },
@@ -116,22 +116,22 @@ export class TaskBase<
 
     // Suppress unhandled rejection when error logging is disabled
     if (
-      this._options?.logLevel != null &&
-      this._options.logLevel < LogLevel.error
+      this.#options?.logLevel != null &&
+      this.#options.logLevel < LogLevel.error
     ) {
-      this._runPromise.catch(EMPTY_FUNC)
+      this.#runPromise.catch(EMPTY_FUNC)
     }
 
-    return this._runPromise
+    return this.#runPromise
   }
 
   wait(): Promise<void> {
-    return this._runPromise?.then(EMPTY_FUNC, EMPTY_FUNC) ?? Promise.resolve()
+    return this.#runPromise?.then(EMPTY_FUNC, EMPTY_FUNC) ?? Promise.resolve()
   }
 
   waitIdle(): Promise<void> {
-    if (this._runPromise) {
-      return this._runPromise.then(this._wait, this._wait)
+    if (this.#runPromise) {
+      return this.#runPromise.then(this.#wait, this.#wait)
     }
     return Promise.resolve()
   }

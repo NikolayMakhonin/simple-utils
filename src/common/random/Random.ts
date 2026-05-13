@@ -30,16 +30,16 @@ export function getRandomFunc(seed?: null | number) {
  * but can be pseudorandom with seed
  */
 export class Random {
-  private readonly _seed: number | null | undefined
-  private readonly _rnd: () => number
+  readonly #seed: number | null | undefined
+  readonly #rnd: () => number
 
   constructor(seed?: null | number) {
-    this._seed = seed
-    this._rnd = getRandomFunc(seed)
+    this.#seed = seed
+    this.#rnd = getRandomFunc(seed)
   }
 
   get seed(): number | null | undefined {
-    return this._seed
+    return this.#seed
   }
 
   nextSeed(): number {
@@ -53,10 +53,10 @@ export class Random {
   }
 
   next(): number {
-    return this._rnd()
+    return this.#rnd()
   }
 
   clone(): Random {
-    return new Random(this._seed)
+    return new Random(this.#seed)
   }
 }

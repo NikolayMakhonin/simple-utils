@@ -16,33 +16,33 @@ export interface ILocker {
 }
 
 export class Locker implements ILocker {
-  private _lockPromise: null | PromiseLike<void> = null
+  #lockPromise: null | PromiseLike<void> = null
 
   get hasQueued(): boolean {
-    return this._lockPromise != null
+    return this.#lockPromise != null
   }
 
   lock<T>(handler: () => PromiseLikeOrValue<T>): PromiseOrValue<T> {
-    if (this._lockPromise) {
+    if (this.#lockPromise) {
       return promiseLikeToPromise(
-        this._lockPromise.then(() => this.lock(handler)),
+        this.#lockPromise.then(() => this.lock(handler)),
       )
     }
     const promiseOrValue = handler()
     if (isPromiseLike(promiseOrValue)) {
       const promise = promiseOrValue.then(
         () => {
-          if (this._lockPromise === promise) {
-            this._lockPromise = null
+          if (this.#lockPromise === promise) {
+            this.#lockPromise = null
           }
         },
         () => {
-          if (this._lockPromise === promise) {
-            this._lockPromise = null
+          if (this.#lockPromise === promise) {
+            this.#lockPromise = null
           }
         },
       )
-      this._lockPromise = promise
+      this.#lockPromise = promise
     }
     return promiseLikeToPromise(promiseOrValue)
   }
@@ -59,17 +59,17 @@ export interface ILockerWithId<Id> {
 }
 
 export class LockerWithId<Id> implements ILockerWithId<Id> {
-  private readonly _lockers: Map<Id, Locker> = new Map()
+  readonly #lockers: Map<Id, Locker> = new Map()
 
   lock<T>(id: Id, handler: () => PromiseLikeOrValue<T>): PromiseOrValue<T> {
-    let locker = this._lockers.get(id)
+    let locker = this.#lockers.get(id)
     if (locker == null) {
       locker = new Locker()
-      this._lockers.set(id, locker)
+      this.#lockers.set(id, locker)
     }
     const cleanup = () => {
       if (!locker.hasQueued) {
-        this._lockers.delete(id)
+        this.#lockers.delete(id)
       }
     }
     let resultOrPromise: PromiseOrValue<T>
@@ -96,7 +96,7 @@ export class LockerWithId<Id> implements ILockerWithId<Id> {
   }
 
   hasQueued(id: Id): boolean {
-    const locker = this._lockers.get(id)
+    const locker = this.#lockers.get(id)
     return locker != null && locker.hasQueued
   }
 }

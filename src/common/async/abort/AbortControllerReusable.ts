@@ -21,44 +21,44 @@ export type AbortControllerReusableOptions = {
 export class AbortControllerReusable
   implements IAbortControllerFast, IObservable<TAbortReason>
 {
-  private readonly _options: null | AbortControllerReusableOptions
-  private readonly _events: ISubject<TAbortReason> = new Subject()
-  private _abortController: IAbortControllerFast = null!
-  private _abortSignal: IAbortSignalFast = null!
+  readonly #options: null | AbortControllerReusableOptions
+  readonly #events: ISubject<TAbortReason> = new Subject()
+  #abortController: IAbortControllerFast = null!
+  #abortSignal: IAbortSignalFast = null!
 
   constructor(options?: null | AbortControllerReusableOptions) {
-    this._options = options ?? null
+    this.#options = options ?? null
     this.resetAbortController()
   }
 
   private resetAbortController(): void {
-    this._abortController = new AbortControllerFast()
-    this._abortSignal = combineAbortSignals(
-      this._abortController.signal,
-      this._options?.abortSignal,
+    this.#abortController = new AbortControllerFast()
+    this.#abortSignal = combineAbortSignals(
+      this.#abortController.signal,
+      this.#options?.abortSignal,
     )
-    this._abortSignal.subscribe(reason => {
-      this._events.emit(reason)
+    this.#abortSignal.subscribe(reason => {
+      this.#events.emit(reason)
     })
   }
 
   abort(reason?: TAbortReason): void {
-    if (this._options?.abortSignal?.aborted) {
+    if (this.#options?.abortSignal?.aborted) {
       return
     }
-    const abortController = this._abortController
+    const abortController = this.#abortController
     this.resetAbortController()
     abortController.abort(reason)
   }
 
   get signal(): IAbortSignalFast {
-    return this._abortSignal
+    return this.#abortSignal
   }
 
   subscribe(callback: (reason: TAbortReason) => void): IUnsubscribe {
-    if (this._abortSignal.aborted) {
-      callback(this._abortSignal.reason)
+    if (this.#abortSignal.aborted) {
+      callback(this.#abortSignal.reason)
     }
-    return this._events.subscribe(callback)
+    return this.#events.subscribe(callback)
   }
 }

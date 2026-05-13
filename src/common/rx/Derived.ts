@@ -16,16 +16,16 @@ export type DerivedFunc<S extends Stores, T> = (
 
 /** @deprecated Incompleted, use svelte derived instead */
 export class Derived<S extends Stores, T> implements IObservable<T> {
-  private readonly _source: S
-  private readonly _subject: ISubject<T>
+  readonly #source: S
+  readonly #subject: ISubject<T>
 
   constructor(source: S, func: DerivedFunc<S, T>) {
-    this._source = source
-    this._subject = new Subject<T>({
+    this.#source = source
+    this.#subject = new Subject<T>({
       startStopNotifier: (emit, update) => {
         const values: StoresValues<S> = [] as any
         const unsubscribes: Unsubscribe[] = []
-        this._source.forEach((src, index) => {
+        this.#source.forEach((src, index) => {
           unsubscribes.push(
             src.subscribe(value => {
               values[index] = value
@@ -55,6 +55,6 @@ export class Derived<S extends Stores, T> implements IObservable<T> {
   }
 
   subscribe(listener: Listener<T>): Unsubscribe {
-    return this._subject.subscribe(listener)
+    return this.#subject.subscribe(listener)
   }
 }
