@@ -20,6 +20,7 @@ export function mergeRepeatStrategies<
 ): TaskRepeatStrategy<Result, Status> {
   return function merged(status) {
     let stop: boolean | null | undefined
+    let stopReason: any
     let skipRun: boolean | null | undefined
     const delays: (number | TaskRepeatStrategyDelay<Result, Status>)[] = []
 
@@ -31,6 +32,7 @@ export function mergeRepeatStrategies<
 
       if (strategyResult.stop != null) {
         stop = strategyResult.stop
+        stopReason = strategyResult.stopReason
       }
       if (strategyResult.skipRun != null) {
         skipRun = strategyResult.skipRun
@@ -45,7 +47,7 @@ export function mergeRepeatStrategies<
     }
 
     if (stop) {
-      return { stop }
+      return { stop, stopReason }
     }
 
     if (delays.length === 0) {
@@ -85,6 +87,7 @@ function mergeDelays<
     }
 
     let resultStop: boolean | null | undefined
+    let resultStopReason: any
     let resultDelay: number | null | undefined
 
     for (let i = 0, len = promises.length; i < len; i++) {
@@ -100,13 +103,14 @@ function mergeDelays<
       } else {
         if (result.stop != null) {
           resultStop = result.stop
+          resultStopReason = result.stopReason
         }
         if (result.delay != null) {
           resultDelay = result.delay
         }
       }
       if (resultStop) {
-        return { stop: resultStop }
+        return { stop: resultStop, stopReason: resultStopReason }
       }
     }
 
@@ -114,6 +118,10 @@ function mergeDelays<
       return undefined
     }
 
-    return { stop: resultStop, delay: resultDelay }
+    return {
+      stop: resultStop,
+      stopReason: resultStopReason,
+      delay: resultDelay,
+    }
   }
 }

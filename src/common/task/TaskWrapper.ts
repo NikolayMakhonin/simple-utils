@@ -104,9 +104,9 @@ export class TaskWrapper<
     return this._task.status
   }
 
-  abort(): void {
-    this._task.abort()
-    this._statusController.abort()
+  abort(reason?: any): void {
+    this._task.abort(reason)
+    this._statusController.abort(reason)
   }
 
   get abortSignal(): IAbortSignalFast {

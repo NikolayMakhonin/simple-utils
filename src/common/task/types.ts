@@ -108,7 +108,7 @@ export interface ITaskRun<
 > {
   run(options?: null | RunOptions): Promise<Result>
   /** Abort current and scheduled executions */
-  abort(): void
+  abort(reason?: any): void
   /** Wait for current execution to complete */
   wait(): Promise<void>
   /** Wait until no execution is running and no rerun is pending */
@@ -173,6 +173,7 @@ export type TaskRepeatStrategyBefore<
 > = {
   /** Stop repeating */
   readonly stop?: null | boolean
+  readonly stopReason?: any
   /** Skip task execution this iteration and go to delay directly, if delay is set */
   readonly skipRun?: null | boolean
   /**
@@ -212,6 +213,7 @@ export type TaskRepeatStrategyDelay<
 export type TaskRepeatStrategyAfter = {
   /** Stop repeating */
   readonly stop?: null | boolean
+  readonly stopReason?: any
   /**
    * -1 - no delay
    * 0 - delay 0 ms, like setTimeout(func, 0)

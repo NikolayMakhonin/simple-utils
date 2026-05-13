@@ -230,11 +230,11 @@ export class TaskThrottled<
     this.abortDelay()
   }
 
-  abort() {
+  abort(reason?: any): void {
     this._throttleTimeCurrent = null
     this._throttleTimeMaxCurrent = null
     this.skipDelay()
-    super.abort()
+    super.abort(reason)
   }
 
   run(options?: null | RunOptions): Promise<Result> {

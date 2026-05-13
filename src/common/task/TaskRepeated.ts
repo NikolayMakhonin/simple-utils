@@ -111,7 +111,7 @@ export class TaskRepeated<
         const strategyResult = this._options.repeatStrategy(this.statusInner)
 
         if (strategyResult?.stop) {
-          this.abort()
+          this.abort(strategyResult.stopReason)
           break
         }
 
@@ -158,7 +158,7 @@ export class TaskRepeated<
             afterDelay = delayFuncResult
           } else if (delayFuncResult != null) {
             if (delayFuncResult.stop) {
-              this.abort()
+              this.abort(delayFuncResult.stopReason)
               break
             }
             afterDelay = delayFuncResult.delay

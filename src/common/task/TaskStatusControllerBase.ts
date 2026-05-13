@@ -22,7 +22,7 @@ export interface ITaskStatusControllerBase<
   Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
 > extends ITaskStatus<Result, Status> {
   run(func: () => PromiseLikeOrValue<Result>): Promise<Result>
-  abort(): void
+  abort(reason?: any): void
   readonly abortSignal: IAbortSignalFast
   readonly timeController: ITimeController
 }
@@ -192,8 +192,8 @@ export class TaskStatusControllerBase<
     }
   }
 
-  abort(): void {
-    this._abortController.abort()
+  abort(reason?: any): void {
+    this._abortController.abort(reason)
   }
 
   get abortSignal(): IAbortSignalFast {

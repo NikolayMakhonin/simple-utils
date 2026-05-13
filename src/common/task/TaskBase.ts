@@ -67,8 +67,8 @@ export class TaskBase<
     return this._statusController.status
   }
 
-  abort(): void {
-    this._statusController.abort()
+  abort(reason?: any): void {
+    this._statusController.abort(reason)
   }
 
   subscribe(listener: Listener<TaskStatusBase<Result>>): Unsubscribe {
