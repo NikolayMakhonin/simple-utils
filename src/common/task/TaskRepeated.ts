@@ -119,7 +119,10 @@ export class TaskRepeated<
         | TaskRepeatStrategyBefore<Result>
       while (!this.abortSignal.aborted && !this.#skipRepeat) {
         // If task was started during delay stage, then we should wait idle and run delay with previous strategyResult
-        if (prevTotalStarts === this.statusInner.totalStarts) {
+        if (
+          !this.statusInner.isRunning &&
+          prevTotalStarts === this.statusInner.totalStarts
+        ) {
           strategyResult = this.#options.repeatStrategy(this.statusInner)
 
           if (strategyResult?.stop) {
@@ -129,11 +132,15 @@ export class TaskRepeated<
         }
 
         if (
+          this.statusInner.isRunning ||
           prevTotalStarts !== this.statusInner.totalStarts ||
           !strategyResult?.skipRun
         ) {
           try {
-            if (prevTotalStarts === this.statusInner.totalStarts) {
+            if (
+              !this.statusInner.isRunning &&
+              prevTotalStarts === this.statusInner.totalStarts
+            ) {
               await super.runInternal()
             }
             await this.waitIdle()
