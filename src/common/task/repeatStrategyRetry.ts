@@ -1,4 +1,4 @@
-import type { TaskRepeatStrategy, TaskStatusBase } from './types'
+import type { TaskRepeatStrategy } from './types'
 
 export type RetryDelaysExponential = {
   min: number
@@ -26,10 +26,6 @@ export function repeatStrategyRetry({
   jitter,
 }: RepeatStrategyRetryOptions): TaskRepeatStrategy {
   return function retryStrategy(status) {
-    if (status.lastSuccessRuns) {
-      return { stop: true }
-    }
-
     const failedRuns = status.lastFailedRuns ?? 0
 
     if (
@@ -43,6 +39,10 @@ export function repeatStrategyRetry({
 
     return {
       delay: status => {
+        if (status.lastSuccessRuns) {
+          return { stop: true }
+        }
+
         if (
           !status.lastFailedRuns ||
           delays == null ||
