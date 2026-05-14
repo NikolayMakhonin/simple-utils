@@ -13,6 +13,7 @@ import {
   type ITaskDelay,
   type ITaskRepeat,
   type ITaskRerun,
+  type TaskRepeatStrategyBefore,
   type TaskRepeatStrategy,
   type TaskFunc,
   type TaskRunOptionsBase,
@@ -110,21 +111,36 @@ export class TaskRepeated<
 
   protected async runInternal(): Promise<Result> {
     try {
+      let prevTotalStarts = this.statusInner.totalStarts
+      let strategyResult:
+        | void
+        | undefined
+        | null
+        | TaskRepeatStrategyBefore<Result>
       while (!this.abortSignal.aborted && !this.#skipRepeat) {
-        const strategyResult = this.#options.repeatStrategy(this.statusInner)
+        // If task was started during delay stage, then we should wait idle and run delay with previous strategyResult
+        if (prevTotalStarts === this.statusInner.totalStarts) {
+          strategyResult = this.#options.repeatStrategy(this.statusInner)
 
-        if (strategyResult?.stop) {
-          this.abort(strategyResult.stopReason)
-          break
+          if (strategyResult?.stop) {
+            this.abort(strategyResult.stopReason)
+            break
+          }
         }
 
-        if (!strategyResult?.skipRun) {
+        if (
+          prevTotalStarts !== this.statusInner.totalStarts ||
+          !strategyResult?.skipRun
+        ) {
           try {
-            await super.runInternal()
+            if (prevTotalStarts === this.statusInner.totalStarts) {
+              await super.runInternal()
+            }
             await this.waitIdle()
           } catch {
             // Ignore errors, because it handles in wrapped task
           }
+          prevTotalStarts = this.statusInner.totalStarts
         }
 
         if (this.#skipRepeat || this.abortSignal.aborted) {
@@ -152,7 +168,13 @@ export class TaskRepeated<
             : delayResultOrPromise
 
           if (this.#skipRepeat || this.abortSignal.aborted) {
+            this.abortDelay()
             break
+          }
+
+          if (prevTotalStarts !== this.statusInner.totalStarts) {
+            this.abortDelay()
+            continue
           }
 
           let afterDelay: number | null | undefined

@@ -68,6 +68,7 @@ export class TaskStatusControllerBase<
       | 'lastFailed'
       | 'lastFailedReason'
       | 'lastHasError'
+      | 'totalStarts'
       | 'lastError'
       | 'lastResult'
       | 'lastSuccessRuns'
@@ -93,6 +94,7 @@ export class TaskStatusControllerBase<
       lastFailed: null,
       lastFailedReason: undefined,
       lastHasError: false,
+      totalStarts: 0,
       ...initialStatus,
     } as Status
     this.#events = new Subject({
@@ -122,6 +124,7 @@ export class TaskStatusControllerBase<
       isAborted: this.#abortController.signal.aborted,
       firstStart: this.#status.firstStart ?? now,
       lastStart: now,
+      totalStarts: this.#status.totalStarts + 1,
     }
     this.#events.emit(this.#status)
   }

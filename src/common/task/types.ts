@@ -61,6 +61,11 @@ export type TaskStatusBase<Result = any> = {
    * When lastEnd == null: always false (initial state, no execution completed)
    */
   readonly lastHasError: boolean
+  /**
+   * Represents total count of task starts
+   * 0 - never started yet
+   */
+  readonly totalStarts: number
 
   /**
    * If lastHasError is false then lastError is undefined
