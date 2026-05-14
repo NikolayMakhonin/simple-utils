@@ -16,7 +16,7 @@ export function mergeRepeatStrategies<
   Result = any,
   Status extends TaskStatusBase<Result> = TaskStatusBase<Result>,
 >(
-  ...strategies: TaskRepeatStrategy<Result, Status>[]
+  ...strategies: (TaskRepeatStrategy<Result, Status> | null | undefined)[]
 ): TaskRepeatStrategy<Result, Status> {
   return function merged(status) {
     let stop: boolean | null | undefined
@@ -25,7 +25,11 @@ export function mergeRepeatStrategies<
     const delays: (number | TaskRepeatStrategyDelay<Result, Status>)[] = []
 
     for (let i = 0, len = strategies.length; i < len; i++) {
-      const strategyResult = strategies[i](status)
+      const strategy = strategies[i]
+      if (strategy == null) {
+        continue
+      }
+      const strategyResult = strategy(status)
       if (strategyResult == null) {
         continue
       }
