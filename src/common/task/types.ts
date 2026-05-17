@@ -25,10 +25,10 @@ export type TaskStatusBase<Result = any> = {
    */
   readonly firstStart: null | number
   /**
-   * Previous start date in milliseconds
+   * Previous start date in milliseconds of last completed execution
    * null - never started or only one start
    */
-  readonly prevStart: null | number
+  readonly lastStartCompleted: null | number
   /**
    * Last start date in milliseconds
    * null - never started

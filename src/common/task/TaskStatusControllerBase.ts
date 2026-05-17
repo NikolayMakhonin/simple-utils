@@ -62,7 +62,7 @@ export class TaskStatusControllerBase<
       | 'firstStart'
       | 'isRunning'
       | 'isAborted'
-      | 'prevStart'
+      | 'lastStartCompleted'
       | 'lastStart'
       | 'lastEnd'
       | 'lastSuccess'
@@ -89,7 +89,7 @@ export class TaskStatusControllerBase<
       firstStart: null,
       isRunning: false,
       isAborted: false,
-      prevStart: null,
+      lastStartCompleted: null,
       lastStart: null,
       lastEnd: null,
       lastSuccess: null,
@@ -125,7 +125,6 @@ export class TaskStatusControllerBase<
       isRunning: true,
       isAborted: this.#abortController.signal.aborted,
       firstStart: this.#status.firstStart ?? now,
-      prevStart: this.#status.lastStart,
       lastStart: now,
       totalStarts: this.#status.totalStarts + 1,
     }
@@ -137,6 +136,7 @@ export class TaskStatusControllerBase<
       ...this.#status,
       isRunning: false,
       isAborted: this.#abortController.signal.aborted,
+      lastStartCompleted: this.#status.lastStart,
       lastEnd: this.#timeController.now(),
       lastHasError: false,
       lastError: undefined,
@@ -150,6 +150,7 @@ export class TaskStatusControllerBase<
       ...this.#status,
       isRunning: false,
       isAborted: this.#abortController.signal.aborted,
+      lastStartCompleted: this.#status.lastStart,
       lastEnd: this.#timeController.now(),
       lastHasError: true,
       lastError: error,
