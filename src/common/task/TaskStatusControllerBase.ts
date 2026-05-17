@@ -62,6 +62,7 @@ export class TaskStatusControllerBase<
       | 'firstStart'
       | 'isRunning'
       | 'isAborted'
+      | 'prevStart'
       | 'lastStart'
       | 'lastEnd'
       | 'lastSuccess'
@@ -88,6 +89,7 @@ export class TaskStatusControllerBase<
       firstStart: null,
       isRunning: false,
       isAborted: false,
+      prevStart: null,
       lastStart: null,
       lastEnd: null,
       lastSuccess: null,
@@ -123,6 +125,7 @@ export class TaskStatusControllerBase<
       isRunning: true,
       isAborted: this.#abortController.signal.aborted,
       firstStart: this.#status.firstStart ?? now,
+      prevStart: this.#status.lastStart,
       lastStart: now,
       totalStarts: this.#status.totalStarts + 1,
     }
