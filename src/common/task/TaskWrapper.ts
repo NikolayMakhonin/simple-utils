@@ -137,7 +137,8 @@ export class TaskWrapper<
     return this._task.run(this.#runOptions)
   }
 
-  run(options?: null | RunOptions): Promise<Result> {
+  async run(options?: null | RunOptions): Promise<Result> {
+    await Promise.resolve()
     this.#runOptions = options ?? null
     this.abortSignal.throwIfAborted()
     if (!this.#runPromise) {

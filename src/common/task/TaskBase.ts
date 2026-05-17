@@ -84,7 +84,9 @@ export class TaskBase<
     }
   }
 
-  run(options?: null | RunOptions): Promise<Result> {
+  async run(options?: null | RunOptions): Promise<Result> {
+    await Promise.resolve()
+
     this.#statusController.abortSignal.throwIfAborted()
     if (this.#runPromise) {
       return this.#runPromise
