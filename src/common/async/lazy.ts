@@ -137,8 +137,7 @@ export class LazyWithId<Id, Result = void> implements ILazyWithId<Id, Result> {
 
 export function toLazyFunc<T>(
   func: () => PromiseLikeOrValue<T>,
-  options?: Omit<LazyOptions<T>, 'func'>,
 ): () => PromiseOrValue<T> {
-  const lazy = new Lazy({ func, ...options })
+  const lazy = new Lazy({ func, persist: true })
   return () => lazy.run()
 }
