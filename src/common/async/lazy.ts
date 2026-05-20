@@ -1,5 +1,9 @@
-import type { PromiseOrValue } from 'src/common/types/common'
+import type {
+  PromiseLikeOrValue,
+  PromiseOrValue,
+} from 'src/common/types/common'
 import { isPromiseLike } from './promise/isPromiseLike'
+import { promiseLikeToPromise } from './promise'
 
 // TODO: write doc comments
 export interface ILazy<T = void> {
@@ -8,7 +12,7 @@ export interface ILazy<T = void> {
 
 // TODO: write doc comments
 export type LazyOptions<T> = {
-  func: () => PromiseOrValue<T>
+  func: () => PromiseLikeOrValue<T>
   /** If true, the result will be cached */
   persist?: null | boolean
 }
@@ -52,7 +56,7 @@ export class Lazy<T = void> implements ILazy<T> {
         }
       }
 
-      this.#promiseOrValue = promiseOrValue
+      this.#promiseOrValue = promiseLikeToPromise(promiseOrValue)
       this.#hasValue = true
     }
     return this.#promiseOrValue!
@@ -129,4 +133,12 @@ export class LazyWithId<Id, Result = void> implements ILazyWithId<Id, Result> {
     }
     this.#promiseOrValues.set(id, value)
   }
+}
+
+export function toLazyFunc<T>(
+  func: () => PromiseLikeOrValue<T>,
+  options?: Omit<LazyOptions<T>, 'func'>,
+): () => PromiseOrValue<T> {
+  const lazy = new Lazy({ func, ...options })
+  return () => lazy.run()
 }
