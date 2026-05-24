@@ -22,6 +22,9 @@ export type WorkerEvent<Data = any> = {
    */
   hasError?: boolean
   error?: any
+}
+
+export type WorkerEventIntermediate<Data = any> = WorkerEvent<Data> & {
   /**
    * When the event is response to a specific request,
    * that should deliver through this chain of proxies to the original requester.
@@ -31,9 +34,9 @@ export type WorkerEvent<Data = any> = {
 }
 
 export interface IWorkerEventEmitter<RequestData = any>
-  extends IEmitter<WorkerEvent<RequestData>> {}
+  extends IEmitter<WorkerEventIntermediate<RequestData>> {}
 export interface IWorkerEventObservable<ResponseData = any>
-  extends IObservable<WorkerEvent<ResponseData>> {}
+  extends IObservable<WorkerEventIntermediate<ResponseData>> {}
 export interface IWorkerEventBus<RequestData = any, ResponseData = any>
   extends IWorkerEventEmitter<RequestData>,
     IWorkerEventObservable<ResponseData> {}
