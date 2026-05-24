@@ -1,8 +1,38 @@
-import type { TransferListItem } from 'worker_threads'
+import type { TransferListItem as TransferableNode } from 'worker_threads'
 import type { IEmitter, IObservable } from 'src/common/rx'
 
 /** The list of transferable types for any environment. */
-export type TransferableAny = Transferable | TransferListItem
+export type TransferableAny = Transferable | TransferableNode
+
+export interface IMessagePortEventMap {
+  message: MessageEvent
+  messageerror: MessageEvent
+  close: Event
+}
+
+/**
+ * Cross-platform MessagePort contract.
+ * Browser and Node.js MessagePort have incompatible TypeScript type definitions
+ * but identical runtime behavior for the methods described here.
+ * Both platform MessagePort types can be safely cast via `as IMessagePort`.
+ * The only real platform difference is the set of transferable types:
+ * Node.js allows Blob, FileHandle, X509Certificate in transferList,
+ * browsers do not. The close event exists only in Node.js -
+ * in browsers addEventListener('close', ...) is a harmless no-op.
+ */
+export interface IMessagePort {
+  addEventListener<Type extends keyof IMessagePortEventMap>(
+    type: Type,
+    listener: (event: IMessagePortEventMap[Type]) => void,
+  ): void
+  removeEventListener<Type extends keyof IMessagePortEventMap>(
+    type: Type,
+    listener: (event: IMessagePortEventMap[Type]) => void,
+  ): void
+  postMessage(value: any, transferList?: ReadonlyArray<TransferableAny>): void
+  start(): void
+  close(): void
+}
 
 export type WorkerData<Data = any> = {
   data?: Data

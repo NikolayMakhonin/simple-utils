@@ -1,9 +1,5 @@
 import type { Unsubscribe } from 'src/common/types/common'
-import type {
-  IWorkerEventObservable,
-  WorkerEvent,
-  WorkerEventIntermediate,
-} from './types'
+import type { IWorkerEventObservable, WorkerEvent } from './types'
 import { routePop } from './route'
 import type { Listener } from '../rx'
 
@@ -30,14 +26,15 @@ export function workerSubscribe<ResponseData = any>(
     if (event.route == null) {
       return
     }
-    if (!routePop(event.route, requestId)) {
+    const route = routePop(event.route, requestId)
+    if (route == null) {
       return
     }
-    if (event.route.length > 0) {
+    if (route.length > 0) {
       listener({
         hasError: true,
         error: new Error(
-          `[workerSubscribe] unexpected remaining route length: ${event.route.length}`,
+          `[workerSubscribe] unexpected remaining route length: ${route.length}`,
         ),
       })
       return

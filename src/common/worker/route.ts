@@ -14,8 +14,9 @@
 // - After all intermediaries strip their IDs, route = [requestId] again,
 //   and the original subscriber matches the requestId to resolve its promise.
 //
-// The route array is mutated in place because each event object
-// is consumed by exactly one subscriber at each level (one requestId = one subscriber).
+// Both functions are pure - they return new arrays instead of mutating.
+// This prevents shared-state bugs when multiple subscribers process
+// the same event object dispatched by Subject.
 //
 // ALL_CONNECTIONS is a special marker for error/close/exit events.
 // When a worker crashes, the error event is created with route: [ALL_CONNECTIONS].
@@ -36,26 +37,27 @@
 export const ALL_CONNECTIONS = 'ALL_CONNECTIONS'
 
 /**
- * Appends connectionId to route as a request passes through an intermediary
+ * Returns a new route with connectionId appended.
  */
-export function routePush(route: string[], connectionId: string) {
-  route.push(connectionId)
+export function routePush(route: string[], connectionId: string): string[] {
+  return [...route, connectionId]
 }
 
 /**
- * Checks if this response is traveling back through this intermediary:
- * if the last element matches connectionId or ALL_CONNECTIONS, removes it
- * and returns true. Otherwise returns false without mutation -
+ * If the last element matches connectionId or ALL_CONNECTIONS,
+ * returns a new route without it. Otherwise returns null -
  * this event belongs to a different connection.
  */
-export function routePop(route: string[], connectionId: string) {
+export function routePop(
+  route: string[],
+  connectionId: string,
+): string[] | null {
   const len = route.length
   if (
     len === 0 ||
     (route[len - 1] !== connectionId && route[len - 1] !== ALL_CONNECTIONS)
   ) {
-    return false
+    return null
   }
-  route.length = len - 1
-  return true
+  return route.slice(0, len - 1)
 }
