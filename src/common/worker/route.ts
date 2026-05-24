@@ -5,7 +5,7 @@
 //
 // How it works:
 // - A request starts with route = [requestId].
-// - Each intermediary connection (eventBusConnect) appends its unique connectionId
+// - Each intermediary connection appends its unique connectionId
 //   to the route via routePush: route becomes [requestId, conn1, conn2, ...].
 // - When the response comes back, each intermediary calls routePop to check
 //   if the last element is its own connectionId. If yes - this response is traveling
