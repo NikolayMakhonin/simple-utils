@@ -62,7 +62,7 @@ export type WorkerData<Data> = {
    * These objects will not be available in the main thread until the worker transfers them back.
    * So you can share some memory between threads without copying it.
    */
-  transferList?: null | ReadonlyArray<TransferableAny>
+  transferList?: null | readonly TransferableAny[]
 }
 
 export enum WorkerClientStatus {
@@ -159,7 +159,7 @@ export interface IMessagePort {
     listener: (event: IMessagePortEventMap[Type]) => void,
   ): void
 
-  postMessage(value: any, transferList?: ReadonlyArray<TransferableAny>): void
+  postMessage(value: any, transferList?: readonly TransferableAny[]): void
 
   start(): void
 
@@ -471,7 +471,11 @@ export class WorkerServer<ResponseData, RequestData>
     if (this.#closed) {
       throw new Error('[WorkerServer] cannot emit after close')
     }
-    this.#options.messagePort.postMessage(data)
+    const transferList =
+      data.type === WorkerServerResponseType.data
+        ? data.data.transferList
+        : undefined
+    this.#options.messagePort.postMessage(data, transferList ?? undefined)
   }
 
   get closed() {
@@ -672,7 +676,12 @@ export class WorkerClient<ResponseData, RequestData>
         `[WorkerClient] cannot emit when status is ${this.#status}`,
       )
     }
-    this.#messageChannel.port2.postMessage(event)
+    const transferList =
+      event.type === WorkerClientRequestType.data
+        ? event.data.transferList
+        : undefined
+    const messagePort = this.#messageChannel?.port2 as IMessagePort
+    messagePort.postMessage(event, transferList ?? undefined)
   }
 }
 
