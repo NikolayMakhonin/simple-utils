@@ -234,7 +234,7 @@ export function deserializeError(data: ErrorSerialized) {
       error = data.error
       break
   }
-  return Object.assign(data.error, data.props)
+  return Object.assign(error, data.props)
 }
 
 // endregion
@@ -274,12 +274,30 @@ export function getWorkerFatalErrors(): IObservable<WorkerError> {
           )
         }
 
+        function onNodeError(error: Error) {
+          emit(
+            new WorkerError(
+              WorkerErrorType.fatalError,
+              `[getWorkerErrors] error: ${error.message}`,
+            ),
+          )
+        }
+
+        function onNodeUnhandledRejection(reason: any) {
+          emit(
+            new WorkerError(
+              WorkerErrorType.fatalError,
+              `[getWorkerErrors] error: ${reason}`,
+            ),
+          )
+        }
+
         if (isWebWorker()) {
           self.addEventListener('error', onError)
           self.addEventListener('unhandledrejection', onUnhandledRejection)
         } else {
-          process.on('unhandledRejection', onError)
-          process.on('uncaughtException', onError)
+          process.on('unhandledRejection', onNodeUnhandledRejection)
+          process.on('uncaughtException', onNodeError)
           process.on('beforeExit', onClose)
         }
 
@@ -288,8 +306,8 @@ export function getWorkerFatalErrors(): IObservable<WorkerError> {
             self.removeEventListener('error', onError)
             self.removeEventListener('unhandledrejection', onUnhandledRejection)
           } else {
-            process.off('unhandledRejection', onError)
-            process.off('uncaughtException', onError)
+            process.off('unhandledRejection', onNodeUnhandledRejection)
+            process.off('uncaughtException', onNodeError)
             process.off('beforeExit', onClose)
           }
         }
@@ -443,14 +461,14 @@ export class WorkerServer<ResponseData, RequestData>
   }
 
   subscribe(listener: Listener<WorkerServerRequest<RequestData>>): Unsubscribe {
-    if (this.closed) {
+    if (this.#closed) {
       throw new Error('[WorkerServer] cannot subscribe after close')
     }
     return this.#events.subscribe(listener)
   }
 
   emit(data: WorkerServerResponse<ResponseData>) {
-    if (this.closed) {
+    if (this.#closed) {
       throw new Error('[WorkerServer] cannot emit after close')
     }
     this.#options.messagePort.postMessage(data)
@@ -461,11 +479,13 @@ export class WorkerServer<ResponseData, RequestData>
   }
 
   close() {
-    if (this.closed) {
+    if (this.#closed) {
       return
     }
     this.#closed = true
-    this.emit({ type: WorkerServerResponseType.close })
+    this.#options.messagePort.postMessage({
+      type: WorkerServerResponseType.close,
+    })
     this.#options.messagePort.close()
   }
 }
@@ -475,7 +495,7 @@ export interface IWorkerServer<ResponseData, RequestData>
     WorkerServerRequest<RequestData>,
     WorkerServerResponse<ResponseData>
   > {
-  closed: boolean
+  readonly closed: boolean
 
   close(): void
 }
