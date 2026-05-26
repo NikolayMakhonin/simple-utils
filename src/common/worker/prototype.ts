@@ -470,15 +470,15 @@ export class WorkerServer<ResponseData, RequestData>
     return this.#events.subscribe(listener)
   }
 
-  emit(data: WorkerServerResponse<ResponseData>) {
+  emit(event: WorkerServerResponse<ResponseData>) {
     if (this.#closed) {
       throw new Error('[WorkerServer] cannot emit after close')
     }
     const transferList =
-      data.type === WorkerServerResponseType.data
-        ? data.data.transferList
+      event.type === WorkerServerResponseType.data
+        ? event.data.transferList
         : undefined
-    this.#options.messagePort.postMessage(data, transferList ?? undefined)
+    this.#options.messagePort.postMessage(event, transferList ?? undefined)
   }
 
   get closed() {
