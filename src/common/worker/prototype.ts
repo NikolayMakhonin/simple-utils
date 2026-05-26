@@ -528,6 +528,10 @@ export class WorkerClient<ResponseData, RequestData>
     this.#options = options
 
     this.#events = new Subject<WorkerClientResponse<ResponseData>>()
+
+    options.abortSignal?.subscribe(() => {
+      void this.close()
+    })
   }
 
   get status(): WorkerClientStatus {
@@ -557,16 +561,12 @@ export class WorkerClient<ResponseData, RequestData>
 
     this.status = WorkerClientStatus.connecting
 
-    const connectPromise = waitObservable(
-      this.#events,
-      event => {
-        return (
-          event.type === WorkerClientResponseType.status &&
-          event.status !== WorkerClientStatus.connecting
-        )
-      },
-      this.#options.abortSignal,
-    ).then(EMPTY_FUNC)
+    const connectPromise = waitObservable(this.#events, event => {
+      return (
+        event.type === WorkerClientResponseType.status &&
+        event.status !== WorkerClientStatus.connecting
+      )
+    }).then(EMPTY_FUNC)
 
     const onMessage = (event: MessageEvent) => {
       const data = event.data as WorkerServerResponse<ResponseData>
