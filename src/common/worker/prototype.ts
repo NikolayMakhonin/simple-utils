@@ -512,7 +512,8 @@ export interface IWorkerServer<ResponseData, RequestData>
 // region WorkerClient
 
 export type WorkerClientOptions = {
-  worker: Worker
+  connectionName: string
+  connect: WorkerConnect
   abortSignal?: null | IAbortSignalFast
 }
 
@@ -600,12 +601,12 @@ export class WorkerClient<ResponseData, RequestData>
       }
     }
 
-    const onMessageError = (event: MessageEvent) => {
+    const onMessageError = () => {
       this.#events.emit({
         type: WorkerClientResponseType.error,
         error: new WorkerError(
           WorkerErrorType.messageError,
-          `[WorkerClient] message error: ${event.data}`,
+          '[WorkerClient] message error',
         ),
       })
     }
@@ -621,12 +622,10 @@ export class WorkerClient<ResponseData, RequestData>
     this.#messageChannel.port2.addEventListener('close', onClose)
     this.#messageChannel.port2.start()
 
-    this.#options.worker.postMessage(
-      {
-        type: 'connect',
-        port: this.#messageChannel.port1,
-      },
-      [this.#messageChannel.port1],
+    this.#options.connect(
+      this.#options.connectionName,
+      this.#messageChannel.port1,
+      this.#options.abortSignal,
     )
 
     await connectPromise
@@ -697,3 +696,60 @@ export class WorkerClient<ResponseData, RequestData>
 }
 
 // endregion
+
+export type WorkerConnect = (
+  connectionName: string,
+  messagePort: IMessagePort,
+  abortSignal?: null | IAbortSignalFast,
+) => void
+
+export type WorkerConnectPoolOptions = {
+  /**
+   * The worker must set up the message handler synchronously upon creation,
+   * otherwise the first messages may be lost.
+   */
+  createWorker: (index: number) => Worker
+  maxCount: number
+}
+
+/**
+ * Evenly distributes connections between multiple workers,
+ * creating them as needed but no more than maxCount.
+ * The number of connections per worker is not limited;
+ * if a worker is busy with a synchronous task,
+ * the connection request will be queued.
+ * Workers are not destroyed after creation and live forever
+ */
+export function createWorkerConnectPool(
+  options: WorkerConnectPoolOptions,
+): WorkerConnect {
+  const pool: Worker[] = []
+  let prevWorkerIndex = 0
+
+  function getWorker(): Worker {
+    let index = ++prevWorkerIndex
+    if (index >= options.maxCount) {
+      index = 0
+    }
+    if (index >= pool.length) {
+      const worker = options.createWorker(index)
+      pool.push(worker)
+    }
+    return pool[index]
+  }
+
+  return function workerConnect(
+    connectionName: string,
+    messagePort: IMessagePort,
+  ) {
+    const worker = getWorker()
+    worker.postMessage(
+      {
+        type: 'connect',
+        name: connectionName,
+        port: messagePort,
+      },
+      [messagePort],
+    )
+  }
+}
