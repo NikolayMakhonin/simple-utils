@@ -540,8 +540,7 @@ export class WorkerClient<ResponseData, RequestData>
     }
   }
 
-  #connectPromise: Promise<void> | null = null
-  connect(): Promise<void> {
+  private async _connect(): Promise<void> {
     if (
       this.#status === WorkerClientStatus.closing ||
       this.#status === WorkerClientStatus.closed
@@ -551,83 +550,88 @@ export class WorkerClient<ResponseData, RequestData>
       )
     }
 
-    if (this.#connectPromise == null) {
-      this.#connectPromise = waitObservable(
-        this.#events,
-        event => {
-          return (
-            event.type === WorkerClientResponseType.status &&
-            event.status !== WorkerClientStatus.connecting
-          )
-        },
-        this.#options.abortSignal,
-      ).then(EMPTY_FUNC)
+    await this.#closePromise?.catch(EMPTY_FUNC)
 
-      const onMessage = (event: MessageEvent) => {
-        const data = event.data as WorkerServerResponse<ResponseData>
-        switch (data.type) {
-          case WorkerServerResponseType.connected:
-            this.status = WorkerClientStatus.connected
-            break
-          case WorkerServerResponseType.close:
-            this.status = WorkerClientStatus.closed
-            break
-          case WorkerServerResponseType.error:
-            this.#events.emit({
-              type: WorkerClientResponseType.error,
-              error: deserializeError(data.error),
-            })
-            break
-          case WorkerServerResponseType.data:
-            this.#events.emit({
-              type: WorkerClientResponseType.data,
-              data: data.data,
-            })
-            break
-          default:
-            this.#events.emit({
-              type: WorkerClientResponseType.error,
-              error: new WorkerError(
-                WorkerErrorType.messageError,
-                `[WorkerClient] unexpected message: ${JSON.stringify(data)}`,
-              ),
-            })
-        }
+    const connectPromise = waitObservable(
+      this.#events,
+      event => {
+        return (
+          event.type === WorkerClientResponseType.status &&
+          event.status !== WorkerClientStatus.connecting
+        )
+      },
+      this.#options.abortSignal,
+    ).then(EMPTY_FUNC)
+
+    const onMessage = (event: MessageEvent) => {
+      const data = event.data as WorkerServerResponse<ResponseData>
+      switch (data.type) {
+        case WorkerServerResponseType.connected:
+          this.status = WorkerClientStatus.connected
+          break
+        case WorkerServerResponseType.close:
+          this.status = WorkerClientStatus.closed
+          break
+        case WorkerServerResponseType.error:
+          this.#events.emit({
+            type: WorkerClientResponseType.error,
+            error: deserializeError(data.error),
+          })
+          break
+        case WorkerServerResponseType.data:
+          this.#events.emit({
+            type: WorkerClientResponseType.data,
+            data: data.data,
+          })
+          break
+        default:
+          this.#events.emit({
+            type: WorkerClientResponseType.error,
+            error: new WorkerError(
+              WorkerErrorType.messageError,
+              `[WorkerClient] unexpected message: ${JSON.stringify(data)}`,
+            ),
+          })
       }
-
-      const onMessageError = (event: MessageEvent) => {
-        this.#events.emit({
-          type: WorkerClientResponseType.error,
-          error: new WorkerError(
-            WorkerErrorType.messageError,
-            `[WorkerClient] message error: ${event.data}`,
-          ),
-        })
-      }
-
-      const onClose = () => {
-        this.status = WorkerClientStatus.closed
-      }
-
-      this.#messageChannel = new MessageChannel()
-      this.#messageChannel.port2.addEventListener('message', onMessage)
-      this.#messageChannel.port2.addEventListener(
-        'messageerror',
-        onMessageError,
-      )
-      // Fires only in Node.js; in browsers the listener is registered but never invoked
-      this.#messageChannel.port2.addEventListener('close', onClose)
-      this.#messageChannel.port2.start()
-
-      this.#options.worker.postMessage(
-        {
-          type: 'connect',
-          port: this.#messageChannel.port1,
-        },
-        [this.#messageChannel.port1],
-      )
     }
 
+    const onMessageError = (event: MessageEvent) => {
+      this.#events.emit({
+        type: WorkerClientResponseType.error,
+        error: new WorkerError(
+          WorkerErrorType.messageError,
+          `[WorkerClient] message error: ${event.data}`,
+        ),
+      })
+    }
+
+    const onClose = () => {
+      this.status = WorkerClientStatus.closed
+    }
+
+    this.#messageChannel = new MessageChannel()
+    this.#messageChannel.port2.addEventListener('message', onMessage)
+    this.#messageChannel.port2.addEventListener('messageerror', onMessageError)
+    // Fires only in Node.js; in browsers the listener is registered but never invoked
+    this.#messageChannel.port2.addEventListener('close', onClose)
+    this.#messageChannel.port2.start()
+
+    this.#options.worker.postMessage(
+      {
+        type: 'connect',
+        port: this.#messageChannel.port1,
+      },
+      [this.#messageChannel.port1],
+    )
+
+    await connectPromise
+  }
+
+  #connectPromise: Promise<void> | null = null
+  connect(): Promise<void> {
+    if (this.#connectPromise == null) {
+      this.#connectPromise = this._connect()
+    }
     return this.#connectPromise
   }
 
@@ -636,7 +640,7 @@ export class WorkerClient<ResponseData, RequestData>
       this.status = WorkerClientStatus.closed
       return
     }
-    await this.#connectPromise
+    await this.#connectPromise?.catch(EMPTY_FUNC)
     if (this.#status === WorkerClientStatus.closed) {
       return
     }
