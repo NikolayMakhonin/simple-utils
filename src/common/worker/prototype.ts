@@ -724,7 +724,7 @@ export function createWorkerConnectPool(
   options: WorkerConnectPoolOptions,
 ): WorkerConnect {
   const pool: Worker[] = []
-  let prevWorkerIndex = 0
+  let prevWorkerIndex = -1
 
   function getWorker(): Worker {
     let index = ++prevWorkerIndex
