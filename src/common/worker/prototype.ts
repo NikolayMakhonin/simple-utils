@@ -182,6 +182,9 @@ export class WorkerError extends Error {
 
   constructor(type: WorkerErrorType, message?: string) {
     super(message)
+    // see: https://github.com/Microsoft/TypeScript/wiki/Breaking-Changes#extending-built-ins-like-error-array-and-map-may-no-longer-work
+    Object.setPrototypeOf(this, WorkerError.prototype)
+    this.name = 'WorkerError'
     this.type = type
   }
 }
@@ -688,7 +691,7 @@ export class WorkerClient<ResponseData, RequestData>
       event.type === WorkerClientRequestType.data
         ? event.data.transferList
         : undefined
-    const messagePort = this.#messageChannel?.port2 as IMessagePort
+    const messagePort = this.#messageChannel.port2 as IMessagePort
     messagePort.postMessage(event, transferList ?? undefined)
   }
 }
