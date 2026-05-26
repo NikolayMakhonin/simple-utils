@@ -727,15 +727,12 @@ export function createWorkerConnectPool(
   let prevWorkerIndex = -1
 
   function getWorker(): Worker {
-    let index = ++prevWorkerIndex
-    if (index >= options.maxCount) {
-      index = 0
-    }
-    if (index >= pool.length) {
-      const worker = options.createWorker(index)
+    prevWorkerIndex = (prevWorkerIndex + 1) % options.maxCount
+    if (prevWorkerIndex >= pool.length) {
+      const worker = options.createWorker(prevWorkerIndex)
       pool.push(worker)
     }
-    return pool[index]
+    return pool[prevWorkerIndex]
   }
 
   return function workerConnect(
