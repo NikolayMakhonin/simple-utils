@@ -3,10 +3,15 @@ import {
   type ISubject,
   type Listener,
   Subject,
+  waitObservable,
 } from 'src/common/rx'
 import type { TransferListItem as TransferableNode } from 'worker_threads'
-import { AbortError } from '@flemist/abort-controller-fast'
-import type { Unsubscribe } from 'src/common/types'
+import {
+  AbortError,
+  type IAbortSignalFast,
+} from '@flemist/abort-controller-fast'
+import type { PromiseOrValue, Unsubscribe } from 'src/common/types'
+import { EMPTY_FUNC } from '../constants'
 
 // region Simple Helpers
 
@@ -42,8 +47,10 @@ export interface IWorkerClient<ResponseData, RequestData>
     WorkerClientRequest<RequestData>
   > {
   readonly status: WorkerClientStatus
+
   /** Connect to the worker only once */
   connect(): Promise<void>
+
   /** Close the connection forever and dispose worker resources */
   close(): Promise<void>
 }
@@ -146,12 +153,16 @@ export interface IMessagePort {
     type: Type,
     listener: (event: IMessagePortEventMap[Type]) => void,
   ): void
+
   removeEventListener<Type extends keyof IMessagePortEventMap>(
     type: Type,
     listener: (event: IMessagePortEventMap[Type]) => void,
   ): void
+
   postMessage(value: any, transferList?: ReadonlyArray<TransferableAny>): void
+
   start(): void
+
   close(): void
 }
 
@@ -168,6 +179,7 @@ export enum WorkerErrorType {
 
 export class WorkerError extends Error {
   readonly type: WorkerErrorType
+
   constructor(type: WorkerErrorType, message?: string) {
     super(message)
     this.type = type
@@ -230,6 +242,7 @@ export function deserializeError(data: ErrorSerialized) {
 // region getWorkerFatalErrors
 
 let workerErrorsSubject: ISubject<WorkerError> | null = null
+
 export function getWorkerFatalErrors(): IObservable<WorkerError> {
   if (workerErrorsSubject == null) {
     workerErrorsSubject = new Subject<WorkerError>({
@@ -426,6 +439,7 @@ export class WorkerServer<ResponseData, RequestData>
         return unsubscribe
       },
     })
+    this.emit({ type: WorkerServerResponseType.connected })
   }
 
   subscribe(listener: Listener<WorkerServerRequest<RequestData>>): Unsubscribe {
@@ -462,7 +476,184 @@ export interface IWorkerServer<ResponseData, RequestData>
     WorkerServerResponse<ResponseData>
   > {
   closed: boolean
+
   close(): void
+}
+
+// endregion
+
+// region WorkerClient
+
+export type WorkerClientOptions = {
+  worker: Worker
+  abortSignal?: null | IAbortSignalFast
+}
+
+export class WorkerClient<ResponseData, RequestData>
+  implements IWorkerClient<ResponseData, RequestData>
+{
+  readonly #options: WorkerClientOptions
+  readonly #events: ISubject<WorkerClientResponse<ResponseData>>
+  #messageChannel: MessageChannel = null!
+  #status: WorkerClientStatus = WorkerClientStatus.disconnected
+
+  constructor(options: WorkerClientOptions) {
+    this.#options = options
+
+    this.#events = new Subject<WorkerClientResponse<ResponseData>>()
+  }
+
+  get status(): WorkerClientStatus {
+    return this.#status
+  }
+  private set status(value: WorkerClientStatus) {
+    if (this.#status !== value) {
+      this.#status = value
+      this.#events.emit({
+        type: WorkerClientResponseType.status,
+        status: this.#status,
+      })
+    }
+  }
+
+  #connectPromise: Promise<void> | null = null
+  connect(): Promise<void> {
+    if (
+      this.#status === WorkerClientStatus.closing ||
+      this.#status === WorkerClientStatus.closed
+    ) {
+      throw new Error(
+        `[WorkerClient] cannot connect when status is ${this.#status}`,
+      )
+    }
+
+    if (this.#connectPromise == null) {
+      this.#connectPromise = waitObservable(
+        this.#events,
+        event => {
+          return (
+            event.type === WorkerClientResponseType.status &&
+            event.status !== WorkerClientStatus.connecting
+          )
+        },
+        this.#options.abortSignal,
+      ).then(EMPTY_FUNC)
+
+      const onMessage = (event: MessageEvent) => {
+        const data = event.data as WorkerServerResponse<ResponseData>
+        switch (data.type) {
+          case WorkerServerResponseType.connected:
+            this.status = WorkerClientStatus.connected
+            break
+          case WorkerServerResponseType.close:
+            this.status = WorkerClientStatus.closed
+            break
+          case WorkerServerResponseType.error:
+            this.#events.emit({
+              type: WorkerClientResponseType.error,
+              error: deserializeError(data.error),
+            })
+            break
+          case WorkerServerResponseType.data:
+            this.#events.emit({
+              type: WorkerClientResponseType.data,
+              data: data.data,
+            })
+            break
+          default:
+            this.#events.emit({
+              type: WorkerClientResponseType.error,
+              error: new WorkerError(
+                WorkerErrorType.messageError,
+                `[WorkerClient] unexpected message: ${JSON.stringify(data)}`,
+              ),
+            })
+        }
+      }
+
+      const onMessageError = (event: MessageEvent) => {
+        this.#events.emit({
+          type: WorkerClientResponseType.error,
+          error: new WorkerError(
+            WorkerErrorType.messageError,
+            `[WorkerClient] message error: ${event.data}`,
+          ),
+        })
+      }
+
+      const onClose = () => {
+        this.status = WorkerClientStatus.closed
+      }
+
+      this.#messageChannel = new MessageChannel()
+      this.#messageChannel.port2.addEventListener('message', onMessage)
+      this.#messageChannel.port2.addEventListener(
+        'messageerror',
+        onMessageError,
+      )
+      // Fires only in Node.js; in browsers the listener is registered but never invoked
+      this.#messageChannel.port2.addEventListener('close', onClose)
+      this.#messageChannel.port2.start()
+
+      this.#options.worker.postMessage(
+        {
+          type: 'connect',
+          port: this.#messageChannel.port1,
+        },
+        [this.#messageChannel.port1],
+      )
+    }
+
+    return this.#connectPromise
+  }
+
+  private async _close(): Promise<void> {
+    if (this.#status === WorkerClientStatus.disconnected) {
+      this.status = WorkerClientStatus.closed
+      return
+    }
+    await this.#connectPromise
+    if (this.#status === WorkerClientStatus.closed) {
+      return
+    }
+    this.status = WorkerClientStatus.closing
+
+    const closePromise = waitObservable(
+      this.#events,
+      event =>
+        event.type === WorkerClientResponseType.status &&
+        event.status === WorkerClientStatus.closed,
+    ).then(EMPTY_FUNC)
+
+    this.#messageChannel.port2.postMessage({
+      type: WorkerClientRequestType.close,
+    })
+
+    await closePromise
+  }
+
+  #closePromise: Promise<void> | null = null
+  close(): Promise<void> {
+    if (this.#closePromise == null) {
+      this.#closePromise = this._close()
+    }
+    return this.#closePromise
+  }
+
+  subscribe(
+    listener: Listener<WorkerClientResponse<ResponseData>>,
+  ): Unsubscribe {
+    return this.#events.subscribe(listener)
+  }
+
+  emit(event: WorkerClientRequest<RequestData>): PromiseOrValue<void> {
+    if (this.#status !== WorkerClientStatus.connected) {
+      throw new Error(
+        `[WorkerClient] cannot emit when status is ${this.#status}`,
+      )
+    }
+    this.#messageChannel.port2.postMessage(event)
+  }
 }
 
 // endregion
