@@ -251,7 +251,7 @@ export function getWorkerFatalErrors(): IObservable<WorkerError> {
           emit(
             new WorkerError(
               WorkerErrorType.fatalError,
-              `[getWorkerErrors] error: ${event.message}`,
+              `[getWorkerFatalErrors] error: ${event.message}`,
             ),
           )
         }
@@ -260,7 +260,7 @@ export function getWorkerFatalErrors(): IObservable<WorkerError> {
           emit(
             new WorkerError(
               WorkerErrorType.fatalError,
-              `[getWorkerErrors] error: ${event.reason}`,
+              `[getWorkerFatalErrors] error: ${event.reason}`,
             ),
           )
         }
@@ -269,7 +269,7 @@ export function getWorkerFatalErrors(): IObservable<WorkerError> {
           emit(
             new WorkerError(
               WorkerErrorType.close,
-              '[getWorkerErrors] worker closed',
+              '[getWorkerFatalErrors] worker closed',
             ),
           )
         }
@@ -278,7 +278,7 @@ export function getWorkerFatalErrors(): IObservable<WorkerError> {
           emit(
             new WorkerError(
               WorkerErrorType.fatalError,
-              `[getWorkerErrors] error: ${error.message}`,
+              `[getWorkerFatalErrors] error: ${error.message}`,
             ),
           )
         }
@@ -287,7 +287,7 @@ export function getWorkerFatalErrors(): IObservable<WorkerError> {
           emit(
             new WorkerError(
               WorkerErrorType.fatalError,
-              `[getWorkerErrors] error: ${reason}`,
+              `[getWorkerFatalErrors] error: ${reason}`,
             ),
           )
         }
@@ -541,6 +541,8 @@ export class WorkerClient<ResponseData, RequestData>
   }
 
   private async _connect(): Promise<void> {
+    await this.#closePromise?.catch(EMPTY_FUNC)
+
     if (
       this.#status === WorkerClientStatus.closing ||
       this.#status === WorkerClientStatus.closed
@@ -550,7 +552,7 @@ export class WorkerClient<ResponseData, RequestData>
       )
     }
 
-    await this.#closePromise?.catch(EMPTY_FUNC)
+    this.status = WorkerClientStatus.connecting
 
     const connectPromise = waitObservable(
       this.#events,
@@ -636,14 +638,16 @@ export class WorkerClient<ResponseData, RequestData>
   }
 
   private async _close(): Promise<void> {
+    await this.#connectPromise?.catch(EMPTY_FUNC)
+
     if (this.#status === WorkerClientStatus.disconnected) {
       this.status = WorkerClientStatus.closed
       return
     }
-    await this.#connectPromise?.catch(EMPTY_FUNC)
     if (this.#status === WorkerClientStatus.closed) {
       return
     }
+
     this.status = WorkerClientStatus.closing
 
     const closePromise = waitObservable(
