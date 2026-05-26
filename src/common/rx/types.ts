@@ -11,7 +11,9 @@ export interface IEmitter<T = void> {
   emit(event: T): PromiseOrValue<void>
 }
 
-export interface ISubject<T = void> extends IObservable<T>, IEmitter<T> {}
+export interface ISubject<From = void, To = From>
+  extends IObservable<From>,
+    IEmitter<To> {}
 
 export interface IObservableWithId<Id, T = void> {
   subscribe(id: Id, listener: Listener<T>): Unsubscribe
