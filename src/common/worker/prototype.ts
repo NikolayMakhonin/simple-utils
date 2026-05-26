@@ -664,6 +664,8 @@ export class WorkerClient<ResponseData, RequestData>
     })
 
     await closePromise
+
+    this.#messageChannel.port2.close()
   }
 
   #closePromise: Promise<void> | null = null
