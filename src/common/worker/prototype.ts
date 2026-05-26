@@ -11,7 +11,7 @@ import {
   type IAbortSignalFast,
 } from '@flemist/abort-controller-fast'
 import type { PromiseOrValue, Unsubscribe } from 'src/common/types'
-import { EMPTY_FUNC } from '../constants'
+import { EMPTY_FUNC } from 'src/common/constants'
 
 // region Simple Helpers
 
