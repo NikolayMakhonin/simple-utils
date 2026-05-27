@@ -412,46 +412,7 @@ export class WorkerServer<RequestData, ResponseData>
     this.#options = options
     this.#status = WorkerServerStatus.disconnected
 
-    const onMessage = (event: MessageEvent) => {
-      this.#events.emit(event.data)
-    }
-
-    const onMessageError = () => {
-      this.emit({
-        type: WorkerServerResponseType.error,
-        error: serializeError(
-          new WorkerError(
-            WorkerErrorType.messageError,
-            '[WorkerServer] message error',
-          ),
-        ),
-      })
-    }
-
-    const onClose = () => {
-      this.#events.emit({
-        type: WorkerServerRequestType.close,
-      })
-    }
-
-    this.#events = new Subject<WorkerServerRequest<RequestData>>({
-      startStopNotifier: () => {
-        const { messagePort } = this.#options
-
-        messagePort.addEventListener('message', onMessage)
-        messagePort.addEventListener('messageerror', onMessageError)
-        // Fires only in Node.js; in browsers the listener is registered but never invoked
-        messagePort.addEventListener('close', onClose)
-
-        function unsubscribe() {
-          messagePort.removeEventListener('message', onMessage)
-          messagePort.removeEventListener('messageerror', onMessageError)
-          messagePort.removeEventListener('close', onClose)
-        }
-
-        return unsubscribe
-      },
-    })
+    this.#events = new Subject<WorkerServerRequest<RequestData>>()
   }
 
   subscribe(listener: Listener<WorkerServerRequest<RequestData>>): Unsubscribe {
@@ -462,11 +423,10 @@ export class WorkerServer<RequestData, ResponseData>
   }
 
   emit(event: WorkerServerResponse<ResponseData>) {
-    if (this.#status === WorkerServerStatus.closed) {
-      throw new Error('[WorkerServer] cannot emit after close')
-    }
     if (this.#status !== WorkerServerStatus.connected) {
-      throw new Error('[WorkerServer] cannot emit when not connected')
+      throw new Error(
+        `[WorkerServer] cannot emit when status is ${this.#status}`,
+      )
     }
     const transferList =
       event.type === WorkerServerResponseType.data
@@ -496,8 +456,32 @@ export class WorkerServer<RequestData, ResponseData>
   }
 
   connect() {
-    if (this.#status === WorkerServerStatus.closed) {
-      throw new Error('[WorkerServer] cannot connect after close')
+    if (this.#status !== WorkerServerStatus.disconnected) {
+      throw new Error(
+        `[WorkerServer] cannot connect when status is ${this.#status}`,
+      )
+    }
+
+    const onMessage = (event: MessageEvent) => {
+      this.#events.emit(event.data)
+    }
+
+    const onMessageError = () => {
+      this.emit({
+        type: WorkerServerResponseType.error,
+        error: serializeError(
+          new WorkerError(
+            WorkerErrorType.messageError,
+            '[WorkerServer] message error',
+          ),
+        ),
+      })
+    }
+
+    const onClose = () => {
+      this.#events.emit({
+        type: WorkerServerRequestType.close,
+      })
     }
 
     const onFatalError = (error: WorkerError) => {
@@ -514,7 +498,12 @@ export class WorkerServer<RequestData, ResponseData>
     this.#unsubscribeWorkerFatalErrors =
       getWorkerFatalErrors().subscribe(onFatalError)
 
-    this.#options.messagePort.start()
+    const messagePort = this.#options.messagePort
+    messagePort.addEventListener('message', onMessage)
+    messagePort.addEventListener('messageerror', onMessageError)
+    // Fires only in Node.js; in browsers the listener is registered but never invoked
+    messagePort.addEventListener('close', onClose)
+    messagePort.start()
 
     this.#status = WorkerServerStatus.connected
     this.emit({ type: WorkerServerResponseType.connected })
@@ -1027,9 +1016,6 @@ export function createWorkerFunctionServer<Input, Output, CallbackData>(
                 },
               })
             }
-
-            abortController.abort()
-            server.close()
           } catch (error) {
             if (server.status !== WorkerServerStatus.closed) {
               server.emit({
@@ -1037,13 +1023,13 @@ export function createWorkerFunctionServer<Input, Output, CallbackData>(
                 error: serializeError(error),
               })
             }
+          } finally {
             abortController.abort()
             server.close()
           }
           break
         case WorkerServerRequestType.close:
           abortController.abort()
-          server.close()
           break
         case WorkerServerRequestType.error:
           if (server.status !== WorkerServerStatus.closed) {
@@ -1052,24 +1038,24 @@ export function createWorkerFunctionServer<Input, Output, CallbackData>(
               error: serializeError(event.error),
             })
           }
-          abortController.abort()
+          abortController.abort(event.error)
           server.close()
           break
-        default:
+        default: {
+          const error = new WorkerError(
+            WorkerErrorType.messageError,
+            `[WorkerFunction] unexpected event: ${JSON.stringify(event)}`,
+          )
           if (server.status !== WorkerServerStatus.closed) {
             server.emit({
               type: WorkerServerResponseType.error,
-              error: serializeError(
-                new WorkerError(
-                  WorkerErrorType.messageError,
-                  `[WorkerFunctionServer] unexpected request: ${JSON.stringify(event)}`,
-                ),
-              ),
+              error: serializeError(error),
             })
           }
-          abortController.abort()
+          abortController.abort(error)
           server.close()
           break
+        }
       }
     })
 
