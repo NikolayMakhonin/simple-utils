@@ -447,7 +447,14 @@ export class WorkerServer<RequestData, ResponseData>
       return
     }
     this.#unsubscribeWorkerFatalErrors?.()
+    if (this.#status !== WorkerServerStatus.connected) {
+      // Just to send close event to the client
+      this.#options.messagePort.start()
+    }
     this.#status = WorkerServerStatus.closed
+    this.#options.messagePort.postMessage({
+      type: WorkerServerResponseType.close,
+    })
     this.#options.messagePort.close()
   }
 
