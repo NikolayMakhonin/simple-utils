@@ -6,13 +6,17 @@ import type {
   WorkerFunctionTestOutput,
 } from './-test/types'
 const workerUrl = new URL('./-test/worker.ts', import.meta.url)
+const viteWorkerUrl = new URL('./vite-worker.mts', import.meta.url)
 
 async function createTestWorker(): Promise<Worker> {
   if (typeof Worker === 'undefined') {
     const { Worker: NodeWorker } = await import('worker_threads')
     const { fileURLToPath } = await import('url')
-    return new NodeWorker(fileURLToPath(workerUrl), {
+    return new NodeWorker(fileURLToPath(viteWorkerUrl), {
       execArgv: ['--import', 'tsx'],
+      workerData: {
+        scriptPath: fileURLToPath(workerUrl),
+      },
     }) as unknown as Worker
   }
   return new Worker(workerUrl, { type: 'module' })

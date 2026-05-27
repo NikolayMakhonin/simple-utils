@@ -2,6 +2,7 @@ import { createWorkerFunctionServer } from '../function/createWorkerFunctionServ
 import type { IMessagePort, WorkerConnectRequest } from '../types'
 import type { WorkerFunctionTestInput, WorkerFunctionTestOutput } from './types'
 import { serializeError } from '../helpers'
+import { isWebWorker } from '../helpers'
 
 const sum = createWorkerFunctionServer<
   WorkerFunctionTestInput,
@@ -18,9 +19,8 @@ const handlers: Record<string, (messagePort: IMessagePort) => void> = {
   sum,
 }
 
-self.addEventListener('message', (event: MessageEvent) => {
-  const { type, connectionName, messagePort } =
-    event.data as WorkerConnectRequest
+function onMessage(data: WorkerConnectRequest) {
+  const { type, connectionName, messagePort } = data
   if (type === 'connect') {
     const handler = handlers[connectionName]
     if (!handler) {
@@ -34,4 +34,17 @@ self.addEventListener('message', (event: MessageEvent) => {
     }
     handler(messagePort)
   }
-})
+}
+
+if (isWebWorker()) {
+  self.addEventListener('message', (event: MessageEvent) => {
+    onMessage(event.data)
+  })
+} else {
+  import('worker_threads').then(({ isMainThread, parentPort }) => {
+    if (isMainThread) {
+      return
+    }
+    parentPort!.on('message', onMessage)
+  })
+}

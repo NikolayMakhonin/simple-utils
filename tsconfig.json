@@ -36,7 +36,9 @@
     "./vite.config",
     "./src/**/*.js",
     "./src/**/*.ts",
-    "./tools/**/*.ts"
+    "./src/**/*.mts",
+    "./tools/**/*.ts",
+    "./tools/**/*.mts"
   ],
   "exclude": [
     "./node_modules/**",
