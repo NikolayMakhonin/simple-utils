@@ -820,7 +820,7 @@ export enum WorkerFunctionResponseType {
   callback = 'callback',
 }
 
-export type WorkerFunctionResponse<Output, CallbackData> =
+export type WorkerFunctionResponse<Output, CallbackData = never> =
   | {
       type: WorkerFunctionResponseType.output
       data: Output
@@ -830,7 +830,7 @@ export type WorkerFunctionResponse<Output, CallbackData> =
       data: CallbackData
     }
 
-export function createWorkerFunctionClient<Input, Output, CallbackData>(
+export function createWorkerFunctionClient<Input, Output, CallbackData = never>(
   options: CreateWorkerFunctionOptions,
 ): WorkerFunction<Input, Output, CallbackData> {
   return async function workerFunction(_options) {
@@ -971,11 +971,15 @@ export function createWorkerFunctionClient<Input, Output, CallbackData>(
 
 export type WorkerServerHandler = (messagePort: IMessagePort) => void
 
-export type CreateWorkerFunctionServerOptions<Input, Output, CallbackData> = {
+export type CreateWorkerFunctionServerOptions<
+  Input,
+  Output,
+  CallbackData = never,
+> = {
   func: WorkerFunction<Input, Output, CallbackData>
 }
 
-export function createWorkerFunctionServer<Input, Output, CallbackData>(
+export function createWorkerFunctionServer<Input, Output, CallbackData = never>(
   options: CreateWorkerFunctionServerOptions<Input, Output, CallbackData>,
 ): WorkerServerHandler {
   return function workerConnect(messagePort) {
@@ -1008,7 +1012,7 @@ export function createWorkerFunctionServer<Input, Output, CallbackData>(
                 data: event.data.data.data,
                 transferList: event.data.transferList,
               },
-              callback: callbackData =>
+              callback: callbackData => {
                 server.emit({
                   type: WorkerServerResponseType.data,
                   data: {
@@ -1018,7 +1022,8 @@ export function createWorkerFunctionServer<Input, Output, CallbackData>(
                     },
                     transferList: callbackData.transferList,
                   },
-                }),
+                })
+              },
               abortSignal: abortController.signal,
             })
 
