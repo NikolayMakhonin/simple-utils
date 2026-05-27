@@ -438,7 +438,7 @@ export class WorkerServer<RequestData, ResponseData>
     this.#options.messagePort.postMessage(event, transferList ?? undefined)
   }
 
-  get status() {
+  get status(): WorkerServerStatus {
     return this.#status
   }
 
@@ -993,7 +993,12 @@ export function createWorkerFunctionServer<Input, Output, CallbackData = never>(
 
     server.subscribe(async event => {
       switch (event.type) {
-        case WorkerServerRequestType.data:
+        case WorkerServerRequestType.data: {
+          // Use middleware variable because of TypeScript type check bug
+          const statusBeforeRunning = server.status
+          if (statusBeforeRunning === WorkerServerStatus.closed) {
+            return
+          }
           if (running) {
             server.emit({
               type: WorkerServerResponseType.error,
@@ -1003,7 +1008,22 @@ export function createWorkerFunctionServer<Input, Output, CallbackData = never>(
             })
             return
           }
+          if (event.data.data.type !== WorkerFunctionRequestType.input) {
+            server.emit({
+              type: WorkerServerResponseType.error,
+              error: serializeError(
+                new Error(
+                  `[WorkerFunction] unexpected request: ${JSON.stringify(
+                    event.data,
+                  )}`,
+                ),
+              ),
+            })
+            return
+          }
+
           running = true
+
           try {
             const output = await options.func({
               data: {
@@ -1049,6 +1069,7 @@ export function createWorkerFunctionServer<Input, Output, CallbackData = never>(
             server.close()
           }
           break
+        }
         case WorkerServerRequestType.close:
           abortController.abort()
           // If func is running, it should handle the abort signal itself.

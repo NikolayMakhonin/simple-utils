@@ -1,7 +1,7 @@
 import type { Unsubscribe } from 'src/common/types/common'
 import type { IWorkerEventObservable, WorkerEvent } from './types'
 import { routePop } from './route'
-import type { Listener } from '../rx'
+import type { Listener } from 'src/common/rx'
 
 export type WorkerSubscribeOptions = {
   /** When provided, only events whose route ends with this requestId will be delivered. */
