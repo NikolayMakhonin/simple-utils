@@ -652,7 +652,6 @@ export class WorkerClient<RequestData, ResponseData>
     this.#options.connect(
       this.#options.connectionName,
       this.#messageChannel.port1,
-      this.#options.abortSignal,
     )
 
     await connectPromise
@@ -736,7 +735,6 @@ export class WorkerClient<RequestData, ResponseData>
 export type WorkerConnect = (
   connectionName: string,
   messagePort: IMessagePort,
-  abortSignal?: null | IAbortSignalFast,
 ) => void
 
 export type WorkerConnectPoolOptions = {
