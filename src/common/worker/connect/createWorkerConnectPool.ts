@@ -1,11 +1,16 @@
-import type { IMessagePort, WorkerConnect } from '../types'
+import type {
+  IMessagePort,
+  WorkerConnect,
+  WorkerConnectRequest,
+} from '../types'
+import type { PromiseLikeOrValue } from 'src/common/types'
 
 export type WorkerConnectPoolOptions = {
   /**
    * The worker must set up the message handler synchronously upon creation,
    * otherwise the first messages may be lost.
    */
-  createWorker: (index: number) => Worker
+  createWorker: (index: number) => PromiseLikeOrValue<Worker>
   maxCount: number
 }
 
@@ -20,10 +25,10 @@ export type WorkerConnectPoolOptions = {
 export function createWorkerConnectPool(
   options: WorkerConnectPoolOptions,
 ): WorkerConnect {
-  const pool: Worker[] = []
+  const pool: PromiseLikeOrValue<Worker>[] = []
   let prevWorkerIndex = -1
 
-  function getWorker(): Worker {
+  function getWorker(): PromiseLikeOrValue<Worker> {
     prevWorkerIndex = (prevWorkerIndex + 1) % options.maxCount
     if (prevWorkerIndex >= pool.length) {
       const worker = options.createWorker(prevWorkerIndex)
@@ -32,17 +37,17 @@ export function createWorkerConnectPool(
     return pool[prevWorkerIndex]
   }
 
-  return function workerConnect(
+  return async function workerConnect(
     connectionName: string,
     messagePort: IMessagePort,
   ) {
-    const worker = getWorker()
+    const worker = await getWorker()
     worker.postMessage(
       {
         type: 'connect',
-        name: connectionName,
-        port: messagePort,
-      },
+        connectionName,
+        messagePort,
+      } as WorkerConnectRequest,
       [messagePort],
     )
   }

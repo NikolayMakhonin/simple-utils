@@ -194,3 +194,9 @@ export type WorkerConnect = (
   connectionName: string,
   messagePort: IMessagePort,
 ) => void
+
+export type WorkerConnectRequest = {
+  type: 'connect'
+  connectionName: string
+  messagePort: IMessagePort
+}
