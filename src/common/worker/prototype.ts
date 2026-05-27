@@ -7,10 +7,15 @@ import {
 } from 'src/common/rx'
 import type { TransferListItem as TransferableNode } from 'worker_threads'
 import {
+  AbortControllerFast,
   AbortError,
   type IAbortSignalFast,
 } from '@flemist/abort-controller-fast'
-import type { PromiseOrValue, Unsubscribe } from 'src/common/types'
+import type {
+  PromiseLikeOrValue,
+  PromiseOrValue,
+  Unsubscribe,
+} from 'src/common/types'
 import { EMPTY_FUNC } from 'src/common/constants'
 
 // region Simple Helpers
@@ -41,7 +46,7 @@ export function isWebWorker(): boolean {
  * or not using workers at all. All this is separated
  * from the application code and managed separately.
  */
-export interface IWorkerClient<ResponseData, RequestData>
+export interface IWorkerClient<RequestData, ResponseData>
   extends ISubject<
     WorkerClientResponse<ResponseData>,
     WorkerClientRequest<RequestData>
@@ -174,7 +179,7 @@ export enum WorkerErrorType {
   messageError = 'messageError',
   /** Errors after which the worker cannot continue to work and will be closed. */
   fatalError = 'fatalError',
-  close = 'close',
+  closed = 'closed',
 }
 
 export class WorkerError extends Error {
@@ -271,7 +276,7 @@ export function getWorkerFatalErrors(): IObservable<WorkerError> {
         function onClose() {
           emit(
             new WorkerError(
-              WorkerErrorType.close,
+              WorkerErrorType.closed,
               '[getWorkerFatalErrors] worker closed',
             ),
           )
@@ -395,15 +400,16 @@ export type WorkerServerOptions = {
   messagePort: IMessagePort
 }
 
-export class WorkerServer<ResponseData, RequestData>
-  implements IWorkerServer<ResponseData, RequestData>
+export class WorkerServer<RequestData, ResponseData>
+  implements IWorkerServer<RequestData, ResponseData>
 {
   readonly #options: WorkerServerOptions
   readonly #events: ISubject<WorkerServerRequest<RequestData>>
-  #closed: boolean = false
+  #status: WorkerServerStatus
 
   constructor(options: WorkerServerOptions) {
     this.#options = options
+    this.#status = WorkerServerStatus.disconnected
     this.#events = new Subject<WorkerServerRequest<RequestData>>({
       startStopNotifier: emit => {
         const { messagePort } = this.#options
@@ -460,19 +466,21 @@ export class WorkerServer<ResponseData, RequestData>
         return unsubscribe
       },
     })
-    this.emit({ type: WorkerServerResponseType.connected })
   }
 
   subscribe(listener: Listener<WorkerServerRequest<RequestData>>): Unsubscribe {
-    if (this.#closed) {
+    if (this.#status === WorkerServerStatus.closed) {
       throw new Error('[WorkerServer] cannot subscribe after close')
     }
     return this.#events.subscribe(listener)
   }
 
   emit(event: WorkerServerResponse<ResponseData>) {
-    if (this.#closed) {
+    if (this.#status === WorkerServerStatus.closed) {
       throw new Error('[WorkerServer] cannot emit after close')
+    }
+    if (this.#status !== WorkerServerStatus.connected) {
+      throw new Error('[WorkerServer] cannot emit when not connected')
     }
     const transferList =
       event.type === WorkerServerResponseType.data
@@ -481,30 +489,45 @@ export class WorkerServer<ResponseData, RequestData>
     this.#options.messagePort.postMessage(event, transferList ?? undefined)
   }
 
-  get closed() {
-    return this.#closed
+  get status() {
+    return this.#status
   }
 
   close() {
-    if (this.#closed) {
+    if (this.#status === WorkerServerStatus.closed) {
       return
     }
-    this.#closed = true
+    this.#status = WorkerServerStatus.closed
     this.#options.messagePort.postMessage({
       type: WorkerServerResponseType.close,
     })
     this.#options.messagePort.close()
   }
+
+  connect() {
+    if (this.#status === WorkerServerStatus.closed) {
+      throw new Error('[WorkerServer] cannot connect after close')
+    }
+    this.#status = WorkerServerStatus.connected
+    this.emit({ type: WorkerServerResponseType.connected })
+  }
 }
 
-export interface IWorkerServer<ResponseData, RequestData>
+export enum WorkerServerStatus {
+  disconnected = 'disconnected',
+  connected = 'connected',
+  closed = 'closed',
+}
+
+export interface IWorkerServer<RequestData, ResponseData>
   extends ISubject<
     WorkerServerRequest<RequestData>,
     WorkerServerResponse<ResponseData>
   > {
-  readonly closed: boolean
+  readonly status: WorkerServerStatus
 
   close(): void
+  connect(): void
 }
 
 // endregion
@@ -517,8 +540,8 @@ export type WorkerClientOptions = {
   abortSignal?: null | IAbortSignalFast
 }
 
-export class WorkerClient<ResponseData, RequestData>
-  implements IWorkerClient<ResponseData, RequestData>
+export class WorkerClient<RequestData, ResponseData>
+  implements IWorkerClient<RequestData, ResponseData>
 {
   readonly #options: WorkerClientOptions
   readonly #events: ISubject<WorkerClientResponse<ResponseData>>
@@ -750,5 +773,249 @@ export function createWorkerConnectPool(
       },
       [messagePort],
     )
+  }
+}
+
+export type WorkerFunctionCallback<CallbackData> = (
+  data: WorkerData<CallbackData>,
+) => PromiseLikeOrValue<void>
+
+export type WorkerFunctionOptions<Input, CallbackData> = {
+  data: WorkerData<Input>
+  callback?: null | WorkerFunctionCallback<CallbackData>
+  abortSignal?: null | IAbortSignalFast
+}
+
+export type WorkerFunction<Input, Output, CallbackData> = (
+  options: WorkerFunctionOptions<Input, CallbackData>,
+) => Promise<WorkerData<Output>>
+
+export type CreateWorkerFunctionOptions = {
+  connect: WorkerConnect
+  connectionName: string
+}
+
+export enum WorkerFunctionRequestType {
+  input = 'input',
+}
+
+export type WorkerFunctionRequest<Input> = {
+  type: WorkerFunctionRequestType.input
+  data: Input
+}
+
+export enum WorkerFunctionResponseType {
+  output = 'output',
+  callback = 'callback',
+}
+
+export type WorkerFunctionResponse<Output, CallbackData> =
+  | {
+      type: WorkerFunctionResponseType.output
+      data: Output
+    }
+  | {
+      type: WorkerFunctionResponseType.callback
+      data: CallbackData
+    }
+
+export function createWorkerFunctionClient<Input, Output, CallbackData>(
+  options: CreateWorkerFunctionOptions,
+): WorkerFunction<Input, Output, CallbackData> {
+  return async function workerFunction(_options) {
+    const { data: input, callback, abortSignal } = _options
+
+    const client = new WorkerClient<
+      WorkerFunctionRequest<Input>,
+      WorkerFunctionResponse<Output, CallbackData>
+    >({
+      connectionName: options.connectionName,
+      connect: options.connect,
+      abortSignal,
+    })
+
+    await client.connect()
+
+    let resolve: (value: WorkerData<Output>) => void
+    let reject: (reason?: any) => void
+    const promise = new Promise<WorkerData<Output>>((_resolve, _reject) => {
+      resolve = _resolve
+      reject = _reject
+    })
+
+    let unsubscribe: Unsubscribe | null = null
+
+    function cleanUp() {
+      unsubscribe?.()
+      client.close().catch(EMPTY_FUNC)
+    }
+
+    function onResolve(data: WorkerData<Output>): void {
+      cleanUp()
+      resolve(data)
+    }
+
+    function onReject(reason?: any): void {
+      cleanUp()
+      reject(reason)
+    }
+
+    async function onData(
+      data: WorkerData<WorkerFunctionResponse<Output, CallbackData>>,
+    ): Promise<void> {
+      switch (data.data.type) {
+        case WorkerFunctionResponseType.output:
+          onResolve({
+            data: data.data.data,
+            transferList: data.transferList,
+          })
+          break
+        case WorkerFunctionResponseType.callback:
+          if (callback) {
+            try {
+              await callback({
+                data: data.data.data,
+                transferList: data.transferList,
+              })
+            } catch (error) {
+              onReject(error)
+            }
+          }
+          break
+        default:
+          onReject(
+            new WorkerError(
+              WorkerErrorType.messageError,
+              `[WorkerFunction] unexpected response: ${JSON.stringify(data)}`,
+            ),
+          )
+          break
+      }
+    }
+
+    function onError(error: any): void {
+      onReject(error)
+    }
+
+    function onStatus(status: WorkerClientStatus): void {
+      if (status === WorkerClientStatus.closed) {
+        onReject(
+          new WorkerError(
+            WorkerErrorType.closed,
+            '[WorkerFunction] worker closed',
+          ),
+        )
+      }
+    }
+
+    unsubscribe = client.subscribe(event => {
+      switch (event.type) {
+        case WorkerClientResponseType.data:
+          onData(event.data)
+          break
+        case WorkerClientResponseType.error:
+          onError(event.error)
+          break
+        case WorkerClientResponseType.status:
+          if (event.status === WorkerClientStatus.closed) {
+            onStatus(event.status)
+          }
+          break
+        default:
+          onReject(
+            new WorkerError(
+              WorkerErrorType.messageError,
+              `[WorkerFunction] unexpected event: ${JSON.stringify(event)}`,
+            ),
+          )
+          break
+      }
+    })
+
+    onStatus(client.status)
+
+    client.emit({
+      type: WorkerClientRequestType.data,
+      data: {
+        data: {
+          type: WorkerFunctionRequestType.input,
+          data: input.data,
+        },
+        transferList: input.transferList,
+      },
+    })
+
+    return promise
+  }
+}
+
+//export type
+
+export type WorkerServerHandler = (messagePort: IMessagePort) => void
+
+export type CreateWorkerFunctionServerOptions<Input, Output, CallbackData> = {
+  func: WorkerFunction<Input, Output, CallbackData>
+}
+
+export function createWorkerFunctionServer<Input, Output, CallbackData>(
+  options: CreateWorkerFunctionServerOptions<Input, Output, CallbackData>,
+): WorkerServerHandler {
+  return function workerConnect(messagePort) {
+    const server = new WorkerServer<
+      WorkerFunctionRequest<Input>,
+      WorkerFunctionResponse<Output, CallbackData>
+    >({
+      messagePort,
+    })
+
+    const abortController = new AbortControllerFast()
+
+    server.subscribe(async event => {
+      switch (event.type) {
+        case WorkerServerRequestType.data:
+          try {
+            const output = await options.func({
+              data: {
+                data: event.data.data.data,
+                transferList: event.data.transferList,
+              },
+              callback: callbackData =>
+                server.emit({
+                  type: WorkerServerResponseType.data,
+                  data: {
+                    data: {
+                      type: WorkerFunctionResponseType.callback,
+                      data: callbackData.data,
+                    },
+                    transferList: callbackData.transferList,
+                  },
+                }),
+              abortSignal: abortController.signal,
+            })
+
+            server.emit({
+              type: WorkerServerResponseType.data,
+              data: {
+                data: {
+                  type: WorkerFunctionResponseType.output,
+                  data: output.data,
+                },
+                transferList: output.transferList,
+              },
+            })
+
+            server.close()
+          } catch (error) {
+            server.emit({
+              type: WorkerServerResponseType.error,
+              error,
+            })
+            server.close()
+          }
+          break
+      }
+    })
+
+    server.connect()
   }
 }
