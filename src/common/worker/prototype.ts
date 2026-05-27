@@ -405,62 +405,48 @@ export class WorkerServer<RequestData, ResponseData>
 {
   readonly #options: WorkerServerOptions
   readonly #events: ISubject<WorkerServerRequest<RequestData>>
+  #unsubscribeWorkerFatalErrors: Unsubscribe | null = null
   #status: WorkerServerStatus
 
   constructor(options: WorkerServerOptions) {
     this.#options = options
     this.#status = WorkerServerStatus.disconnected
+
+    const onMessage = (event: MessageEvent) => {
+      this.#events.emit(event.data)
+    }
+
+    const onMessageError = () => {
+      this.emit({
+        type: WorkerServerResponseType.error,
+        error: serializeError(
+          new WorkerError(
+            WorkerErrorType.messageError,
+            '[WorkerServer] message error',
+          ),
+        ),
+      })
+    }
+
+    const onClose = () => {
+      this.#events.emit({
+        type: WorkerServerRequestType.close,
+      })
+    }
+
     this.#events = new Subject<WorkerServerRequest<RequestData>>({
-      startStopNotifier: emit => {
+      startStopNotifier: () => {
         const { messagePort } = this.#options
-
-        const onMessage = (event: MessageEvent) => {
-          emit(event.data)
-        }
-
-        const onMessageError = () => {
-          this.emit({
-            type: WorkerServerResponseType.error,
-            error: serializeError(
-              new WorkerError(
-                WorkerErrorType.messageError,
-                '[WorkerServer] message error',
-              ),
-            ),
-          })
-        }
-
-        const onClose = () => {
-          emit({
-            type: WorkerServerRequestType.close,
-          })
-        }
-
-        const onFatalError = (error: WorkerError) => {
-          emit({
-            type: WorkerServerRequestType.error,
-            error,
-          })
-          this.emit({
-            type: WorkerServerResponseType.error,
-            error: serializeError(error),
-          })
-        }
 
         messagePort.addEventListener('message', onMessage)
         messagePort.addEventListener('messageerror', onMessageError)
         // Fires only in Node.js; in browsers the listener is registered but never invoked
         messagePort.addEventListener('close', onClose)
-        messagePort.start()
-
-        const unsubscribeWorkerFatalErrors =
-          getWorkerFatalErrors().subscribe(onFatalError)
 
         function unsubscribe() {
           messagePort.removeEventListener('message', onMessage)
           messagePort.removeEventListener('messageerror', onMessageError)
           messagePort.removeEventListener('close', onClose)
-          unsubscribeWorkerFatalErrors()
         }
 
         return unsubscribe
@@ -497,10 +483,15 @@ export class WorkerServer<RequestData, ResponseData>
     if (this.#status === WorkerServerStatus.closed) {
       return
     }
+    try {
+      this.#options.messagePort.postMessage({
+        type: WorkerServerResponseType.close,
+      })
+    } catch {
+      // Port already closed from the other side (Node.js ERR_CLOSED_MESSAGE_PORT)
+    }
+    this.#unsubscribeWorkerFatalErrors?.()
     this.#status = WorkerServerStatus.closed
-    this.#options.messagePort.postMessage({
-      type: WorkerServerResponseType.close,
-    })
     this.#options.messagePort.close()
   }
 
@@ -508,6 +499,23 @@ export class WorkerServer<RequestData, ResponseData>
     if (this.#status === WorkerServerStatus.closed) {
       throw new Error('[WorkerServer] cannot connect after close')
     }
+
+    const onFatalError = (error: WorkerError) => {
+      this.#events.emit({
+        type: WorkerServerRequestType.error,
+        error,
+      })
+      this.emit({
+        type: WorkerServerResponseType.error,
+        error: serializeError(error),
+      })
+    }
+
+    this.#unsubscribeWorkerFatalErrors =
+      getWorkerFatalErrors().subscribe(onFatalError)
+
+    this.#options.messagePort.start()
+
     this.#status = WorkerServerStatus.connected
     this.emit({ type: WorkerServerResponseType.connected })
   }
@@ -652,6 +660,13 @@ export class WorkerClient<RequestData, ResponseData>
     )
 
     await connectPromise
+
+    if (this.#status !== WorkerClientStatus.connected) {
+      throw new WorkerError(
+        WorkerErrorType.closed,
+        `[WorkerClient] connection failed; status: ${this.#status}`,
+      )
+    }
   }
 
   #connectPromise: Promise<void> | null = null
@@ -844,6 +859,7 @@ export function createWorkerFunctionClient<Input, Output, CallbackData>(
     })
 
     let unsubscribe: Unsubscribe | null = null
+    let completed = false
 
     function cleanUp() {
       unsubscribe?.()
@@ -851,11 +867,19 @@ export function createWorkerFunctionClient<Input, Output, CallbackData>(
     }
 
     function onResolve(data: WorkerData<Output>): void {
+      if (completed) {
+        return
+      }
+      completed = true
       cleanUp()
       resolve(data)
     }
 
     function onReject(reason?: any): void {
+      if (completed) {
+        return
+      }
+      completed = true
       cleanUp()
       reject(reason)
     }
@@ -949,8 +973,6 @@ export function createWorkerFunctionClient<Input, Output, CallbackData>(
   }
 }
 
-//export type
-
 export type WorkerServerHandler = (messagePort: IMessagePort) => void
 
 export type CreateWorkerFunctionServerOptions<Input, Output, CallbackData> = {
@@ -993,25 +1015,60 @@ export function createWorkerFunctionServer<Input, Output, CallbackData>(
               abortSignal: abortController.signal,
             })
 
-            server.emit({
-              type: WorkerServerResponseType.data,
-              data: {
+            if (server.status !== WorkerServerStatus.closed) {
+              server.emit({
+                type: WorkerServerResponseType.data,
                 data: {
-                  type: WorkerFunctionResponseType.output,
-                  data: output.data,
+                  data: {
+                    type: WorkerFunctionResponseType.output,
+                    data: output.data,
+                  },
+                  transferList: output.transferList,
                 },
-                transferList: output.transferList,
-              },
-            })
+              })
+            }
 
+            abortController.abort()
             server.close()
           } catch (error) {
-            server.emit({
-              type: WorkerServerResponseType.error,
-              error,
-            })
+            if (server.status !== WorkerServerStatus.closed) {
+              server.emit({
+                type: WorkerServerResponseType.error,
+                error: serializeError(error),
+              })
+            }
+            abortController.abort()
             server.close()
           }
+          break
+        case WorkerServerRequestType.close:
+          abortController.abort()
+          server.close()
+          break
+        case WorkerServerRequestType.error:
+          if (server.status !== WorkerServerStatus.closed) {
+            server.emit({
+              type: WorkerServerResponseType.error,
+              error: serializeError(event.error),
+            })
+          }
+          abortController.abort()
+          server.close()
+          break
+        default:
+          if (server.status !== WorkerServerStatus.closed) {
+            server.emit({
+              type: WorkerServerResponseType.error,
+              error: serializeError(
+                new WorkerError(
+                  WorkerErrorType.messageError,
+                  `[WorkerFunctionServer] unexpected request: ${JSON.stringify(event)}`,
+                ),
+              ),
+            })
+          }
+          abortController.abort()
+          server.close()
           break
       }
     })
