@@ -455,6 +455,9 @@ export class WorkerServer<RequestData, ResponseData>
     this.#options.messagePort.postMessage({
       type: WorkerServerResponseType.close,
     })
+    // Unsubscribe messagePort is not needed,
+    // because after close the messagePort will not emit any events.
+    // And also we need to catch the close event.
     this.#options.messagePort.close()
   }
 
@@ -488,15 +491,17 @@ export class WorkerServer<RequestData, ResponseData>
     }
 
     const onFatalError = (error: WorkerError) => {
-      this.#events.emit({
-        type: WorkerServerRequestType.error,
-        error,
-      })
       this.emit({
         type: WorkerServerResponseType.error,
         error: serializeError(error),
       })
+      this.#events.emit({
+        type: WorkerServerRequestType.error,
+        error,
+      })
     }
+
+    this.#status = WorkerServerStatus.connected
 
     this.#unsubscribeWorkerFatalErrors =
       getWorkerFatalErrors().subscribe(onFatalError)
@@ -508,7 +513,6 @@ export class WorkerServer<RequestData, ResponseData>
     messagePort.addEventListener('close', onClose)
     messagePort.start()
 
-    this.#status = WorkerServerStatus.connected
     this.emit({ type: WorkerServerResponseType.connected })
   }
 }
@@ -787,13 +791,13 @@ export type WorkerFunctionCallback<CallbackData> = (
   data: WorkerData<CallbackData>,
 ) => PromiseLikeOrValue<void>
 
-export type WorkerFunctionOptions<Input, CallbackData> = {
+export type WorkerFunctionOptions<Input, CallbackData = never> = {
   data: WorkerData<Input>
   callback?: null | WorkerFunctionCallback<CallbackData>
   abortSignal?: null | IAbortSignalFast
 }
 
-export type WorkerFunction<Input, Output, CallbackData> = (
+export type WorkerFunction<Input, Output, CallbackData = never> = (
   options: WorkerFunctionOptions<Input, CallbackData>,
 ) => Promise<WorkerData<Output>>
 
@@ -983,10 +987,21 @@ export function createWorkerFunctionServer<Input, Output, CallbackData>(
     })
 
     const abortController = new AbortControllerFast()
+    let running = false
 
     server.subscribe(async event => {
       switch (event.type) {
         case WorkerServerRequestType.data:
+          if (running) {
+            server.emit({
+              type: WorkerServerResponseType.error,
+              error: serializeError(
+                new Error('[WorkerFunction] already running'),
+              ),
+            })
+            return
+          }
+          running = true
           try {
             const output = await options.func({
               data: {
@@ -1033,8 +1048,11 @@ export function createWorkerFunctionServer<Input, Output, CallbackData>(
           break
         case WorkerServerRequestType.close:
           abortController.abort()
-          // Function should react to abort signal and complete
-          // The client should wait for the function to complete
+          // If func is running, it should handle the abort signal itself.
+          // The client should wait for the function to complete.
+          if (!running) {
+            server.close()
+          }
           break
         case WorkerServerRequestType.error:
           if (server.status !== WorkerServerStatus.closed) {
