@@ -210,6 +210,9 @@ type ErrorSerialized = {
   props: any
 }
 
+// Errors are serializable out of the box in both Node and browsers,
+// but not derived classes and custom properties, so we serialize them manually,
+// and in deserialization we restore them.
 export function serializeError(error: any): ErrorSerialized {
   const type =
     error instanceof WorkerError
@@ -1030,6 +1033,8 @@ export function createWorkerFunctionServer<Input, Output, CallbackData>(
           break
         case WorkerServerRequestType.close:
           abortController.abort()
+          // Function should react to abort signal and complete
+          // The client should wait for the function to complete
           break
         case WorkerServerRequestType.error:
           if (server.status !== WorkerServerStatus.closed) {
