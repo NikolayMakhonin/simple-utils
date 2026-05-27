@@ -4,7 +4,7 @@ import type {
   WorkerFunctionTestInput,
   WorkerFunctionTestOutput,
 } from './types'
-import { createWorkerConnectServer } from '../connect/createWorkerConnectServer'
+import { workerServerRegister, workerServerStart } from '../workerServerStart'
 import { delay } from 'src/common/async/wait/delay'
 
 const workerId = Math.random().toString(36).substring(2)
@@ -36,8 +36,8 @@ const sum = createWorkerFunctionServer<
   },
 })
 
-createWorkerConnectServer({
-  handlers: {
-    sum,
-  },
+workerServerRegister({
+  sum,
 })
+
+workerServerStart()

@@ -7,17 +7,16 @@ import {
   WorkerFunctionResponseType,
 } from './types'
 import {
-  type IMessagePort,
   type WorkerData,
   WorkerError,
   WorkerErrorType,
+  type WorkerServerHandler,
   WorkerServerRequestType,
   WorkerServerResponseType,
 } from '../types'
 import { serializeError } from '../helpers'
 import { WorkerServer, WorkerServerStatus } from '../WorkerServer'
 
-export type WorkerServerHandler = (messagePort: IMessagePort) => void
 export type CreateWorkerFunctionServerOptions<
   Input,
   Output,

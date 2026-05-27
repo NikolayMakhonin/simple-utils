@@ -45,10 +45,10 @@ async function run() {
     },
   })
 
-  // execute the file
+  // execute the file and wait for it to finish
   await runner.executeFile(workerData.scriptPath)
 
-  // close the vite server
+  // close the vite server because it won't be needed anymore
   await server.close()
 }
 
