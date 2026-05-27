@@ -11,11 +11,13 @@ import { createWorkerVite } from './create/createWorkerVite'
 
 const STEP_DURATION_MS = 100
 const TOTAL_STEPS = 10
+const WORKER_COUNT = 3
+const TASKS_PER_WORKER = 3
 
 const connect = createWorkerConnectPool({
   createWorker: () =>
     createWorkerVite(new URL('./-test/worker.ts', import.meta.url)),
-  maxCount: 2,
+  maxCount: WORKER_COUNT,
 })
 
 const sum = createWorkerFunctionClient<
@@ -27,9 +29,10 @@ const sum = createWorkerFunctionClient<
   connectionName: 'sum',
 })
 
-async function test(a: number, b: number, useAbort: boolean) {
+async function test(a: number, b: number, useAbort: boolean): Promise<string> {
   const abortController = useAbort ? new AbortControllerFast() : null
   const progressValues: number[] = []
+  let workerId: string | null = null
 
   const promise = sum({
     data: {
@@ -37,6 +40,7 @@ async function test(a: number, b: number, useAbort: boolean) {
     },
     abortSignal: abortController?.signal,
     callback({ data }) {
+      workerId = data.workerId
       progressValues.push(data.progress)
       if (useAbort && data.progress >= 0.5) {
         abortController!.abort()
@@ -55,6 +59,7 @@ async function test(a: number, b: number, useAbort: boolean) {
   } else {
     const result = await promise
     expect(result.data.result).toBe(a + b)
+    expect(result.data.workerId).toBe(workerId)
     expect(result.data.completedSteps).toBe(TOTAL_STEPS)
     expect(progressValues.length).toBe(TOTAL_STEPS)
     expect(progressValues[0]).toBe(1 / TOTAL_STEPS)
@@ -63,14 +68,37 @@ async function test(a: number, b: number, useAbort: boolean) {
       expect(progressValues[i]).toBeGreaterThan(progressValues[i - 1])
     }
   }
+
+  expect(workerId).not.toBe(null)
+  return workerId!
 }
 
-describe('workerFunction', () => {
+async function testParallel(useAbort: boolean) {
+  const taskCount = WORKER_COUNT * TASKS_PER_WORKER
+  const promises: Promise<string>[] = []
+  for (let i = 0; i < taskCount; i++) {
+    promises.push(test(i, i + 1, useAbort))
+  }
+  const workerIds = await Promise.all(promises)
+
+  const taskCounts = new Map<string, number>()
+  for (let i = 0; i < workerIds.length; i++) {
+    const id = workerIds[i]
+    taskCounts.set(id, (taskCounts.get(id) ?? 0) + 1)
+  }
+
+  expect(taskCounts.size).toBe(WORKER_COUNT)
+  for (const [, count] of taskCounts) {
+    expect(count).toBe(TASKS_PER_WORKER)
+  }
+}
+
+describe('workerFunction', { timeout: 10 * 1000 }, () => {
   it('base', async () => {
-    await test(1, 2, false)
+    await testParallel(false)
   })
 
   it('abort', async () => {
-    await test(10, 20, true)
+    await testParallel(true)
   })
 })

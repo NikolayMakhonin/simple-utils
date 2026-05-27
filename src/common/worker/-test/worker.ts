@@ -7,6 +7,8 @@ import type {
 import { createWorkerConnectServer } from '../connect/createWorkerConnectServer'
 import { delay } from 'src/common/async/wait/delay'
 
+const workerId = Math.random().toString(36).substring(2)
+
 const sum = createWorkerFunctionServer<
   WorkerFunctionTestInput,
   WorkerFunctionTestOutput,
@@ -20,7 +22,7 @@ const sum = createWorkerFunctionServer<
       await delay(stepDurationMs, abortSignal)
       completedSteps++
       callback?.({
-        data: { progress: completedSteps / steps },
+        data: { progress: completedSteps / steps, workerId },
       })
     }
 
@@ -28,6 +30,7 @@ const sum = createWorkerFunctionServer<
       data: {
         result: a + b,
         completedSteps,
+        workerId,
       },
     }
   },

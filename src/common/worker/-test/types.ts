@@ -8,8 +8,10 @@ export type WorkerFunctionTestInput = {
 export type WorkerFunctionTestOutput = {
   result: number
   completedSteps: number
+  workerId: string
 }
 
 export type WorkerFunctionTestCallback = {
   progress: number
+  workerId: string
 }
