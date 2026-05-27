@@ -446,13 +446,6 @@ export class WorkerServer<RequestData, ResponseData>
     if (this.#status === WorkerServerStatus.closed) {
       return
     }
-    try {
-      this.#options.messagePort.postMessage({
-        type: WorkerServerResponseType.close,
-      })
-    } catch {
-      // Port already closed from the other side (Node.js ERR_CLOSED_MESSAGE_PORT)
-    }
     this.#unsubscribeWorkerFatalErrors?.()
     this.#status = WorkerServerStatus.closed
     this.#options.messagePort.close()
