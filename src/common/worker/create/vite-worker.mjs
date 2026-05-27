@@ -1,5 +1,5 @@
 // from: https://dev.to/composite/nodejs-worker-thread-with-typescript-5b00
-import { workerData } from 'node:worker_threads'
+import { parentPort, workerData } from 'node:worker_threads'
 import { createServer } from 'vite'
 import { ViteNodeRunner } from 'vite-node/client'
 import { ViteNodeServer } from 'vite-node/server'
@@ -20,6 +20,10 @@ async function run() {
       noDiscovery: true,
       include: undefined,
     },
+  })
+
+  parentPort.on('close', () => {
+    server.close()
   })
 
   // create vite-node server
@@ -48,11 +52,7 @@ async function run() {
   // execute the file and wait for it to finish
   await runner.executeFile(workerData.scriptPath)
 
-  // close the vite server because it won't be needed anymore
-  await server.close()
+  parentPort.postMessage('ready')
 }
 
-run().catch(err => {
-  console.error(err)
-  process.exit(1)
-})
+void run()

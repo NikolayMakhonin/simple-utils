@@ -1,5 +1,5 @@
 import { WorkerNode } from './WorkerNode'
-import type { IWorker } from '../types'
+import { type IWorker, WorkerError, WorkerErrorType } from '../types'
 import { createWorkerWeb } from './createWorkerWeb'
 
 const viteWorkerUrl = new URL('./vite-worker.mjs', import.meta.url)
@@ -23,6 +23,22 @@ export async function createWorkerViteNode(
   worker.on('error', error => {
     console.error(error)
   })
+
+  await new Promise<void>((resolve, reject) => {
+    worker.on('message', (message: any) => {
+      if (message === 'ready') {
+        resolve()
+      } else {
+        reject(
+          new WorkerError(
+            WorkerErrorType.messageError,
+            `[WorkerViteNode] unexpected message: ${JSON.stringify(message)}`,
+          ),
+        )
+      }
+    })
+  })
+
   return worker
 }
 
