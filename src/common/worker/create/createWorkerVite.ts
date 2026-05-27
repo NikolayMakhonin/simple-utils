@@ -1,27 +1,36 @@
+import { WorkerNode } from './WorkerNode'
+import type { IWorker } from '../types'
+import { createWorkerWeb } from './createWorkerWeb'
+
 const viteWorkerUrl = new URL('./vite-worker.mjs', import.meta.url)
 
 export async function createWorkerViteNode(
   workerPathOrUrl: string | URL,
-): Promise<Worker> {
+): Promise<IWorker> {
   const [{ Worker: NodeWorker }, { fileURLToPath }] = await Promise.all([
     import('worker_threads'),
     import('url'),
   ])
-  return new NodeWorker(fileURLToPath(viteWorkerUrl), {
+  const nodeWorker = new NodeWorker(fileURLToPath(viteWorkerUrl), {
     workerData: {
       scriptPath:
         workerPathOrUrl instanceof URL
           ? fileURLToPath(workerPathOrUrl)
           : workerPathOrUrl,
     },
-  }) as unknown as Worker
+  })
+  const worker = new WorkerNode(nodeWorker)
+  worker.on('error', error => {
+    console.error(error)
+  })
+  return worker
 }
 
 export async function createWorkerVite(
   workerPathOrUrl: string | URL,
-): Promise<Worker> {
+): Promise<IWorker> {
   if (typeof Worker === 'undefined') {
     return createWorkerViteNode(workerPathOrUrl)
   }
-  return new Worker(workerPathOrUrl, { type: 'module' })
+  return createWorkerWeb(workerPathOrUrl)
 }

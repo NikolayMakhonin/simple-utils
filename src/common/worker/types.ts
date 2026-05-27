@@ -13,6 +13,28 @@ export type WorkerData<Data> = {
   transferList?: null | readonly TransferableAny[]
 }
 
+// region IWorker
+
+export interface IWorker {
+  postMessage(message: any, transfer: TransferableAny[]): void
+
+  on(event: 'error', listener: (err: Error) => void): this
+
+  on(event: 'message', listener: (value: any) => void): this
+
+  on(event: 'messageerror', listener: (error: Error) => void): this
+
+  off(event: 'error', listener: (err: Error) => void): this
+
+  off(event: 'message', listener: (value: any) => void): this
+
+  off(event: 'messageerror', listener: (error: Error) => void): this
+
+  terminate(): void
+}
+
+// endregion
+
 // region IMessagePort
 
 export interface IMessagePortEventMap {

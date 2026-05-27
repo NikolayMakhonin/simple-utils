@@ -127,3 +127,10 @@ export function getWorkerFatalErrors(): IObservable<WorkerError> {
 
   return workerErrorsSubject
 }
+
+export function errorEventToWorkerError(event: ErrorEvent): WorkerError {
+  return new WorkerError(
+    WorkerErrorType.fatalError,
+    `${event.message}\n${event.filename}:${event.lineno}:${event.colno}\n${event.error?.stack ?? event.error?.message ?? event.error}`,
+  )
+}
