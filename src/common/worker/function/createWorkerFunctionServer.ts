@@ -8,6 +8,7 @@ import {
 } from './types'
 import {
   type IMessagePort,
+  type WorkerData,
   WorkerError,
   WorkerErrorType,
   WorkerServerRequestType,
@@ -39,7 +40,58 @@ export function createWorkerFunctionServer<Input, Output, CallbackData = never>(
     const abortController = new AbortControllerFast()
     let running = false
 
-    server.subscribe(async event => {
+    async function runFunc(
+      data: WorkerData<WorkerFunctionRequest<Input>>,
+    ): Promise<void> {
+      running = true
+
+      try {
+        const output = await options.func({
+          data: {
+            data: data.data.data,
+            transferList: data.transferList,
+          },
+          callback: callbackData => {
+            server.emit({
+              type: WorkerServerResponseType.data,
+              data: {
+                data: {
+                  type: WorkerFunctionResponseType.callback,
+                  data: callbackData.data,
+                },
+                transferList: callbackData.transferList,
+              },
+            })
+          },
+          abortSignal: abortController.signal,
+        })
+
+        if (server.status !== WorkerServerStatus.closed) {
+          server.emit({
+            type: WorkerServerResponseType.data,
+            data: {
+              data: {
+                type: WorkerFunctionResponseType.output,
+                data: output.data,
+              },
+              transferList: output.transferList,
+            },
+          })
+        }
+      } catch (error) {
+        if (server.status !== WorkerServerStatus.closed) {
+          server.emit({
+            type: WorkerServerResponseType.error,
+            error: serializeError(error),
+          })
+        }
+      } finally {
+        abortController.abort()
+        server.close()
+      }
+    }
+
+    server.subscribe(event => {
       switch (event.type) {
         case WorkerServerRequestType.data: {
           // Use middleware variable because of TypeScript type check bug
@@ -70,52 +122,7 @@ export function createWorkerFunctionServer<Input, Output, CallbackData = never>(
             return
           }
 
-          running = true
-
-          try {
-            const output = await options.func({
-              data: {
-                data: event.data.data.data,
-                transferList: event.data.transferList,
-              },
-              callback: callbackData => {
-                server.emit({
-                  type: WorkerServerResponseType.data,
-                  data: {
-                    data: {
-                      type: WorkerFunctionResponseType.callback,
-                      data: callbackData.data,
-                    },
-                    transferList: callbackData.transferList,
-                  },
-                })
-              },
-              abortSignal: abortController.signal,
-            })
-
-            if (server.status !== WorkerServerStatus.closed) {
-              server.emit({
-                type: WorkerServerResponseType.data,
-                data: {
-                  data: {
-                    type: WorkerFunctionResponseType.output,
-                    data: output.data,
-                  },
-                  transferList: output.transferList,
-                },
-              })
-            }
-          } catch (error) {
-            if (server.status !== WorkerServerStatus.closed) {
-              server.emit({
-                type: WorkerServerResponseType.error,
-                error: serializeError(error),
-              })
-            }
-          } finally {
-            abortController.abort()
-            server.close()
-          }
+          void runFunc(event.data)
           break
         }
         case WorkerServerRequestType.close:

@@ -9,7 +9,7 @@ import type {
 } from './-test/types'
 import { createWorkerVite } from './create/createWorkerVite'
 
-const STEP_DURATION_MS = 500
+const STEP_DURATION_MS = 100
 const TOTAL_STEPS = 10
 
 const connect = createWorkerConnectPool({
