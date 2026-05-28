@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
 import { AbortControllerFast, AbortError } from '@flemist/abort-controller-fast'
 import { createWorkerFunctionClient } from './function/createWorkerFunctionClient'
 import { createWorkerConnectPool } from './connect/createWorkerConnectPool'
@@ -14,10 +14,14 @@ const TOTAL_STEPS = 10
 const WORKER_COUNT = 3
 const TASKS_PER_WORKER = 3
 
-const connect = createWorkerConnectPool({
+const pool = createWorkerConnectPool({
   createWorker: () =>
     createWorkerVite(new URL('./-test/worker.ts', import.meta.url)),
   maxCount: WORKER_COUNT,
+})
+
+afterAll(async () => {
+  await pool.terminate()
 })
 
 const sum = createWorkerFunctionClient<
@@ -25,7 +29,7 @@ const sum = createWorkerFunctionClient<
   WorkerFunctionTestOutput,
   WorkerFunctionTestCallback
 >({
-  connect,
+  connect: pool.connect,
   connectionName: 'sum',
 })
 
