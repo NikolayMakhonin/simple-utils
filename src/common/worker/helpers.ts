@@ -25,7 +25,10 @@ export function serializeError(error: any): ErrorSerialized {
   return {
     type,
     error,
-    props: error instanceof Error ? { ...error, name: error.name } : void 0,
+    props:
+      error instanceof Error
+        ? { ...error, name: error.name, stack: error.stack }
+        : void 0,
   }
 }
 
@@ -47,8 +50,16 @@ export function deserializeError(data: ErrorSerialized) {
       break
   }
 
-  if (error != null && error.constructor === Error) {
-    return Object.assign(error, data.props)
+  if (error instanceof Error) {
+    for (const key in data.props) {
+      if (Object.prototype.hasOwnProperty.call(data.props, key)) {
+        try {
+          error[key] = data.props[key]
+        } catch {
+          // ignore read-only properties
+        }
+      }
+    }
   }
 
   return error
