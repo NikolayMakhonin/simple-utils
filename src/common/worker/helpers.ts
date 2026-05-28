@@ -46,7 +46,12 @@ export function deserializeError(data: ErrorSerialized) {
       error = data.error
       break
   }
-  return Object.assign(error, data.props)
+
+  if (error != null && error.constructor === Error) {
+    return Object.assign(error, data.props)
+  }
+
+  return error
 }
 
 let workerErrorsSubject: ISubject<WorkerError> | null = null

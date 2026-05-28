@@ -1,6 +1,6 @@
 {
   "name": "@flemist/simple-utils",
-  "version": "2.4.0",
+  "version": "2.4.1",
   "description": "Simple simple utils",
   "sideEffects": false,
   "types": "build/common/index.d.ts",
