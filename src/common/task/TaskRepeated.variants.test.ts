@@ -307,7 +307,7 @@ async function test(options: TestOptions): Promise<void> {
   if (context.useImmediate) {
     const runPromise = task.run().catch(EMPTY_FUNC)
 
-    task.run({ immediate: true })
+    task.run({ immediate: true }).catch(EMPTY_FUNC)
 
     const maxTime =
       (plan.iterations + 1) * (args.executionDuration + args.delayTimeMax + 10)
