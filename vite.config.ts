@@ -2,6 +2,8 @@ import { defineConfig } from 'vitest/config'
 import { createLogger, loadEnv } from 'vite'
 import dts from 'vite-plugin-dts'
 import path from 'path'
+import { builtinModules } from 'module'
+import pkg from './package.json' with { type: 'json' }
 
 const logger = createLogger()
 const originalWarn = logger.warn
@@ -30,6 +32,7 @@ export default defineConfig(({ mode, isSsrBuild, command }) => {
         src: path.resolve('src'),
       },
     },
+    base: './',
     build: {
       // minify: mode === 'production',
       // minify: false,
@@ -41,6 +44,11 @@ export default defineConfig(({ mode, isSsrBuild, command }) => {
         },
       },
       rollupOptions: {
+        external: [
+          ...builtinModules,
+          ...builtinModules.map(m => `node:${m}`),
+          ...Object.keys(pkg.dependencies),
+        ],
         output: [
           {
             format: 'es',
@@ -56,8 +64,10 @@ export default defineConfig(({ mode, isSsrBuild, command }) => {
       minify: true,
       sourcemap: false,
       outDir: 'build',
-      ssr: true,
+      assetsInlineLimit: () => false,
+      emitAssets: true,
     },
+    assetsInclude: ['**/-res/**/*.mjs'],
     customLogger: logger,
     optimizeDeps: {
       // Prevent playwright error: Could not resolve "chromium-bidi/lib/cjs/bidiMapper/BidiMapper"

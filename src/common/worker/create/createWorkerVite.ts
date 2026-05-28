@@ -2,7 +2,10 @@ import { WorkerNode } from './WorkerNode'
 import { type IWorker, WorkerError, WorkerErrorType } from '../types'
 import { createWorkerWeb } from './createWorkerWeb'
 
-const viteWorkerUrl = new URL('./vite-worker.mjs', import.meta.url)
+const viteWorkerUrl = new URL(
+  './-res/vite-worker.mjs?no-inline',
+  import.meta.url,
+)
 
 async function _createWorkerViteNode(
   workerPathOrUrl: string | URL,
