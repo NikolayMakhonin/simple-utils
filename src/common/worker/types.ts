@@ -30,7 +30,7 @@ export interface IWorker {
 
   off(event: 'messageerror', listener: (error: Error) => void): this
 
-  terminate(): void
+  terminate(): Promise<void>
 }
 
 // endregion

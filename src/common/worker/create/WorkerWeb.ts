@@ -75,7 +75,7 @@ export class WorkerWeb implements IWorker {
     return this
   }
 
-  terminate(): void {
+  async terminate(): Promise<void> {
     this.#worker.terminate()
   }
 }

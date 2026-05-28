@@ -76,7 +76,7 @@ export class WorkerNode implements IWorker {
     return this
   }
 
-  terminate(): void {
-    void this.#worker.terminate()
+  async terminate(): Promise<void> {
+    await this.#worker.terminate()
   }
 }

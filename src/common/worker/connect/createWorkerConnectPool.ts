@@ -56,11 +56,14 @@ export function createWorkerConnectPool(
     },
 
     async terminate() {
-      const workers = await Promise.all(pool)
-      for (let i = 0, len = workers.length; i < len; i++) {
-        workers[i].terminate()
-      }
+      const promise = Promise.all(
+        pool.map(async workerPromise => {
+          const worker = await workerPromise
+          await worker.terminate()
+        }),
+      )
       pool.length = 0
+      await promise
     },
   }
 }
