@@ -4,7 +4,7 @@ import { createWorkerWeb } from './createWorkerWeb'
 
 const viteWorkerUrl = new URL('./vite-worker.mjs', import.meta.url)
 
-export async function createWorkerViteNode(
+async function _createWorkerViteNode(
   workerPathOrUrl: string | URL,
 ): Promise<IWorker> {
   const [{ Worker: NodeWorker }, { fileURLToPath }] = await Promise.all([
@@ -40,6 +40,22 @@ export async function createWorkerViteNode(
   })
 
   return worker
+}
+
+let prevCreateWorkerViteNodePromise: Promise<IWorker> | null = null
+export async function createWorkerViteNode(
+  workerPathOrUrl: string | URL,
+): Promise<IWorker> {
+  // Vite node workers cannot be created in parallel, otherwise there will be errors
+  if (prevCreateWorkerViteNodePromise) {
+    prevCreateWorkerViteNodePromise = prevCreateWorkerViteNodePromise.then(
+      () => _createWorkerViteNode(workerPathOrUrl),
+      () => _createWorkerViteNode(workerPathOrUrl),
+    )
+  } else {
+    prevCreateWorkerViteNodePromise = _createWorkerViteNode(workerPathOrUrl)
+  }
+  return prevCreateWorkerViteNodePromise
 }
 
 export async function createWorkerVite(

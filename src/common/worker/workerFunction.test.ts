@@ -97,7 +97,7 @@ async function testParallel(useAbort: boolean) {
   }
 }
 
-describe('workerFunction', { timeout: 10 * 1000 }, () => {
+describe('workerFunction', { timeout: 20 * 1000 }, () => {
   it('base', async () => {
     await testParallel(false)
   })
