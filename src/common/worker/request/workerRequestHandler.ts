@@ -1,12 +1,14 @@
 import type { ISubject } from 'src/common/rx'
-import { type WorkerData, WorkerError, WorkerErrorType } from '../types'
+import {
+  type WorkerData,
+  WorkerError,
+  WorkerErrorType,
+  type WorkerEvent,
+  type WorkerEventRequest,
+  type WorkerEventResponse,
+  type WorkerEventResponseError,
+} from '../types'
 import { serializeError } from '../helpers'
-import type {
-  WorkerEvent,
-  WorkerEventRequest,
-  WorkerEventResponse,
-  WorkerEventResponseError,
-} from './types'
 import type { Unsubscribe, PromiseOrValue } from 'src/common/types'
 
 export function workerRequestHandler<RequestData, ResponseData>(

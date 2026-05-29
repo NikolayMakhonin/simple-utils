@@ -224,3 +224,36 @@ export type WorkerConnectRequest = {
 }
 
 export type WorkerServerHandler = (messagePort: IMessagePort) => void
+
+// region WorkerEvent
+
+export type WorkerEventRequest<Data> = {
+  type: 'request'
+  requestId: number
+  data: WorkerData<Data>
+}
+
+export type WorkerEventResponse<Data> = {
+  type: 'response'
+  requestId: number
+  data: WorkerData<Data>
+}
+
+export type WorkerEventResponseError = {
+  type: 'responseError'
+  requestId: number
+  error: ErrorSerialized
+}
+
+export type WorkerEventFire<Data> = {
+  type: 'event'
+  data: WorkerData<Data>
+}
+
+export type WorkerEvent<Data> =
+  | WorkerEventRequest<Data>
+  | WorkerEventResponse<Data>
+  | WorkerEventResponseError
+  | WorkerEventFire<Data>
+
+// endregion

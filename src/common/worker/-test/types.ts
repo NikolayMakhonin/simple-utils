@@ -3,7 +3,7 @@ import type {
   WorkerEventRequest,
   WorkerEventResponse,
   WorkerEventResponseError,
-} from '../function/types'
+} from '../types'
 
 export type WorkerFunctionTestInput = {
   a: number

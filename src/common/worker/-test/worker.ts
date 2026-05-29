@@ -1,6 +1,6 @@
 import { createWorkerFunctionServer } from '../function/createWorkerFunctionServer'
-import { workerRequestHandler } from '../function/workerRequestHandler'
-import { workerRequest } from '../function/workerRequest'
+import { workerRequestHandler } from '../request/workerRequestHandler'
+import { workerRequest } from '../request/workerRequest'
 import type {
   WorkerFunctionTestEvent,
   WorkerFunctionTestInput,

@@ -1,14 +1,14 @@
 import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
 import type { ISubject } from 'src/common/rx'
 import { waitObservable } from 'src/common/rx'
-import type { WorkerData } from '../types'
-import { deserializeError } from '../helpers'
 import type {
+  WorkerData,
   WorkerEvent,
   WorkerEventRequest,
   WorkerEventResponse,
   WorkerEventResponseError,
-} from './types'
+} from '../types'
+import { deserializeError } from '../helpers'
 import { withTimeout } from 'src/common/async/timeout/withTimeout'
 import type { ITimeController } from '@flemist/time-controller'
 

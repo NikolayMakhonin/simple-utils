@@ -1,8 +1,8 @@
 import { afterAll, describe, expect, it } from 'vitest'
 import { AbortControllerFast, AbortError } from '@flemist/abort-controller-fast'
 import { createWorkerFunctionClient } from './function/createWorkerFunctionClient'
-import { workerRequest } from './function/workerRequest'
-import { workerRequestHandler } from './function/workerRequestHandler'
+import { workerRequest } from './request/workerRequest'
+import { workerRequestHandler } from './request/workerRequestHandler'
 import { createWorkerConnectPool } from './connect/createWorkerConnectPool'
 import type {
   WorkerFunctionTestEvent,

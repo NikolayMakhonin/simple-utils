@@ -1,7 +1,6 @@
 import { EMPTY_FUNC } from 'src/common/constants'
 import {
   type IWorkerFunctionCall,
-  type WorkerEvent,
   type WorkerFunctionClient,
   type WorkerFunctionRequest,
   WorkerFunctionRequestType,
@@ -16,6 +15,7 @@ import {
   type WorkerData,
   WorkerError,
   WorkerErrorType,
+  type WorkerEvent,
 } from '../types'
 import { type IWorkerClient, WorkerClient } from '../WorkerClient'
 import { type Listener, Subject } from 'src/common/rx'

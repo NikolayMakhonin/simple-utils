@@ -1,39 +1,6 @@
 import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
-import type { ErrorSerialized, WorkerData } from '../types'
+import type { WorkerData, WorkerEvent } from '../types'
 import type { ISubject } from 'src/common/rx'
-
-// region WorkerEvent
-
-export type WorkerEventRequest<Data> = {
-  type: 'request'
-  requestId: number
-  data: WorkerData<Data>
-}
-
-export type WorkerEventResponse<Data> = {
-  type: 'response'
-  requestId: number
-  data: WorkerData<Data>
-}
-
-export type WorkerEventResponseError = {
-  type: 'responseError'
-  requestId: number
-  error: ErrorSerialized
-}
-
-export type WorkerEventFire<Data> = {
-  type: 'event'
-  data: WorkerData<Data>
-}
-
-export type WorkerEvent<Data> =
-  | WorkerEventRequest<Data>
-  | WorkerEventResponse<Data>
-  | WorkerEventResponseError
-  | WorkerEventFire<Data>
-
-// endregion
 
 // region WorkerFunctionClient
 

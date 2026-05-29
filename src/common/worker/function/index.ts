@@ -1,5 +1,5 @@
 export * from './types'
 export * from './createWorkerFunctionClient'
 export * from './createWorkerFunctionServer'
-export * from './workerRequest'
-export * from './workerRequestHandler'
+export * from '../request/workerRequest'
+export * from '../request/workerRequestHandler'

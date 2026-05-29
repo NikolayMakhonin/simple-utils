@@ -1,6 +1,5 @@
 import { AbortControllerFast } from '@flemist/abort-controller-fast'
 import {
-  type WorkerEvent,
   type WorkerFunctionServer,
   type WorkerFunctionRequest,
   type WorkerFunctionRequestInput,
@@ -12,6 +11,7 @@ import {
   type WorkerData,
   WorkerError,
   WorkerErrorType,
+  type WorkerEvent,
   type WorkerServerHandler,
   WorkerServerRequestType,
   WorkerServerResponseType,
