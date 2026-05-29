@@ -1,15 +1,37 @@
 import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
-import type { WorkerData } from '../types'
+import type { ErrorSerialized, WorkerData } from '../types'
 import type { ISubject } from '../../rx'
 
 // region WorkerEvent
 
-export type WorkerEventTypeBase = 'request' | 'response' | 'event'
-
-export type WorkerEvent<Type extends WorkerEventTypeBase, Data> = {
-  type: Type
+export type WorkerEventRequest<Data> = {
+  type: 'request'
+  requestId: number
   data: WorkerData<Data>
 }
+
+export type WorkerEventResponse<Data> = {
+  type: 'response'
+  requestId: number
+  data: WorkerData<Data>
+}
+
+export type WorkerEventResponseError = {
+  type: 'responseError'
+  requestId: number
+  error: ErrorSerialized
+}
+
+export type WorkerEventFire<Data> = {
+  type: 'event'
+  data: WorkerData<Data>
+}
+
+export type WorkerEvent<Data> =
+  | WorkerEventRequest<Data>
+  | WorkerEventResponse<Data>
+  | WorkerEventResponseError
+  | WorkerEventFire<Data>
 
 // endregion
 
@@ -20,8 +42,8 @@ export type WorkerEvent<Type extends WorkerEventTypeBase, Data> = {
  */
 export interface IWorkerFunctionCall<
   Output,
-  EventInput extends WorkerEvent<any, any> = never,
-  EventOutput extends WorkerEvent<any, any> = never,
+  EventInput extends WorkerEvent<any> = never,
+  EventOutput extends WorkerEvent<any> = never,
 > extends ISubject<EventOutput, EventInput> {
   /**
    * Connects to the worker and starts the function.
@@ -39,8 +61,8 @@ export interface IWorkerFunctionCall<
 }
 
 export type WorkerFunctionClientOptions<Input> = {
-  data: WorkerData<Input>
-  abortSignal?: null | IAbortSignalFast
+  readonly data: WorkerData<Input>
+  readonly abortSignal?: null | IAbortSignalFast
 }
 
 /**
@@ -69,8 +91,8 @@ export type WorkerFunctionClientOptions<Input> = {
 export type WorkerFunctionClient<
   Input,
   Output,
-  EventInput extends WorkerEvent<any, any> = never,
-  EventOutput extends WorkerEvent<any, any> = never,
+  EventInput extends WorkerEvent<any> = never,
+  EventOutput extends WorkerEvent<any> = never,
 > = (
   options: WorkerFunctionClientOptions<Input>,
 ) => IWorkerFunctionCall<Output, EventInput, EventOutput>
@@ -81,8 +103,8 @@ export type WorkerFunctionClient<
 
 export type WorkerFunctionServerOptions<
   Input,
-  EventInput extends WorkerEvent<any, any> = never,
-  EventOutput extends WorkerEvent<any, any> = never,
+  EventInput extends WorkerEvent<any> = never,
+  EventOutput extends WorkerEvent<any> = never,
 > = {
   data: WorkerData<Input>
   abortSignal: IAbortSignalFast
@@ -92,8 +114,8 @@ export type WorkerFunctionServerOptions<
 export type WorkerFunctionServer<
   Input,
   Output,
-  EventInput extends WorkerEvent<any, any> = never,
-  EventOutput extends WorkerEvent<any, any> = never,
+  EventInput extends WorkerEvent<any> = never,
+  EventOutput extends WorkerEvent<any> = never,
 > = (
   options: WorkerFunctionServerOptions<Input, EventInput, EventOutput>,
 ) => Promise<WorkerData<Output>>
@@ -112,12 +134,12 @@ export type WorkerFunctionRequestInput<Input> = {
   data: Input
 }
 
-export type WorkerFunctionRequestEvent<EventInput> = {
+export type WorkerFunctionRequestEvent<EventInput extends WorkerEvent<any>> = {
   type: WorkerFunctionRequestType.event
   data: EventInput
 }
 
-export type WorkerFunctionRequest<Input, EventInput> =
+export type WorkerFunctionRequest<Input, EventInput extends WorkerEvent<any>> =
   | WorkerFunctionRequestInput<Input>
   | WorkerFunctionRequestEvent<EventInput>
 
@@ -135,16 +157,15 @@ export type WorkerFunctionResponseOutput<Output> = {
   data: Output
 }
 
-export type WorkerFunctionResponseEvent<
-  EventOutput extends WorkerEvent<any, any>,
-> = {
-  type: WorkerFunctionResponseType.event
-  data: EventOutput
-}
+export type WorkerFunctionResponseEvent<EventOutput extends WorkerEvent<any>> =
+  {
+    type: WorkerFunctionResponseType.event
+    data: EventOutput
+  }
 
 export type WorkerFunctionResponse<
   Output,
-  EventOutput extends WorkerEvent<any, any>,
+  EventOutput extends WorkerEvent<any>,
 > =
   | WorkerFunctionResponseOutput<Output>
   | WorkerFunctionResponseEvent<EventOutput>

@@ -4,13 +4,13 @@ import type { TransferListItem as TransferableNode } from 'worker_threads'
 export type TransferableAny = Transferable | TransferableNode
 
 export type WorkerData<Data> = {
-  data: Data
+  readonly data: Data
   /**
    * The list of transferable objects that should be transferred to the worker.
    * These objects will not be available in the main thread until the worker transfers them back.
    * So you can share some memory between threads without copying it.
    */
-  transferList?: null | readonly TransferableAny[]
+  readonly transferList?: null | readonly TransferableAny[]
 }
 
 // region IWorker

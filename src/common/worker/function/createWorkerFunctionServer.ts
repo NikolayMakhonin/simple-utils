@@ -1,7 +1,9 @@
 import { AbortControllerFast } from '@flemist/abort-controller-fast'
 import {
-  type WorkerFunction,
+  type WorkerEvent,
+  type WorkerFunctionServer,
   type WorkerFunctionRequest,
+  type WorkerFunctionRequestInput,
   WorkerFunctionRequestType,
   type WorkerFunctionResponse,
   WorkerFunctionResponseType,
@@ -16,22 +18,34 @@ import {
 } from '../types'
 import { serializeError } from '../helpers'
 import { WorkerServer, WorkerServerStatus } from '../WorkerServer'
+import { Subject } from 'src/common/rx'
 
 export type CreateWorkerFunctionServerOptions<
   Input,
   Output,
-  CallbackData = never,
+  EventInput extends WorkerEvent<any> = never,
+  EventOutput extends WorkerEvent<any> = never,
 > = {
-  func: WorkerFunction<Input, Output, CallbackData>
+  func: WorkerFunctionServer<Input, Output, EventInput, EventOutput>
 }
 
-export function createWorkerFunctionServer<Input, Output, CallbackData = never>(
-  options: CreateWorkerFunctionServerOptions<Input, Output, CallbackData>,
+export function createWorkerFunctionServer<
+  Input,
+  Output,
+  EventInput extends WorkerEvent<any> = never,
+  EventOutput extends WorkerEvent<any> = never,
+>(
+  options: CreateWorkerFunctionServerOptions<
+    Input,
+    Output,
+    EventInput,
+    EventOutput
+  >,
 ): WorkerServerHandler {
   return function workerConnect(messagePort) {
     const server = new WorkerServer<
-      WorkerFunctionRequest<Input>,
-      WorkerFunctionResponse<Output, CallbackData>
+      WorkerFunctionRequest<Input, EventInput>,
+      WorkerFunctionResponse<Output, EventOutput>
     >({
       messagePort,
     })
@@ -39,8 +53,10 @@ export function createWorkerFunctionServer<Input, Output, CallbackData = never>(
     const abortController = new AbortControllerFast()
     let running = false
 
+    const eventBus = new Subject<EventInput>()
+
     async function runFunc(
-      data: WorkerData<WorkerFunctionRequest<Input>>,
+      data: WorkerData<WorkerFunctionRequestInput<Input>>,
     ): Promise<void> {
       running = true
 
@@ -50,17 +66,24 @@ export function createWorkerFunctionServer<Input, Output, CallbackData = never>(
             data: data.data.data,
             transferList: data.transferList,
           },
-          callback: callbackData => {
-            server.emit({
-              type: WorkerServerResponseType.data,
-              data: {
+          eventBus: {
+            subscribe: listener => eventBus.subscribe(listener),
+            emit(event) {
+              if (server.status === WorkerServerStatus.closed) {
+                return
+              }
+              server.emit({
+                type: WorkerServerResponseType.data,
                 data: {
-                  type: WorkerFunctionResponseType.callback,
-                  data: callbackData.data,
+                  data: {
+                    type: WorkerFunctionResponseType.event,
+                    data: event,
+                  },
+                  transferList:
+                    'data' in event ? event.data.transferList : undefined,
                 },
-                transferList: callbackData.transferList,
-              },
-            })
+              })
+            },
           },
           abortSignal: abortController.signal,
         })
@@ -98,30 +121,35 @@ export function createWorkerFunctionServer<Input, Output, CallbackData = never>(
           if (statusBeforeRunning === WorkerServerStatus.closed) {
             return
           }
-          if (running) {
-            server.emit({
-              type: WorkerServerResponseType.error,
-              error: serializeError(
-                new Error('[WorkerFunction] already running'),
-              ),
-            })
-            return
-          }
-          if (event.data.data.type !== WorkerFunctionRequestType.input) {
-            server.emit({
-              type: WorkerServerResponseType.error,
-              error: serializeError(
-                new Error(
-                  `[WorkerFunction] unexpected request: ${JSON.stringify(
-                    event.data,
-                  )}`,
+          switch (event.data.data.type) {
+            case WorkerFunctionRequestType.input:
+              if (running) {
+                server.emit({
+                  type: WorkerServerResponseType.error,
+                  error: serializeError(
+                    new Error('[createWorkerFunctionServer] already running'),
+                  ),
+                })
+                return
+              }
+              void runFunc(
+                event.data as WorkerData<WorkerFunctionRequestInput<Input>>,
+              )
+              break
+            case WorkerFunctionRequestType.event:
+              eventBus.emit(event.data.data.data)
+              break
+            default:
+              server.emit({
+                type: WorkerServerResponseType.error,
+                error: serializeError(
+                  new Error(
+                    `[createWorkerFunctionServer] unexpected request: ${JSON.stringify(event.data)}`,
+                  ),
                 ),
-              ),
-            })
-            return
+              })
+              break
           }
-
-          void runFunc(event.data)
           break
         }
         case WorkerServerRequestType.close:
@@ -145,7 +173,7 @@ export function createWorkerFunctionServer<Input, Output, CallbackData = never>(
         default: {
           const error = new WorkerError(
             WorkerErrorType.messageError,
-            `[WorkerFunction] unexpected event: ${JSON.stringify(event)}`,
+            `[createWorkerFunctionServer] unexpected event: ${JSON.stringify(event)}`,
           )
           if (server.status !== WorkerServerStatus.closed) {
             server.emit({

@@ -13,7 +13,7 @@ import {
 export type TimeoutArgs = {
   abortSignal?: null | IAbortSignalFast
   timeout?: null | number
-  timeController?: ITimeController
+  timeController?: null | ITimeController
 }
 
 // TODO: write doc comments
