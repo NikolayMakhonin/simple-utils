@@ -5,12 +5,11 @@ import { workerRequest } from './function/workerRequest'
 import { workerRequestHandler } from './function/workerRequestHandler'
 import { createWorkerConnectPool } from './connect/createWorkerConnectPool'
 import type {
-  WorkerFunctionTestClientEvent,
+  WorkerFunctionTestEvent,
   WorkerFunctionTestInput,
   WorkerFunctionTestMultiplyRequest,
   WorkerFunctionTestMultiplyResponse,
   WorkerFunctionTestOutput,
-  WorkerFunctionTestServerEvent,
 } from './-test/types'
 import { createWorkerVite } from './create/createWorkerVite'
 
@@ -32,8 +31,8 @@ afterAll(async () => {
 const sum = createWorkerFunctionClient<
   WorkerFunctionTestInput,
   WorkerFunctionTestOutput,
-  WorkerFunctionTestClientEvent,
-  WorkerFunctionTestServerEvent
+  WorkerFunctionTestEvent,
+  WorkerFunctionTestEvent
 >({
   connect: pool.connect,
   connectionName: 'sum',

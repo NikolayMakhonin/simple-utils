@@ -2,12 +2,11 @@ import { createWorkerFunctionServer } from '../function/createWorkerFunctionServ
 import { workerRequestHandler } from '../function/workerRequestHandler'
 import { workerRequest } from '../function/workerRequest'
 import type {
-  WorkerFunctionTestClientEvent,
+  WorkerFunctionTestEvent,
   WorkerFunctionTestInput,
   WorkerFunctionTestMultiplyRequest,
   WorkerFunctionTestMultiplyResponse,
   WorkerFunctionTestOutput,
-  WorkerFunctionTestServerEvent,
 } from './types'
 import { workerServerRegister, workerServerStart } from '../workerServerStart'
 import { delay } from 'src/common/async/wait/delay'
@@ -17,8 +16,8 @@ const workerId = Math.random().toString(36).substring(2)
 const sum = createWorkerFunctionServer<
   WorkerFunctionTestInput,
   WorkerFunctionTestOutput,
-  WorkerFunctionTestClientEvent,
-  WorkerFunctionTestServerEvent
+  WorkerFunctionTestEvent,
+  WorkerFunctionTestEvent
 >({
   async func({ data, eventBus, abortSignal }) {
     const { a, b, steps, stepDurationMs } = data.data

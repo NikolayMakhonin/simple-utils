@@ -34,13 +34,7 @@ export type WorkerFunctionTestMultiplyResponse = {
   workerId: string
 }
 
-export type WorkerFunctionTestClientEvent =
-  | WorkerEventFire<WorkerFunctionTestProgress>
-  | WorkerEventRequest<WorkerFunctionTestMultiplyRequest>
-  | WorkerEventResponse<WorkerFunctionTestMultiplyResponse>
-  | WorkerEventResponseError
-
-export type WorkerFunctionTestServerEvent =
+export type WorkerFunctionTestEvent =
   | WorkerEventFire<WorkerFunctionTestProgress>
   | WorkerEventRequest<WorkerFunctionTestMultiplyRequest>
   | WorkerEventResponse<WorkerFunctionTestMultiplyResponse>
