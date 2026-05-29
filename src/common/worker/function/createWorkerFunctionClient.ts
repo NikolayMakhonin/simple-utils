@@ -1,3 +1,7 @@
+import {
+  AbortControllerFast,
+  type IAbortSignalFast,
+} from '@flemist/abort-controller-fast'
 import { EMPTY_FUNC } from 'src/common/constants'
 import {
   type IWorkerFunctionCall,
@@ -46,7 +50,11 @@ export function createWorkerFunctionClient<
       abortSignal: callOptions.abortSignal,
     })
 
-    return new WorkerFunctionCall({ client, input: callOptions.data })
+    return new WorkerFunctionCall({
+      client,
+      input: callOptions.data,
+      abortSignal: callOptions.abortSignal,
+    })
   }
 }
 
@@ -61,6 +69,7 @@ export type WorkerFunctionCallOptions<
     WorkerFunctionResponse<Output, EventOutput>
   >
   readonly input: WorkerData<Input>
+  readonly abortSignal?: null | IAbortSignalFast
 }
 
 export class WorkerFunctionCall<
@@ -76,6 +85,7 @@ export class WorkerFunctionCall<
   >
   #input: WorkerData<Input> | null
   readonly #events = new Subject<EventOutput>()
+  readonly #abortController = new AbortControllerFast()
   readonly #resolveEnd: (value: WorkerData<Output>) => void
   readonly #rejectEnd: (reason?: any) => void
   readonly #endPromise: Promise<WorkerData<Output>>
@@ -87,6 +97,10 @@ export class WorkerFunctionCall<
   ) {
     this.#client = options.client
     this.#input = options.input
+
+    options.abortSignal?.subscribe(reason => {
+      this.#abortController.abort(reason)
+    })
 
     let resolveEnd: (value: WorkerData<Output>) => void
     let rejectEnd: (reason?: any) => void
@@ -100,11 +114,16 @@ export class WorkerFunctionCall<
     this.#endPromise.catch(EMPTY_FUNC)
   }
 
+  get abortSignal(): IAbortSignalFast {
+    return this.#abortController.signal
+  }
+
   private onResolve(data: WorkerData<Output>): void {
     if (this.#completed) {
       return
     }
     this.#completed = true
+    this.#abortController.abort()
     this.#client.close().catch(EMPTY_FUNC)
     this.#resolveEnd(data)
   }
@@ -114,6 +133,7 @@ export class WorkerFunctionCall<
       return
     }
     this.#completed = true
+    this.#abortController.abort(reason)
     this.#client.close().catch(EMPTY_FUNC)
     this.#rejectEnd(reason)
   }

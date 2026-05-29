@@ -8,11 +8,18 @@ export class AbortSignalCombined implements IAbortSignalFast {
   readonly #abortController: AbortControllerFast = new AbortControllerFast()
   #subscriptionCount: number = 0
   #unsubscribes: Unsubscribe[] | null = null
-  readonly #abortSignals: (IAbortSignalFast | null | undefined)[]
+  readonly #abortSignals: IAbortSignalFast[]
   readonly #onAbort: (reason: any) => void
 
   constructor(...abortSignals: (IAbortSignalFast | null | undefined)[]) {
-    this.#abortSignals = abortSignals
+    const distinct = new Set<IAbortSignalFast>()
+    for (let i = 0, len = abortSignals.length; i < len; i++) {
+      const abortSignal = abortSignals[i]
+      if (abortSignal != null) {
+        distinct.add(abortSignal)
+      }
+    }
+    this.#abortSignals = [...distinct]
     this.#onAbort = reason => {
       this.onAbort(reason)
     }

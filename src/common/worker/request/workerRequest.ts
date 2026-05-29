@@ -1,7 +1,7 @@
 import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
-import type { ISubject } from 'src/common/rx'
 import { waitObservable } from 'src/common/rx'
 import type {
+  IWorkerEventBus,
   WorkerData,
   WorkerEvent,
   WorkerEventRequest,
@@ -10,6 +10,7 @@ import type {
 } from '../types'
 import { deserializeError } from '../helpers'
 import { withTimeout } from 'src/common/async/timeout/withTimeout'
+import { combineAbortSignals } from 'src/common/async/abort/combineAbortSignals'
 import type { ITimeController } from '@flemist/time-controller'
 
 let prevRequestId = 0
@@ -21,7 +22,7 @@ export type WorkerRequestOptions = {
 }
 
 export function workerRequest<RequestData, ResponseData>(
-  eventBus: ISubject<WorkerEvent<any>, WorkerEvent<any>>,
+  eventBus: IWorkerEventBus<WorkerEvent<any>, WorkerEvent<any>>,
   data: WorkerData<RequestData>,
   options?: null | WorkerRequestOptions,
 ): Promise<WorkerData<ResponseData>> {
@@ -51,7 +52,10 @@ export function workerRequest<RequestData, ResponseData>(
       return promise
     },
     {
-      abortSignal: options?.abortSignal,
+      abortSignal: combineAbortSignals(
+        eventBus.abortSignal,
+        options?.abortSignal,
+      ),
       timeout: options?.timeout,
       timeController: options?.timeController,
     },

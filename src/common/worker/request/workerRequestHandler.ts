@@ -1,8 +1,6 @@
-import type { ISubject } from 'src/common/rx'
 import {
+  type IWorkerEventBus,
   type WorkerData,
-  WorkerError,
-  WorkerErrorType,
   type WorkerEvent,
   type WorkerEventRequest,
   type WorkerEventResponse,
@@ -10,11 +8,13 @@ import {
 } from '../types'
 import { serializeError } from '../helpers'
 import type { Unsubscribe, PromiseOrValue } from 'src/common/types'
+import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
 
 export function workerRequestHandler<RequestData, ResponseData>(
-  eventBus: ISubject<WorkerEvent<any>, WorkerEvent<any>>,
+  eventBus: IWorkerEventBus<WorkerEvent<any>, WorkerEvent<any>>,
   handler: (
     data: WorkerData<RequestData>,
+    abortSignal: IAbortSignalFast,
   ) => PromiseOrValue<WorkerData<ResponseData>>,
 ): Unsubscribe {
   async function respond(
@@ -22,7 +22,7 @@ export function workerRequestHandler<RequestData, ResponseData>(
   ): Promise<void> {
     let response: WorkerEventResponse<ResponseData> | WorkerEventResponseError
     try {
-      const result = await handler(request.data)
+      const result = await handler(request.data, eventBus.abortSignal)
       response = {
         type: 'response',
         requestId: request.requestId,
@@ -35,18 +35,10 @@ export function workerRequestHandler<RequestData, ResponseData>(
         error: serializeError(error),
       } as WorkerEventResponseError
     }
-    try {
-      eventBus.emit(response)
-    } catch (error) {
-      // The channel may close before the reply is sent even with correct code,
-      // so a closed-channel error is expected here; any other error is a defect.
-      if (
-        !(error instanceof WorkerError) ||
-        error.type !== WorkerErrorType.closed
-      ) {
-        throw error
-      }
+    if (eventBus.abortSignal.aborted) {
+      return
     }
+    eventBus.emit(response)
   }
 
   return eventBus.subscribe(event => {

@@ -25,18 +25,16 @@ export function timeoutAbortController(
   }
   const abortController = new AbortControllerFast()
   const timeController = args.timeController ?? timeControllerDefault
-  if (args.timeout) {
-    const timer = timeController.setTimeout(() => {
-      abortController.abort(
-        new AbortError(
-          `[timeoutAbortController] Timeout error: ${args.timeout}ms`,
-        ),
-      )
-    }, args.timeout)
-    abortController.signal.subscribe(() => {
-      clearTimeout(timer)
-    })
-  }
+  const timer = timeController.setTimeout(() => {
+    abortController.abort(
+      new AbortError(
+        `[timeoutAbortController] Timeout error: ${args.timeout}ms`,
+      ),
+    )
+  }, args.timeout)
+  abortController.signal.subscribe(() => {
+    clearTimeout(timer)
+  })
   args.abortSignal?.subscribe(reason => {
     abortController.abort(reason)
   })

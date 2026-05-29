@@ -1,6 +1,5 @@
 import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
-import type { WorkerData, WorkerEvent } from '../types'
-import type { ISubject } from 'src/common/rx'
+import type { IWorkerEventBus, WorkerData, WorkerEvent } from '../types'
 
 // region WorkerFunctionClient
 
@@ -11,7 +10,7 @@ export interface IWorkerFunctionCall<
   Output,
   EventInput extends WorkerEvent<any> = never,
   EventOutput extends WorkerEvent<any> = never,
-> extends ISubject<EventOutput, EventInput> {
+> extends IWorkerEventBus<EventInput, EventOutput> {
   /**
    * Connects to the worker and starts the function.
    * The function executes all synchronous operations until the first await.
@@ -77,7 +76,7 @@ export type WorkerFunctionServerOptions<
 > = {
   data: WorkerData<Input>
   abortSignal: IAbortSignalFast
-  eventBus: ISubject<EventInput, EventOutput>
+  eventBus: IWorkerEventBus<EventOutput, EventInput>
 }
 
 export type WorkerFunctionServer<

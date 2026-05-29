@@ -1,4 +1,6 @@
 import type { TransferListItem as TransferableNode } from 'worker_threads'
+import type { ISubject } from '../rx'
+import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
 
 /** The list of transferable types for any environment. */
 export type TransferableAny = Transferable | TransferableNode
@@ -255,5 +257,12 @@ export type WorkerEvent<Data> =
   | WorkerEventResponse<Data>
   | WorkerEventResponseError
   | WorkerEventFire<Data>
+
+export interface IWorkerEventBus<
+  EventInput extends WorkerEvent<any> = never,
+  EventOutput extends WorkerEvent<any> = never,
+> extends ISubject<EventOutput, EventInput> {
+  readonly abortSignal: IAbortSignalFast
+}
 
 // endregion

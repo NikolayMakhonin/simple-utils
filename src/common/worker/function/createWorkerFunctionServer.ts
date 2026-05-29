@@ -67,6 +67,7 @@ export function createWorkerFunctionServer<
             transferList: data.transferList,
           },
           eventBus: {
+            abortSignal: abortController.signal,
             subscribe: listener => eventBus.subscribe(listener),
             emit(event) {
               if (server.status === WorkerServerStatus.closed) {
