@@ -9,7 +9,7 @@ import type {
   WorkerEventResponse,
   WorkerEventResponseError,
 } from './types'
-import { withTimeout } from '../../async'
+import { withTimeout } from 'src/common/async/timeout/withTimeout'
 import type { ITimeController } from '@flemist/time-controller'
 
 let prevRequestId = 0

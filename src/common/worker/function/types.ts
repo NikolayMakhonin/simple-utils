@@ -1,6 +1,6 @@
 import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
 import type { ErrorSerialized, WorkerData } from '../types'
-import type { ISubject } from '../../rx'
+import type { ISubject } from 'src/common/rx'
 
 // region WorkerEvent
 
