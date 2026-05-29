@@ -96,6 +96,8 @@ export class WorkerFunctionCall<
     })
     this.#resolveEnd = resolveEnd!
     this.#rejectEnd = rejectEnd!
+    // Prevent unhandled rejection in case the caller doesn't run end()
+    this.#endPromise.catch(EMPTY_FUNC)
   }
 
   private onResolve(data: WorkerData<Output>): void {

@@ -116,9 +116,7 @@ export function createWorkerFunctionServer<
     server.subscribe(event => {
       switch (event.type) {
         case WorkerServerRequestType.data: {
-          // Use middleware variable because of TypeScript type check bug
-          const statusBeforeRunning = server.status
-          if (statusBeforeRunning === WorkerServerStatus.closed) {
+          if (server.status === WorkerServerStatus.closed) {
             return
           }
           switch (event.data.data.type) {

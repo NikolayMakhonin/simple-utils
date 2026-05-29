@@ -15,10 +15,6 @@ export function workerRequestHandler<RequestData, ResponseData>(
     data: WorkerData<RequestData>,
   ) => PromiseOrValue<WorkerData<ResponseData>>,
 ): Unsubscribe {
-  // The subscriber stays synchronous and runs the handler detached via respond().
-  // An async listener would keep Subject in the emitting state until its promise
-  // settles, and Subject drops events emitted during that window, so a slow
-  // handler would lose every event arriving on the same bus while it awaits.
   async function respond(
     request: WorkerEventRequest<RequestData>,
   ): Promise<void> {

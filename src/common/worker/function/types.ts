@@ -47,10 +47,10 @@ export interface IWorkerFunctionCall<
 > extends ISubject<EventOutput, EventInput> {
   /**
    * Connects to the worker and starts the function.
-   * All synchronous operations in the function
-   * execute until the first await,
-   * so the function subscribes to its eventBus before start() resolves.
-   * After start(), events can be sent to the function through emit().
+   * The function executes all synchronous operations until the first await.
+   * The function is expected to subscribe to eventBus before its first await,
+   * so after start() the client can call emit()
+   * with a guarantee that events will be handled by the function.
    */
   start(): Promise<void>
   /**

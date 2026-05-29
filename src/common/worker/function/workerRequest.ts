@@ -9,7 +9,7 @@ import type {
   WorkerEventResponse,
   WorkerEventResponseError,
 } from './types'
-import { timeoutAbortController } from '../../async'
+import { withTimeout } from '../../async'
 import type { ITimeController } from '@flemist/time-controller'
 
 let prevRequestId = 0
@@ -27,31 +27,33 @@ export function workerRequest<RequestData, ResponseData>(
 ): Promise<WorkerData<ResponseData>> {
   const requestId = ++prevRequestId
 
-  const abortSignal =
-    timeoutAbortController({
+  return withTimeout(
+    abortSignal => {
+      const promise = waitObservable(
+        eventBus,
+        event =>
+          (event.type === 'response' || event.type === 'responseError') &&
+          event.requestId === requestId,
+        abortSignal,
+      ).then(event => {
+        if (event.type === 'responseError') {
+          throw deserializeError((event as WorkerEventResponseError).error)
+        }
+        return (event as WorkerEventResponse<ResponseData>).data
+      })
+
+      eventBus.emit({
+        type: 'request',
+        requestId,
+        data,
+      } as WorkerEventRequest<RequestData>)
+
+      return promise
+    },
+    {
       abortSignal: options?.abortSignal,
       timeout: options?.timeout,
       timeController: options?.timeController,
-    })?.signal ?? options?.abortSignal
-
-  const promise = waitObservable(
-    eventBus,
-    event =>
-      (event.type === 'response' || event.type === 'responseError') &&
-      event.requestId === requestId,
-    abortSignal,
-  ).then(event => {
-    if (event.type === 'responseError') {
-      throw deserializeError((event as WorkerEventResponseError).error)
-    }
-    return (event as WorkerEventResponse<ResponseData>).data
-  })
-
-  eventBus.emit({
-    type: 'request',
-    requestId,
-    data,
-  } as WorkerEventRequest<RequestData>)
-
-  return promise
+    },
+  )
 }
