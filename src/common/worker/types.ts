@@ -1,16 +1,18 @@
 import type { TransferListItem as TransferableNode } from 'worker_threads'
+import type { ISubject } from '../rx'
+import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
 
 /** The list of transferable types for any environment. */
 export type TransferableAny = Transferable | TransferableNode
 
 export type WorkerData<Data> = {
-  data: Data
+  readonly data: Data
   /**
    * The list of transferable objects that should be transferred to the worker.
    * These objects will not be available in the main thread until the worker transfers them back.
    * So you can share some memory between threads without copying it.
    */
-  transferList?: null | readonly TransferableAny[]
+  readonly transferList?: null | readonly TransferableAny[]
 }
 
 // region IWorker
@@ -224,3 +226,43 @@ export type WorkerConnectRequest = {
 }
 
 export type WorkerServerHandler = (messagePort: IMessagePort) => void
+
+// region WorkerEvent
+
+export type WorkerEventRequest<Data> = {
+  type: 'request'
+  requestId: number
+  data: WorkerData<Data>
+}
+
+export type WorkerEventResponse<Data> = {
+  type: 'response'
+  requestId: number
+  data: WorkerData<Data>
+}
+
+export type WorkerEventResponseError = {
+  type: 'responseError'
+  requestId: number
+  error: ErrorSerialized
+}
+
+export type WorkerEventFire<Data> = {
+  type: 'event'
+  data: WorkerData<Data>
+}
+
+export type WorkerEvent<Data> =
+  | WorkerEventRequest<Data>
+  | WorkerEventResponse<Data>
+  | WorkerEventResponseError
+  | WorkerEventFire<Data>
+
+export interface IWorkerEventBus<
+  EventInput extends WorkerEvent<any> = never,
+  EventOutput extends WorkerEvent<any> = never,
+> extends ISubject<EventOutput, EventInput> {
+  readonly abortSignal: IAbortSignalFast
+}
+
+// endregion

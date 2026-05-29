@@ -100,7 +100,8 @@ export class WorkerClient<RequestData, ResponseData>
       this.#status === WorkerClientStatus.closing ||
       this.#status === WorkerClientStatus.closed
     ) {
-      throw new Error(
+      throw new WorkerError(
+        WorkerErrorType.closed,
         `[WorkerClient] cannot connect when status is ${this.#status}`,
       )
     }
@@ -237,7 +238,8 @@ export class WorkerClient<RequestData, ResponseData>
 
   emit(event: WorkerClientRequest<RequestData>): PromiseOrValue<void> {
     if (this.#status !== WorkerClientStatus.connected) {
-      throw new Error(
+      throw new WorkerError(
+        WorkerErrorType.closed,
         `[WorkerClient] cannot emit when status is ${this.#status}`,
       )
     }
