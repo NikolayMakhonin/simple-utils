@@ -141,7 +141,8 @@ export function createWorkerFunctionServer<
               server.emit({
                 type: WorkerServerResponseType.error,
                 error: serializeError(
-                  new Error(
+                  new WorkerError(
+                    WorkerErrorType.messageError,
                     `[createWorkerFunctionServer] unexpected request: ${JSON.stringify(event.data)}`,
                   ),
                 ),

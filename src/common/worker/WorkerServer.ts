@@ -32,14 +32,18 @@ export class WorkerServer<RequestData, ResponseData>
 
   subscribe(listener: Listener<WorkerServerRequest<RequestData>>): Unsubscribe {
     if (this.#status === WorkerServerStatus.closed) {
-      throw new Error('[WorkerServer] cannot subscribe after close')
+      throw new WorkerError(
+        WorkerErrorType.closed,
+        '[WorkerServer] cannot subscribe after close',
+      )
     }
     return this.#events.subscribe(listener)
   }
 
   emit(event: WorkerServerResponse<ResponseData>) {
     if (this.#status !== WorkerServerStatus.connected) {
-      throw new Error(
+      throw new WorkerError(
+        WorkerErrorType.closed,
         `[WorkerServer] cannot emit when status is ${this.#status}`,
       )
     }

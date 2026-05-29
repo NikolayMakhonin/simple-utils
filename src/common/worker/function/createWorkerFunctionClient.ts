@@ -203,7 +203,10 @@ export class WorkerFunctionCall<
       throw new Error('[WorkerFunctionCall] cannot emit before start()')
     }
     if (this.#completed) {
-      throw new Error('[WorkerFunctionCall] cannot emit after completion')
+      throw new WorkerError(
+        WorkerErrorType.closed,
+        '[WorkerFunctionCall] cannot emit after completion',
+      )
     }
     this.#sendEvent(event)
   }

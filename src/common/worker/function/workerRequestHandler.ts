@@ -1,5 +1,5 @@
 import type { ISubject } from 'src/common/rx'
-import { type WorkerData } from '../types'
+import { type WorkerData, WorkerError, WorkerErrorType } from '../types'
 import { serializeError } from '../helpers'
 import type {
   WorkerEvent,
@@ -36,7 +36,14 @@ export function workerRequestHandler<RequestData, ResponseData>(
     try {
       eventBus.emit(response)
     } catch (error) {
-      // Ignore error if connection is closed
+      // The channel may close before the reply is sent even with correct code,
+      // so a closed-channel error is expected here; any other error is a defect.
+      if (
+        !(error instanceof WorkerError) ||
+        error.type !== WorkerErrorType.closed
+      ) {
+        throw error
+      }
     }
   }
 

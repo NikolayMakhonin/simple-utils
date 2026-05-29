@@ -1,11 +1,16 @@
 import { afterAll, describe, expect, it } from 'vitest'
 import { AbortControllerFast, AbortError } from '@flemist/abort-controller-fast'
 import { createWorkerFunctionClient } from './function/createWorkerFunctionClient'
+import { workerRequest } from './function/workerRequest'
+import { workerRequestHandler } from './function/workerRequestHandler'
 import { createWorkerConnectPool } from './connect/createWorkerConnectPool'
 import type {
-  WorkerFunctionTestCallback,
+  WorkerFunctionTestClientEvent,
   WorkerFunctionTestInput,
+  WorkerFunctionTestMultiplyRequest,
+  WorkerFunctionTestMultiplyResponse,
   WorkerFunctionTestOutput,
+  WorkerFunctionTestServerEvent,
 } from './-test/types'
 import { createWorkerVite } from './create/createWorkerVite'
 
@@ -27,7 +32,8 @@ afterAll(async () => {
 const sum = createWorkerFunctionClient<
   WorkerFunctionTestInput,
   WorkerFunctionTestOutput,
-  WorkerFunctionTestCallback
+  WorkerFunctionTestClientEvent,
+  WorkerFunctionTestServerEvent
 >({
   connect: pool.connect,
   connectionName: 'sum',
@@ -38,22 +44,37 @@ async function test(a: number, b: number, useAbort: boolean): Promise<string> {
   const progressValues: number[] = []
   let workerId: string | null = null
 
-  const promise = sum({
+  const call = sum({
     data: {
       data: { a, b, steps: TOTAL_STEPS, stepDurationMs: STEP_DURATION_MS },
     },
     abortSignal: abortController?.signal,
-    callback({ data }) {
-      workerId = data.workerId
-      progressValues.push(data.progress)
-      if (useAbort && data.progress >= 0.5) {
-        abortController!.abort()
-      }
-    },
   })
 
+  call.subscribe(event => {
+    if (event.type === 'event') {
+      workerId = event.data.data.workerId
+      progressValues.push(event.data.data.progress)
+      if (useAbort && event.data.data.progress >= 0.5) {
+        abortController!.abort()
+      }
+    }
+  })
+
+  workerRequestHandler<
+    WorkerFunctionTestMultiplyRequest,
+    WorkerFunctionTestMultiplyResponse
+  >(call, requestData => ({
+    data: {
+      product: requestData.data.x * requestData.data.y * 10,
+      workerId: 'client',
+    },
+  }))
+
+  await call.start()
+
   if (useAbort) {
-    await expect(promise).rejects.toThrow(AbortError)
+    await expect(call.end()).rejects.toThrow(AbortError)
     expect(progressValues.length).toBeGreaterThanOrEqual(TOTAL_STEPS / 2)
     expect(progressValues.length).toBeLessThan(TOTAL_STEPS)
     expect(progressValues[progressValues.length - 1]).toBeGreaterThanOrEqual(
@@ -61,10 +82,17 @@ async function test(a: number, b: number, useAbort: boolean): Promise<string> {
     )
     expect(progressValues[progressValues.length - 1]).toBeLessThan(1)
   } else {
-    const result = await promise
+    const serverMultiply = await workerRequest<
+      WorkerFunctionTestMultiplyRequest,
+      WorkerFunctionTestMultiplyResponse
+    >(call, { data: { x: a + 1, y: b + 1 } })
+    expect(serverMultiply.data.product).toBe((a + 1) * (b + 1))
+
+    const result = await call.end()
     expect(result.data.result).toBe(a + b)
     expect(result.data.workerId).toBe(workerId)
     expect(result.data.completedSteps).toBe(TOTAL_STEPS)
+    expect(result.data.product).toBe(a * b * 10)
     expect(progressValues.length).toBe(TOTAL_STEPS)
     expect(progressValues[0]).toBe(1 / TOTAL_STEPS)
     expect(progressValues[progressValues.length - 1]).toBe(1)

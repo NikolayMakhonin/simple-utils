@@ -76,7 +76,9 @@ export type WorkerFunctionClientOptions<Input> = {
  *
  * Usage with events:
  * ```ts
- * const workerFunction: WorkerFunctionClient<Input, Output> = ...
+ * const workerFunction: WorkerFunctionClient<
+ *   Input, Output, EventInput, EventOutput
+ * > = ...
  * const call = workerFunction({ data: inputData })
  * call.subscribe(event => { ... })
  * await call.start()
