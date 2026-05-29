@@ -1,6 +1,7 @@
 export * from './connect'
 export * from './create'
 export * from './function'
+export * from './request'
 export * from './helpers'
 export * from './types'
 export * from './WorkerClient'
