@@ -1,5 +1,5 @@
 import type { ISubject } from 'src/common/rx'
-import type { WorkerData } from '../types'
+import { type WorkerData } from '../types'
 import { serializeError } from '../helpers'
 import type {
   WorkerEvent,
@@ -18,19 +18,25 @@ export function workerRequestHandler<RequestData, ResponseData>(
   async function respond(
     request: WorkerEventRequest<RequestData>,
   ): Promise<void> {
+    let response: WorkerEventResponse<ResponseData> | WorkerEventResponseError
     try {
       const result = await handler(request.data)
-      eventBus.emit({
+      response = {
         type: 'response',
         requestId: request.requestId,
         data: result,
-      } as WorkerEventResponse<ResponseData>)
+      } as WorkerEventResponse<ResponseData>
     } catch (error) {
-      eventBus.emit({
+      response = {
         type: 'responseError',
         requestId: request.requestId,
         error: serializeError(error),
-      } as WorkerEventResponseError)
+      } as WorkerEventResponseError
+    }
+    try {
+      eventBus.emit(response)
+    } catch (error) {
+      // Ignore error if connection is closed
     }
   }
 
