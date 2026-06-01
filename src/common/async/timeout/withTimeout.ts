@@ -10,8 +10,10 @@ export async function withTimeout<T>(
   args: undefined | null | TimeoutArgs,
 ): Promise<T> {
   const abortController = timeoutAbortController(args)
+  const abortSignal = abortController?.signal ?? args?.abortSignal ?? null
   try {
-    return await func(abortController?.signal ?? args?.abortSignal ?? null)
+    abortSignal?.throwIfAborted()
+    return await func(abortSignal)
   } finally {
     abortController?.abort()
   }
