@@ -215,8 +215,7 @@ export class TaskRepeated<
     return this.result()
   }
 
-  async run(options?: null | RunOptions): Promise<Result> {
-    await Promise.resolve()
+  run(options?: null | RunOptions): Promise<Result> {
     if (options?.immediate) {
       // Abort pending delay to prevent a second execution after it completes
       this.skipDelay()

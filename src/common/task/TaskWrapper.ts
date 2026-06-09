@@ -137,16 +137,24 @@ export class TaskWrapper<
     return this._task.run(this.#runOptions)
   }
 
-  async run(options?: null | RunOptions): Promise<Result> {
-    await Promise.resolve()
+  run(options?: null | RunOptions): Promise<Result> {
     this.#runOptions = options ?? null
-    this.abortSignal.throwIfAborted()
+    if (this.abortSignal.aborted) {
+      return Promise.reject(this.abortSignal.reason)
+    }
     if (!this.#runPromise) {
       this.#runPromise = this.#statusController
         .run(() => this.runInternal())
-        .finally(() => {
-          this.#runPromise = null
-        })
+        .then(
+          result => {
+            this.#runPromise = null
+            return result
+          },
+          error => {
+            this.#runPromise = null
+            throw error
+          },
+        )
       // Suppress unhandled rejection when error logging is disabled
       if (this.#logLevel != null && this.#logLevel < LogLevel.error) {
         this.#runPromise.catch(EMPTY_FUNC)

@@ -1,7 +1,6 @@
 import { type Listener } from 'src/common/rx'
 import type { ITimeController } from '@flemist/time-controller'
 import { EMPTY_FUNC } from 'src/common/constants'
-import { promiseLikeToPromise } from 'src/common/async/promise/promiseLikeToPromise'
 import type { Unsubscribe } from 'src/common/types'
 import { LogLevel } from 'src/common/debug'
 import {
@@ -84,26 +83,25 @@ export class TaskBase<
     }
   }
 
-  async run(options?: null | RunOptions): Promise<Result> {
-    await Promise.resolve()
-
-    this.#statusController.abortSignal.throwIfAborted()
+  run(options?: null | RunOptions): Promise<Result> {
+    if (this.#statusController.abortSignal.aborted) {
+      return Promise.reject(this.#statusController.abortSignal.reason)
+    }
     if (this.#runPromise) {
       return this.#runPromise
     }
 
     const isFirst = this.#statusController.status.firstStart == null
 
-    const resultOrPromise = this.#statusController.run(() =>
-      this.#func(this.#args, {
-        abortSignal: this.#statusController.abortSignal,
-        timeController: this.#statusController.timeController,
-        isFirst,
-      }),
-    )
-
-    this.#runPromise = promiseLikeToPromise(
-      resultOrPromise.then(
+    this.#runPromise = this.#statusController
+      .run(() =>
+        this.#func(this.#args, {
+          abortSignal: this.#statusController.abortSignal,
+          timeController: this.#statusController.timeController,
+          isFirst,
+        }),
+      )
+      .then(
         result => {
           this.#runPromise = null
           return result
@@ -113,8 +111,7 @@ export class TaskBase<
           this.logError(error)
           throw error
         },
-      ),
-    )
+      )
 
     // Suppress unhandled rejection when error logging is disabled
     if (

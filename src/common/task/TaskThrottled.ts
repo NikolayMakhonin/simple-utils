@@ -240,8 +240,7 @@ export class TaskThrottled<
     super.abort(reason)
   }
 
-  async run(options?: null | RunOptions): Promise<Result> {
-    await Promise.resolve()
+  run(options?: null | RunOptions): Promise<Result> {
     const { immediate, throttleTime, throttleTimeMax, throttleFromEnd } =
       options ?? {}
     this.update(immediate ? 0 : throttleTime, throttleTimeMax, throttleFromEnd)
