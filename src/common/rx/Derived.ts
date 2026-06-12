@@ -9,20 +9,14 @@ import type { Unsubscribe } from 'src/common/types/common'
 import { Subject } from './Subject'
 import { isObservable } from './helpers'
 
-/**
- * Must be pure
- * The values array is reused between computations
- */
+/** Must be pure */
 export type DerivedFunc<S extends Stores, T> = (values: StoresValues<S>) => T
 
 /**
  * Computes a value from sources on every source emission
- * Defers computation while any source is stale, so a single upstream change
- * never computes from a mix of updated and stale source values
- * Relays invalidation to subscribers when the first source becomes stale
+ * Glitch-free: a single upstream change never produces a computation from mixed source generations
  * Emits every computed value, including values equal to the previous one
  * Subscribes to sources only while it has subscribers
- * Sources without a current value contribute undefined until their first emission
  */
 export class Derived<S extends Stores, T> implements IObservable<T> {
   readonly #subject: Subject<T>
