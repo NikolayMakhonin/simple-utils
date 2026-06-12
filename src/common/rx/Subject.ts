@@ -75,7 +75,7 @@ export class Subject<From = void> implements ISubject<From> {
     } else {
       this.#listeners.set(id, listener)
     }
-    if (invalidate) {
+    if (invalidate != null) {
       this.#invalidates.set(id, invalidate)
     }
     if (this.#subscribing && this.#actionOnCycle === 'throw') {
@@ -87,7 +87,7 @@ export class Subject<From = void> implements ISubject<From> {
     ) {
       listener(this.#last!)
     }
-    if (invalidate && this.#invalidated) {
+    if (invalidate != null && this.#invalidated) {
       invalidate()
     }
     if (
