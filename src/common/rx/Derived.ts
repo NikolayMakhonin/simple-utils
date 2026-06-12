@@ -17,10 +17,7 @@ export type DerivedFunc<S extends Stores, T> = (values: StoresValues<S>) => T
  * Defers computation while any source is stale, so a single upstream change
  * never computes from a mix of updated and stale source values
  * Relays invalidation to subscribers when the first source becomes stale
- * Emits after every computation, even when the value is unchanged
- * Never emit a source synchronously from a subscription of the same graph,
- * it would deliver values while invalidation of another change is incomplete;
- * defer such emissions, e.g. with queueMicrotask
+ * Emits every computed value, including values equal to the previous one
  * Subscribes to sources only while it has subscribers
  * Sources without a current value contribute undefined until their first emission
  */

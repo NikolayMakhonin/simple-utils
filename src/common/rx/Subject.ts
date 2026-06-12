@@ -11,12 +11,6 @@ export type StartStopNotifier<T> = (
   update: Update<T>,
 ) => void | Unsubscribe
 
-/**
- * Reaction to emit during emission of the same subject:
- * false - drop the event
- * emitLast - store the event as last without delivering it
- * throw - throw an error
- */
 export type ActionOnCycle = 'emitLast' | 'throw' | false
 
 export type SubjectOptions<T> = {

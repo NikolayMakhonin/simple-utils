@@ -76,6 +76,37 @@ describe('Derived', () => {
     unsubscribe()
   })
 
+  it('overlapping cascades', () => {
+    const source1 = createSource(1)
+    const source2 = createSource(10)
+    const branch1 = new Derived([source1], ([o]) => o * 2)
+    const branch2 = new Derived([source2], ([o]) => o * 2)
+    const computations: [number, number][] = []
+    const combined = new Derived([branch1, branch2], ([value1, value2]) => {
+      computations.push([value1, value2])
+      return [value1, value2]
+    })
+    const unsubscribeCombined = combined.subscribe(() => {})
+    // source2 emits inside the invalidation cascade of source1
+    const unsubscribeSpy = branch1.subscribe(
+      () => {},
+      () => {
+        source2.emit(11)
+      },
+    )
+    expect(computations).toEqual([[2, 20]])
+
+    // both cascades settle into a single consistent computation
+    source1.emit(2)
+    expect(computations).toEqual([
+      [2, 20],
+      [4, 22],
+    ])
+
+    unsubscribeSpy()
+    unsubscribeCombined()
+  })
+
   it('subscription while a source is stale', () => {
     const source = createSource(1)
     source.invalidate()
