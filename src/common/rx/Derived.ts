@@ -1,60 +1,90 @@
 import type {
+  Invalidate,
   IObservable,
-  ISubject,
   Listener,
   Stores,
   StoresValues,
 } from './types'
 import type { Unsubscribe } from 'src/common/types/common'
-import { type Emit, Subject } from './Subject'
+import { Subject } from './Subject'
+import { isObservable } from './helpers'
 
-export type DerivedFunc<S extends Stores, T> = (
-  values: StoresValues<S>,
-  emit: Emit<T>,
-  update: (updater: (event: T) => T) => void,
-) => T | Unsubscribe
+/** Must be pure; the values array is reused between computations */
+export type DerivedFunc<S extends Stores, T> = (values: StoresValues<S>) => T
 
-/** @deprecated Incompleted, use svelte derived instead */
+/**
+ * Computes a value from sources on every source emission
+ * Defers computation while any source is stale, so a single upstream change
+ * never computes from a mix of updated and stale source values
+ * Relays invalidation to subscribers when the first source becomes stale
+ * Emits after every computation, even when the value is unchanged
+ * Never emit a source synchronously from a subscription of the same graph,
+ * it would deliver values while invalidation of another change is incomplete;
+ * defer such emissions, e.g. with queueMicrotask
+ * Subscribes to sources only while it has subscribers
+ * Sources without a current value contribute undefined until their first emission
+ */
 export class Derived<S extends Stores, T> implements IObservable<T> {
-  readonly #source: S
-  readonly #subject: ISubject<T>
+  readonly #subject: Subject<T>
 
-  constructor(source: S, func: DerivedFunc<S, T>) {
-    this.#source = source
+  constructor(sources: S, func: DerivedFunc<S, T>) {
     this.#subject = new Subject<T>({
-      startStopNotifier: (emit, update) => {
+      emitLastEvent: true,
+      actionOnCycle: 'throw',
+      startStopNotifier: emit => {
         const values: StoresValues<S> = [] as any
+        const pendings: boolean[] = []
+        let pendingCount = 0
+        let isStarted = false
         const unsubscribes: Unsubscribe[] = []
-        this.#source.forEach((src, index) => {
+
+        sources.forEach((source, index) => {
+          if (!isObservable(source)) {
+            values[index] = source
+            return
+          }
           unsubscribes.push(
-            src.subscribe(value => {
-              values[index] = value
-              // TODO: нужно как-то реализовать синхронный отложенный вызов,
-              // т.е. нужно как-то ловить момент когда все подписки обработаны,
-              // а для этого нужен глобальный объект отслеживающий все узлы.
-              // И получается эта штука не совместима со svelte,
-              // т.к. там свой глобальный объект.
-              const result = func(values, emit, update)
-            }),
+            source.subscribe(
+              value => {
+                values[index] = value
+                if (pendings[index]) {
+                  pendings[index] = false
+                  pendingCount--
+                }
+                if (isStarted && pendingCount === 0) {
+                  emit(func(values))
+                }
+              },
+              () => {
+                if (!pendings[index]) {
+                  pendings[index] = true
+                  pendingCount++
+                  if (pendingCount === 1) {
+                    this.#subject.invalidate()
+                  }
+                }
+              },
+            ),
           )
         })
 
-        const result = func(values, emit, update)
-        if (func.length <= 1) {
-          emit(result as T)
+        isStarted = true
+        if (pendingCount === 0) {
+          emit(func(values))
         }
 
         return () => {
           unsubscribes.forEach(o => o())
-          if (func.length > 1) {
-            ;(result as Unsubscribe)()
-          }
+          unsubscribes.length = 0
         }
       },
     })
   }
 
-  subscribe(listener: Listener<T>): Unsubscribe {
-    return this.#subject.subscribe(listener)
+  subscribe(
+    listener: Listener<T>,
+    invalidate?: null | Invalidate,
+  ): Unsubscribe {
+    return this.#subject.subscribe(listener, invalidate)
   }
 }

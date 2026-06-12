@@ -1,4 +1,4 @@
-import type { ISubject, Listener } from './types'
+import type { Invalidate, ISubject, Listener } from './types'
 import { type PromiseOrValue, type Unsubscribe } from 'src/common/types/common'
 import { isPromiseLike } from 'src/common/async/promise/isPromiseLike'
 
@@ -11,6 +11,12 @@ export type StartStopNotifier<T> = (
   update: Update<T>,
 ) => void | Unsubscribe
 
+/**
+ * Reaction to emit during emission of the same subject:
+ * false - drop the event
+ * emitLast - store the event as last without delivering it
+ * throw - throw an error
+ */
 export type ActionOnCycle = 'emitLast' | 'throw' | false
 
 export type SubjectOptions<T> = {
@@ -24,6 +30,7 @@ export type SubjectOptions<T> = {
 export class Subject<From = void> implements ISubject<From> {
   readonly #listeners = new Map<object, (event: From) => void>()
   readonly #listenersAdd = new Map<object, (event: From) => void>()
+  readonly #invalidates = new Map<object, Invalidate>()
   readonly #startStopNotifier: null | StartStopNotifier<From>
   readonly #emit: ((value: From) => PromiseOrValue<void>) | null
   readonly #update: ((updater: (event: From) => From) => void) | null
@@ -33,6 +40,7 @@ export class Subject<From = void> implements ISubject<From> {
   #last: From | undefined = undefined
   #emitting: boolean = false
   #subscribing: boolean = false
+  #invalidated: boolean = false
   readonly #actionOnCycle: ActionOnCycle
 
   constructor({
@@ -63,12 +71,18 @@ export class Subject<From = void> implements ISubject<From> {
     return this.#listeners.size > 0
   }
 
-  subscribe(listener: Listener<From>): Unsubscribe {
+  subscribe(
+    listener: Listener<From>,
+    invalidate?: null | Invalidate,
+  ): Unsubscribe {
     const id = {}
     if (this.#emitting) {
       this.#listenersAdd.set(id, listener)
     } else {
       this.#listeners.set(id, listener)
+    }
+    if (invalidate) {
+      this.#invalidates.set(id, invalidate)
     }
     if (this.#subscribing && this.#actionOnCycle === 'throw') {
       throw new Error('[Rx][Subject] Circular subscription detected')
@@ -78,6 +92,9 @@ export class Subject<From = void> implements ISubject<From> {
       (this.#subscribing && this.#actionOnCycle === 'emitLast')
     ) {
       listener(this.#last!)
+    }
+    if (invalidate && this.#invalidated) {
+      invalidate()
     }
     if (
       this.#startStopNotifier &&
@@ -94,6 +111,7 @@ export class Subject<From = void> implements ISubject<From> {
     return () => {
       this.#listeners.delete(id)
       this.#listenersAdd.delete(id)
+      this.#invalidates.delete(id)
       if (
         this.#startStopNotifier &&
         this.#listeners.size === 0 &&
@@ -104,6 +122,18 @@ export class Subject<From = void> implements ISubject<From> {
         unsubscribeNotifier?.()
       }
     }
+  }
+
+  /**
+   * Marks the value stale and notifies subscribers' invalidate callbacks
+   * Does nothing when already stale; emit makes the value valid again
+   */
+  invalidate(): void {
+    if (this.#invalidated) {
+      return
+    }
+    this.#invalidated = true
+    this.#invalidates.forEach(o => o())
   }
 
   emit(event: From): PromiseOrValue<void> {
@@ -128,6 +158,8 @@ export class Subject<From = void> implements ISubject<From> {
     }
     try {
       this.#emitting = true
+      this.invalidate()
+      this.#invalidated = false
       if (this.#emitLast) {
         this.#last = event
         this.#hasLast = true

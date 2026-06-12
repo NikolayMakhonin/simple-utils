@@ -1,5 +1,6 @@
 export * from './types'
 export * from './helpers'
+export * from './Derived'
 export * from './Subject'
 export * from './SubjectWithId'
 export * from './waitObservable'
