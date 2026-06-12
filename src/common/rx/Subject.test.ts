@@ -42,20 +42,20 @@ describe('Subject', () => {
       },
     )
 
-    // emit notifies invalidate callbacks before delivering the value
+    // Emit notifies invalidate callbacks before delivering the value
     subject.emit(1)
     expect(events).toEqual(['invalidate', 'value 1'])
 
-    // invalidate notifies once until the next emit
+    // Invalidate notifies once until the next emit
     subject.invalidate()
     subject.invalidate()
     expect(events).toEqual(['invalidate', 'value 1', 'invalidate'])
 
-    // emit of a stale subject delivers the value without repeated invalidate
+    // Emit of a stale subject delivers the value without repeated invalidate
     subject.emit(2)
     expect(events).toEqual(['invalidate', 'value 1', 'invalidate', 'value 2'])
 
-    // emit of a valid subject invalidates again
+    // Emit of a valid subject invalidates again
     subject.emit(3)
     expect(events).toEqual([
       'invalidate',
@@ -88,7 +88,7 @@ describe('Subject', () => {
         events.push('invalidate')
       },
     )
-    // the current value is stale, the subscriber learns it immediately
+    // The current value is stale, the subscriber learns it immediately
     expect(events).toEqual(['value 1', 'invalidate'])
 
     subject.emit(2)

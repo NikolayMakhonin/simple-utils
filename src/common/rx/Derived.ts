@@ -33,7 +33,7 @@ export class Derived<S extends Stores, T> implements IObservable<T> {
       actionOnCycle: 'throw',
       startStopNotifier: emit => {
         const values: StoresValues<S> = [] as any
-        const pendings: boolean[] = []
+        const isPending: boolean[] = []
         let pendingCount = 0
         let isStarted = false
         const unsubscribes: Unsubscribe[] = []
@@ -47,8 +47,8 @@ export class Derived<S extends Stores, T> implements IObservable<T> {
             source.subscribe(
               value => {
                 values[index] = value
-                if (pendings[index]) {
-                  pendings[index] = false
+                if (isPending[index]) {
+                  isPending[index] = false
                   pendingCount--
                 }
                 if (isStarted && pendingCount === 0) {
@@ -56,8 +56,8 @@ export class Derived<S extends Stores, T> implements IObservable<T> {
                 }
               },
               () => {
-                if (!pendings[index]) {
-                  pendings[index] = true
+                if (!isPending[index]) {
+                  isPending[index] = true
                   pendingCount++
                   if (pendingCount === 1) {
                     this.#subject.invalidate()

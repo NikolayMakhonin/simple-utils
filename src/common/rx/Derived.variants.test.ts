@@ -65,7 +65,7 @@ const testVariants = createTestVariants(async (args: TestVariantsArgs) => {
       const context = generateContext({ rnd: rnd.clone(), args, log: true })
       test({ rnd: rnd.clone(), context, args })
     } catch {
-      // ignore re-run error, throw original
+      // Ignore re-run error, throw original
     }
     throw err
   }

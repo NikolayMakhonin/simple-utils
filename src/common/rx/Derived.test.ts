@@ -26,7 +26,7 @@ describe('Derived', () => {
     source2.emit(20)
     expect(results).toEqual([111, 112, 122])
 
-    // emission with an unchanged value still computes and emits
+    // Emission with an unchanged value still computes and emits
     source1.emit(2)
     expect(results).toEqual([111, 112, 122, 122])
 
@@ -36,7 +36,7 @@ describe('Derived', () => {
     source1.emit(3)
     expect(results).toEqual([111, 112, 122, 122])
 
-    // resubscription delivers the stale last value, then computes from current values
+    // Resubscription delivers the stale last value, then computes from current values
     const resultsRestarted: number[] = []
     const unsubscribeRestarted = derived.subscribe(o => {
       resultsRestarted.push(o)
@@ -59,7 +59,7 @@ describe('Derived', () => {
     const unsubscribe = combined.subscribe(() => {})
     expect(computations).toEqual([[1, 1]])
 
-    // one computation per change, never from two different source values
+    // One computation per change, never from two different source values
     source.emit(2)
     expect(computations).toEqual([
       [1, 1],
@@ -87,7 +87,7 @@ describe('Derived', () => {
       return [value1, value2]
     })
     const unsubscribeCombined = combined.subscribe(() => {})
-    // source2 emits inside the invalidation cascade of source1
+    // Source2 emits inside the invalidation cascade of source1
     const unsubscribeSpy = branch1.subscribe(
       () => {},
       () => {
@@ -96,7 +96,7 @@ describe('Derived', () => {
     )
     expect(computations).toEqual([[2, 20]])
 
-    // both cascades settle into a single consistent computation
+    // Both cascades settle into a single consistent computation
     source1.emit(2)
     expect(computations).toEqual([
       [2, 20],
@@ -116,7 +116,7 @@ describe('Derived', () => {
     const unsubscribe = derived.subscribe(o => {
       results.push(o)
     })
-    // the initial computation is deferred until the source revalidates
+    // The initial computation is deferred until the source revalidates
     expect(results).toEqual([])
 
     source.emit(2)
@@ -139,7 +139,7 @@ describe('Derived', () => {
     const unsubscribe = combined.subscribe(() => {})
     expect(computations).toEqual([[1, 'constant']])
 
-    // constant re-emits an equal value, the combined computation is not deadlocked
+    // Constant re-emits an equal value, the combined computation is not deadlocked
     source.emit(2)
     expect(computations).toEqual([
       [1, 'constant'],
