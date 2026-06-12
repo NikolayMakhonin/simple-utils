@@ -9,7 +9,10 @@ import type { Unsubscribe } from 'src/common/types/common'
 import { Subject } from './Subject'
 import { isObservable } from './helpers'
 
-/** Must be pure; the values array is reused between computations */
+/**
+ * Must be pure
+ * The values array is reused between computations
+ */
 export type DerivedFunc<S extends Stores, T> = (values: StoresValues<S>) => T
 
 /**

@@ -3,7 +3,10 @@ import type { ValueState } from 'src/common/async/value-state/ValueState'
 
 export type Listener<T = void> = (event: T) => PromiseOrValue<void>
 
-/** Called when the observable value becomes stale; an emission always follows */
+/**
+ * Called when the observable value becomes stale
+ * An emission always follows
+ */
 export type Invalidate = () => void
 
 export interface IObservable<T = void> {

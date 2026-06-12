@@ -120,7 +120,8 @@ export class Subject<From = void> implements ISubject<From> {
 
   /**
    * Marks the value stale and notifies subscribers' invalidate callbacks
-   * Does nothing when already stale; emit makes the value valid again
+   * Does nothing when already stale
+   * Emit makes the value valid again
    */
   invalidate(): void {
     if (this.#invalidated) {

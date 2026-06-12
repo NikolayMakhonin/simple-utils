@@ -17,13 +17,13 @@
  * Parameters:
  * - [i] - iteration index
  * - gen - source generation number
- * - deps - dependency node names
+ * - dependencies - dependency node names
  * - values - computed per-source generations
  *
  * Example trace:
  * [test] createSource name=s0
- * [test] createDerived name=d0 deps=[s0]
- * [test] createDerived name=d1 deps=[s0, d0]
+ * [test] createDerived name=d0 dependencies=[s0]
+ * [test] createDerived name=d1 dependencies=[s0, d0]
  * [test][emit][0] source=s0 gen=1
  * [test] compute name=d0 values={"s0":1}
  * [test] compute name=d1 values={"s0":1}
@@ -50,7 +50,7 @@ export type TestVariantsArgs = {
   seed: number
   sourceCountMax: number
   derivedCountMax: number
-  depCountMax: number
+  dependencyCountMax: number
   iterationsMax: number
   toggleSinks: boolean
 }
@@ -83,7 +83,7 @@ type SourceNode = GraphNode & {
 
 type DerivedNode = GraphNode & {
   derived: Derived<IObservable<Generations>[], Generations>
-  depNames: string[]
+  dependencyNames: string[]
   isSink: boolean
 }
 
@@ -141,21 +141,21 @@ function generateContext(options: GenerateContextOptions): TestContext {
   const derivedCount = randomInt(rnd, 1, args.derivedCountMax + 1)
   for (let i = 0; i < derivedCount; i++) {
     const name = `d${i}`
-    const depCount = randomInt(
+    const dependencyCount = randomInt(
       rnd,
       1,
-      Math.min(args.depCountMax, nodes.length) + 1,
+      Math.min(args.dependencyCountMax, nodes.length) + 1,
     )
-    const deps = randomItems(rnd, nodes, depCount)
+    const dependencies = randomItems(rnd, nodes, dependencyCount)
     const reachableSourceNames = new Set<string>()
-    deps.forEach(dep => {
-      dep.reachableSourceNames.forEach(sourceName => {
+    dependencies.forEach(dependency => {
+      dependency.reachableSourceNames.forEach(sourceName => {
         reachableSourceNames.add(sourceName)
       })
     })
     computeCounts[name] = 0
     const derived = new Derived(
-      deps.map(o => o.observable),
+      dependencies.map(o => o.observable),
       inputs => {
         const merged: Generations = {}
         inputs.forEach(input => {
@@ -190,21 +190,21 @@ function generateContext(options: GenerateContextOptions): TestContext {
       observable: derived,
       reachableSourceNames,
       derived,
-      depNames: deps.map(o => o.name),
+      dependencyNames: dependencies.map(o => o.name),
       isSink: true,
     }
     deriveds.push(derivedNode)
     nodes.push(derivedNode)
     if (log) {
       console.log(
-        `[test] createDerived name=${name} deps=[${derivedNode.depNames.join(', ')}]`,
+        `[test] createDerived name=${name} dependencies=[${derivedNode.dependencyNames.join(', ')}]`,
       )
     }
   }
 
-  const depNames = new Set(deriveds.flatMap(o => o.depNames))
+  const usedDependencyNames = new Set(deriveds.flatMap(o => o.dependencyNames))
   deriveds.forEach(derivedNode => {
-    derivedNode.isSink = !depNames.has(derivedNode.name)
+    derivedNode.isSink = !usedDependencyNames.has(derivedNode.name)
   })
 
   deriveds.forEach(derivedNode => {
@@ -331,7 +331,7 @@ describe('Derived', { timeout: 7 * 60 * 60 * 1000 }, () => {
     await testVariants({
       sourceCountMax: [1, 2, 3],
       derivedCountMax: [1, 2, 3, 4, 5, 6],
-      depCountMax: [1, 2, 3],
+      dependencyCountMax: [1, 2, 3],
       iterationsMax: [5, 10],
       toggleSinks: [false, true],
     })({
