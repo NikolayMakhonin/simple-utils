@@ -13,6 +13,7 @@ import {
 } from './types'
 import { type AbortControllerReusableOptions } from 'src/common/async/abort/AbortControllerReusable'
 import { TaskStatusControllerBase } from './TaskStatusControllerBase'
+import { AbortError } from '@flemist/abort-controller-fast'
 
 export type TaskOptionsBase<Result = void> = AbortControllerReusableOptions & {
   readonly timeController?: null | ITimeController
@@ -75,17 +76,21 @@ export class TaskBase<
   }
 
   private logError(error: any): void {
-    if (
-      this.#options?.logLevel == null ||
-      this.#options.logLevel >= LogLevel.error
-    ) {
-      console.error('[TaskBase]', error)
+    const level = error instanceof AbortError ? LogLevel.warn : LogLevel.error
+    if (this.#options?.logLevel == null || this.#options.logLevel >= level) {
+      if (level >= LogLevel.error) {
+        console.error('[TaskBase]', error)
+      } else {
+        console.warn('[TaskBase]', error)
+      }
     }
   }
 
   run(options?: null | RunOptions): Promise<Result> {
     if (this.#statusController.abortSignal.aborted) {
-      return Promise.reject(this.#statusController.abortSignal.reason)
+      const rejected = Promise.reject(this.#statusController.abortSignal.reason)
+      rejected.catch(EMPTY_FUNC)
+      return rejected
     }
     if (this.#runPromise) {
       return this.#runPromise
@@ -113,13 +118,7 @@ export class TaskBase<
         },
       )
 
-    // Suppress unhandled rejection when error logging is disabled
-    if (
-      this.#options?.logLevel != null &&
-      this.#options.logLevel < LogLevel.error
-    ) {
-      this.#runPromise.catch(EMPTY_FUNC)
-    }
+    this.#runPromise.catch(EMPTY_FUNC)
 
     return this.#runPromise
   }

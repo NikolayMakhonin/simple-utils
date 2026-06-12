@@ -140,7 +140,9 @@ export class TaskWrapper<
   run(options?: null | RunOptions): Promise<Result> {
     this.#runOptions = options ?? null
     if (this.abortSignal.aborted) {
-      return Promise.reject(this.abortSignal.reason)
+      const rejected = Promise.reject(this.abortSignal.reason)
+      rejected.catch(EMPTY_FUNC)
+      return rejected
     }
     if (!this.#runPromise) {
       this.#runPromise = this.#statusController
@@ -155,10 +157,7 @@ export class TaskWrapper<
             throw error
           },
         )
-      // Suppress unhandled rejection when error logging is disabled
-      if (this.#logLevel != null && this.#logLevel < LogLevel.error) {
-        this.#runPromise.catch(EMPTY_FUNC)
-      }
+      this.#runPromise.catch(EMPTY_FUNC)
     }
     return this.#runPromise
   }

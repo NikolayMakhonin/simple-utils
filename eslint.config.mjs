@@ -51,6 +51,7 @@ export default ts.config([
       'no-useless-escape': 'warn',
       'no-empty-pattern': 'off',
       'no-constant-binary-expression': 'off',
+      'no-unused-private-class-members': 'off',
     },
   },
 
