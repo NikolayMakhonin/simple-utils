@@ -16,7 +16,7 @@ export type DerivedFunc<S extends Stores, T> = (values: StoresValues<S>) => T
  * Computes a value from sources on every source emission
  * Glitch-free: a single upstream change never produces a computation from mixed source generations
  * Emits every computed value, including values equal to the previous one
- * Subscribes to sources only while it has subscribers
+ * Subscribes to sources exclusively while it has subscribers
  */
 export class Derived<S extends Stores, T> implements IObservable<T> {
   readonly #subject: Subject<T>
