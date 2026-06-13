@@ -50,15 +50,56 @@ function startStopNotifier<S extends Stores, T>(
   let pendingCount = 0
   let isStarted = false
   let unsubscribes: Unsubscribe[] = []
+  let unsubscribed = false
 
   let asyncUnsubscribe: Unsubscribe | null = null
+  let isRunning = false
+  let hasPendingRun = false
 
+  // func must never start while a previous runCore is still on the stack;
+  // runCore can re-enter run through a synchronous source delivery caused by
+  // func emitting, by a listener re-emitting a source, or by disposing the
+  // previous async subscription; such a re-entrant run is deferred through
+  // hasPendingRun and applied once, with the newest source values, after the
+  // current runCore returns
   function run() {
+    // Teardown sets unsubscribed; drop the run instead of starting func
+    // during or after teardown
+    if (unsubscribed) {
+      return
+    }
+    if (isRunning) {
+      hasPendingRun = true
+      return
+    }
+    isRunning = true
+    try {
+      do {
+        hasPendingRun = false
+        runCore()
+      } while (
+        hasPendingRun &&
+        // A source invalidated during runCore makes the deferred run subject
+        // to the same precondition as the immediate path: run exclusively
+        // when every source is fresh; the next source delivery resumes it
+        pendingCount === 0 &&
+        // Teardown sets unsubscribed; never re-run during or after teardown
+        !unsubscribed
+      )
+    } finally {
+      isRunning = false
+    }
+  }
+
+  function runCore() {
     if (func.length > 1) {
-      if (asyncUnsubscribe) {
+      if (asyncUnsubscribe != null) {
         const prevUnsubscribe = asyncUnsubscribe
         asyncUnsubscribe = null
         prevUnsubscribe()
+      }
+      if (unsubscribed) {
+        return
       }
       const unsubscribe = (func as DerivedFuncAsync<S, T>)(
         values,
@@ -66,8 +107,16 @@ function startStopNotifier<S extends Stores, T>(
         update,
         invalidate,
       )
-      if (unsubscribe) {
-        asyncUnsubscribe = unsubscribe
+      if (unsubscribe != null) {
+        // Teardown sets unsubscribed before func returns when the last
+        // listener unsubscribed during func's synchronous emit; dispose this
+        // cleanup instead of storing it so no live async subscription
+        // survives teardown
+        if (unsubscribed) {
+          unsubscribe()
+        } else {
+          asyncUnsubscribe = unsubscribe
+        }
       }
     } else {
       const result = (func as DerivedFuncSync<S, T>)(values)
@@ -117,16 +166,16 @@ function startStopNotifier<S extends Stores, T>(
   }
 
   return () => {
-    if (unsubscribes) {
-      const prevUnsubscribes = unsubscribes
-      unsubscribes = null!
-      prevUnsubscribes.forEach(o => o())
+    if (unsubscribed) {
+      return
     }
-    if (asyncUnsubscribe) {
-      const prevUnsubscribe = asyncUnsubscribe
-      asyncUnsubscribe = null
-      prevUnsubscribe()
-    }
+    unsubscribed = true
+    const prevUnsubscribes = unsubscribes
+    const prevUnsubscribe = asyncUnsubscribe
+    unsubscribes = null!
+    asyncUnsubscribe = null
+    prevUnsubscribes.forEach(o => o())
+    prevUnsubscribe?.()
   }
 }
 
