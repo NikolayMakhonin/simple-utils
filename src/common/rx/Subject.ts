@@ -6,6 +6,7 @@ import type {
   Listener,
   StartStopNotifier,
   Update,
+  Updater,
 } from './types'
 import type { PromiseOrValue, Unsubscribe } from 'src/common/types/common'
 import { isPromiseLike } from 'src/common/async/promise/isPromiseLike'
@@ -195,7 +196,7 @@ export class Subject<From = void> implements ISubject<From> {
     }
   }
 
-  update(updater: (event: From) => From): PromiseOrValue<void> {
+  update(updater: Updater<From>): PromiseOrValue<void> {
     if (!this.#emitLast) {
       throw new Error(
         '[Rx][Subject] update available only for subjects with emitLastEvent',

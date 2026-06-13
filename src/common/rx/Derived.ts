@@ -117,15 +117,15 @@ function startStopNotifier<S extends Stores, T>(
   }
 
   return () => {
-    if (asyncUnsubscribe) {
-      const prevUnsubscribe = asyncUnsubscribe
-      asyncUnsubscribe = null
-      prevUnsubscribe()
-    }
     if (unsubscribes) {
       const prevUnsubscribes = unsubscribes
       unsubscribes = null!
       prevUnsubscribes.forEach(o => o())
+    }
+    if (asyncUnsubscribe) {
+      const prevUnsubscribe = asyncUnsubscribe
+      asyncUnsubscribe = null
+      prevUnsubscribe()
     }
   }
 }

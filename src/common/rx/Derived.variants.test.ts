@@ -278,7 +278,7 @@ function test(options: TestOptions): void {
         }
         break
       case 'funcAsyncUpdate':
-        if (funcAsyncUpdate) {
+        if (funcAsyncUpdate && args.derived_emitLastEvent) {
           funcAsyncUpdate(values => {
             lastUpdateValue = values
             return values
@@ -286,10 +286,7 @@ function test(options: TestOptions): void {
         }
         break
       case 'funcAsyncEmit':
-        if (funcAsyncEmit) {
-          if (!lastSourceValues) {
-            throw new Error('No source values to emit')
-          }
+        if (lastSourceValues) {
           funcAsyncEmit(lastSourceValues)
         }
         break
