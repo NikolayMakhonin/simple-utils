@@ -21,7 +21,7 @@ import { Subject } from './Subject'
 
 type Value = number | Number | null | undefined
 
-export type TestVariantsArgs = {
+type TestVariantsArgs = {
   seed: number
 
   actionsCount: number
