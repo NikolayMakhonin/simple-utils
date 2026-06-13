@@ -352,6 +352,100 @@ function test(options: TestOptions): void {
     }
   }
 
+  function checkProbeSubscribe(): void {
+    if (activeSubscribes <= 0) {
+      return
+    }
+
+    const sourceProbeEvents: Event[] = []
+    const sourceProbeUnsubscribe = source.subscribe(
+      o => {
+        sourceProbeEvents.push(o)
+      },
+      () => {
+        sourceProbeEvents.push('invalidate')
+      },
+    )
+
+    const sourceValueEvents = sourceProbeEvents.filter(o => o !== 'invalidate')
+    const sourceInvalidateEvents = sourceProbeEvents.filter(
+      o => o === 'invalidate',
+    )
+
+    if (expectedSourceHasLast) {
+      if (sourceValueEvents.length !== 1) {
+        throw new Error(
+          `source probe subscribe delivered ${sourceValueEvents.length} values,` +
+            ` expected 1 (hasLast)`,
+        )
+      }
+      if (sourceValueEvents[0] !== expectedSourceLast) {
+        throw new Error(
+          `source probe last: ${String(sourceValueEvents[0])}` +
+            ` !== ${String(expectedSourceLast)}`,
+        )
+      }
+    } else if (sourceValueEvents.length !== 0) {
+      throw new Error(
+        `source probe subscribe delivered ${sourceValueEvents.length} values,` +
+          ` expected 0 (no hasLast)`,
+      )
+    }
+
+    const expectedSourceInvalidateCount = expectedSourceInvalidated ? 1 : 0
+    if (sourceInvalidateEvents.length !== expectedSourceInvalidateCount) {
+      throw new Error(
+        `source probe subscribe delivered ${sourceInvalidateEvents.length} invalidates,` +
+          ` expected ${expectedSourceInvalidateCount}`,
+      )
+    }
+
+    sourceProbeUnsubscribe()
+
+    const destProbeEvents: Event[] = []
+    const destProbeUnsubscribe = dest.subscribe(
+      o => {
+        destProbeEvents.push(o)
+      },
+      () => {
+        destProbeEvents.push('invalidate')
+      },
+    )
+
+    const destValueEvents = destProbeEvents.filter(o => o !== 'invalidate')
+    const destInvalidateEvents = destProbeEvents.filter(o => o === 'invalidate')
+
+    if (expectedDestHasLast) {
+      if (destValueEvents.length !== 1) {
+        throw new Error(
+          `dest probe subscribe delivered ${destValueEvents.length} values,` +
+            ` expected 1 (hasLast)`,
+        )
+      }
+      if (destValueEvents[0] !== expectedDestLast) {
+        throw new Error(
+          `dest probe last: ${String(destValueEvents[0])}` +
+            ` !== ${String(expectedDestLast)}`,
+        )
+      }
+    } else if (destValueEvents.length !== 0) {
+      throw new Error(
+        `dest probe subscribe delivered ${destValueEvents.length} values,` +
+          ` expected 0 (no hasLast)`,
+      )
+    }
+
+    const expectedDestInvalidateCount = expectedDestInvalidated ? 1 : 0
+    if (destInvalidateEvents.length !== expectedDestInvalidateCount) {
+      throw new Error(
+        `dest probe subscribe delivered ${destInvalidateEvents.length} invalidates,` +
+          ` expected ${expectedDestInvalidateCount}`,
+      )
+    }
+
+    destProbeUnsubscribe()
+  }
+
   function check(): void {
     if (source.emitLast !== sourceEmitLast) {
       throw new Error(
@@ -392,6 +486,8 @@ function test(options: TestOptions): void {
         `dest.hasListeners: ${dest.hasListeners} !== ${activeSubscribes > 0}`,
       )
     }
+
+    checkProbeSubscribe()
   }
 
   function doActionAndCheck(action: Action, index: number): void {

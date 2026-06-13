@@ -223,6 +223,8 @@ function test(options: TestOptions): void {
   let derivedPendingCount = 0
 
   let activeSubscribes = 0
+  let derivedSubscribing = false
+  let insideFuncAsync = false
 
   type ActionFuncAsync =
     | 'funcAsyncInvalidate'
@@ -306,8 +308,13 @@ function test(options: TestOptions): void {
   setOnFuncAsyncCalled(values => {
     lastSourceValues = values
     if (randomBoolean(rnd)) {
-      doActions(randomInt(rnd, 1, 5), true)
-      check()
+      insideFuncAsync = true
+      try {
+        doActions(randomInt(rnd, 1, 5), true)
+        check()
+      } finally {
+        insideFuncAsync = false
+      }
     }
   })
 
@@ -455,6 +462,7 @@ function test(options: TestOptions): void {
         activeSubscribes++
         const syncEvents: Event[] = []
         let subscribing = true
+        derivedSubscribing = true
         const unsubscribe = derived.subscribe(
           o => {
             if (subscribing) {
@@ -469,6 +477,7 @@ function test(options: TestOptions): void {
             events.push('invalidate')
           },
         )
+        derivedSubscribing = false
         subscribing = false
         if (isFirst) {
           for (let i = 0; i < sources.length; i++) {
@@ -538,6 +547,110 @@ function test(options: TestOptions): void {
     }
   }
 
+  function checkSourceProbeSubscribe(): void {
+    if (activeSubscribes <= 0 || insideFuncAsync) {
+      return
+    }
+
+    for (let i = 0; i < sources.length; i++) {
+      const source = sources[i]
+      const expected = expectedSources[i]
+
+      type SourceEvent = 'invalidate' | Value
+      const probeEvents: SourceEvent[] = []
+      const probeUnsubscribe = source.subscribe(
+        o => {
+          probeEvents.push(o)
+        },
+        () => {
+          probeEvents.push('invalidate')
+        },
+      )
+
+      const valueEvents = probeEvents.filter(o => o !== 'invalidate')
+      const invalidateEvents = probeEvents.filter(o => o === 'invalidate')
+
+      if (expected.hasLast) {
+        if (valueEvents.length !== 1) {
+          throw new Error(
+            `sources[${i}] probe subscribe delivered ${valueEvents.length} values,` +
+              ` expected 1 (hasLast)`,
+          )
+        }
+        if (valueEvents[0] !== expected.last) {
+          throw new Error(
+            `sources[${i}] probe last: ${String(valueEvents[0])}` +
+              ` !== ${String(expected.last)}`,
+          )
+        }
+      } else if (valueEvents.length !== 0) {
+        throw new Error(
+          `sources[${i}] probe subscribe delivered ${valueEvents.length} values,` +
+            ` expected 0 (no hasLast)`,
+        )
+      }
+
+      const expectedInvalidateCount = expected.invalidated ? 1 : 0
+      if (invalidateEvents.length !== expectedInvalidateCount) {
+        throw new Error(
+          `sources[${i}] probe subscribe delivered ${invalidateEvents.length} invalidates,` +
+            ` expected ${expectedInvalidateCount}`,
+        )
+      }
+
+      probeUnsubscribe()
+    }
+  }
+
+  function checkDerivedProbeSubscribe(): void {
+    if (activeSubscribes <= 0 || derivedSubscribing || insideFuncAsync) {
+      return
+    }
+
+    const probeEvents: Event[] = []
+    const probeUnsubscribe = derived.subscribe(
+      o => {
+        probeEvents.push(o)
+      },
+      () => {
+        probeEvents.push('invalidate')
+      },
+    )
+
+    const valueEvents = probeEvents.filter(o => o !== 'invalidate')
+    const invalidateEvents = probeEvents.filter(o => o === 'invalidate')
+
+    if (expectedDerivedHasLast) {
+      if (valueEvents.length !== 1) {
+        throw new Error(
+          `derived probe subscribe delivered ${valueEvents.length} values,` +
+            ` expected 1 (hasLast)`,
+        )
+      }
+      if (args.async && valueEvents[0] !== expectedDerivedLast) {
+        throw new Error(
+          `derived probe last: ${String(valueEvents[0])}` +
+            ` !== ${String(expectedDerivedLast)}`,
+        )
+      }
+    } else if (valueEvents.length !== 0) {
+      throw new Error(
+        `derived probe subscribe delivered ${valueEvents.length} values,` +
+          ` expected 0 (no hasLast)`,
+      )
+    }
+
+    const expectedInvalidateCount = expectedDerivedInvalidated ? 1 : 0
+    if (invalidateEvents.length !== expectedInvalidateCount) {
+      throw new Error(
+        `derived probe subscribe delivered ${invalidateEvents.length} invalidates,` +
+          ` expected ${expectedInvalidateCount}`,
+      )
+    }
+
+    probeUnsubscribe()
+  }
+
   function check(): void {
     for (let i = 0; i < sources.length; i++) {
       const source = sources[i]
@@ -563,6 +676,9 @@ function test(options: TestOptions): void {
         )
       }
     }
+
+    checkSourceProbeSubscribe()
+    checkDerivedProbeSubscribe()
   }
 
   check()
