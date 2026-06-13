@@ -142,15 +142,22 @@ function test(options: TestOptions): void {
 
   let expectedSourceHasLast = args.source_hasLast ?? false
   let expectedSourceLast: Value = args.source_last
+  let expectedSourceInvalidated = false
   let expectedDestHasLast = args.dest_hasLast ?? false
   let expectedDestLast: Value = args.dest_last
+  let expectedDestInvalidated = false
 
   type Event = 'invalidate' | Value
   const events: Event[] = []
 
   let activeSubscribes = 1
-  if (!args.dest_startStopNotifier && expectedSourceHasLast) {
-    destEmitted(expectedSourceLast)
+  if (!args.dest_startStopNotifier) {
+    if (expectedSourceHasLast) {
+      destEmitted(expectedSourceLast)
+    }
+    if (expectedSourceInvalidated) {
+      expectedDestInvalidated = true
+    }
   }
   const unsubscribe = subscribe(
     o => {
@@ -160,8 +167,13 @@ function test(options: TestOptions): void {
       events.push('invalidate')
     },
   )
-  if (args.dest_startStopNotifier && expectedSourceHasLast) {
-    destEmitted(expectedSourceLast)
+  if (args.dest_startStopNotifier) {
+    if (expectedSourceHasLast) {
+      destEmitted(expectedSourceLast)
+    }
+    if (expectedSourceInvalidated) {
+      expectedDestInvalidated = true
+    }
   }
 
   const unsubscribes: Unsubscribe[] = [unsubscribe]
@@ -197,6 +209,7 @@ function test(options: TestOptions): void {
       expectedSourceHasLast = true
       expectedSourceLast = value
     }
+    expectedSourceInvalidated = false
   }
 
   function destEmitted(value: Value): void {
@@ -204,6 +217,7 @@ function test(options: TestOptions): void {
       expectedDestHasLast = true
       expectedDestLast = value
     }
+    expectedDestInvalidated = false
   }
 
   function doAction(action: Action, index: number): void {
@@ -211,6 +225,12 @@ function test(options: TestOptions): void {
     switch (action) {
       case 'invalidate':
         source.invalidate()
+        if (!expectedSourceInvalidated) {
+          expectedSourceInvalidated = true
+          if (activeSubscribes > 0) {
+            expectedDestInvalidated = true
+          }
+        }
         break
       case 'update':
         if (source.emitLast) {
@@ -248,30 +268,81 @@ function test(options: TestOptions): void {
             if (destAutoClear) {
               expectedDestHasLast = false
               expectedDestLast = undefined
+              expectedDestInvalidated = false
             }
             if (sourceAutoClear) {
               expectedSourceHasLast = false
               expectedSourceLast = undefined
+              expectedSourceInvalidated = false
             }
           }
         }
         break
       case 'subscribe': {
         const isFirst = activeSubscribes === 0
-        if (isFirst && !args.dest_startStopNotifier && expectedSourceHasLast) {
-          destEmitted(expectedSourceLast)
+        if (isFirst && !args.dest_startStopNotifier) {
+          if (expectedSourceHasLast) {
+            destEmitted(expectedSourceLast)
+          }
+          if (expectedSourceInvalidated) {
+            expectedDestInvalidated = true
+          }
         }
+        const syncEvents: Event[] = []
+        let subscribing = true
         const unsubscribe = subscribe(
           o => {
+            if (subscribing) {
+              syncEvents.push(o)
+            }
             events.push(o)
           },
           () => {
+            if (subscribing) {
+              syncEvents.push('invalidate')
+            }
             events.push('invalidate')
           },
         )
+        subscribing = false
         activeSubscribes++
-        if (isFirst && args.dest_startStopNotifier && expectedSourceHasLast) {
-          destEmitted(expectedSourceLast)
+        if (isFirst && args.dest_startStopNotifier) {
+          if (expectedSourceHasLast) {
+            destEmitted(expectedSourceLast)
+          }
+          if (expectedSourceInvalidated) {
+            expectedDestInvalidated = true
+          }
+        }
+        if (!isFirst) {
+          const valueEvents = syncEvents.filter(o => o !== 'invalidate')
+          const invalidateEvents = syncEvents.filter(o => o === 'invalidate')
+          if (expectedDestHasLast) {
+            if (valueEvents.length !== 1) {
+              throw new Error(
+                `dest subscribe delivered ${valueEvents.length} values,` +
+                  ` expected 1 (hasLast)`,
+              )
+            }
+            if (valueEvents[0] !== expectedDestLast) {
+              throw new Error(
+                `dest last: ${String(valueEvents[0])}` +
+                  ` !== ${String(expectedDestLast)}`,
+              )
+            }
+          } else if (valueEvents.length !== 0) {
+            throw new Error(
+              `dest subscribe delivered ${valueEvents.length} values,` +
+                ` expected 0 (no hasLast)`,
+            )
+          }
+          const expectedInvalidateCount = expectedDestInvalidated ? 1 : 0
+          if (invalidateEvents.length !== expectedInvalidateCount) {
+            throw new Error(
+              `dest subscribe delivered ${invalidateEvents.length} invalidates,` +
+                ` expected ${expectedInvalidateCount}`,
+            )
+          }
         }
         unsubscribes.push(unsubscribe)
         break

@@ -331,7 +331,8 @@ function test(options: TestOptions): void {
         }
         break
       case 'funcAsyncUpdate':
-        if (derivedEmitLast) {
+        if (derivedEmitLast && lastSourceValues) {
+          const updateResult = lastSourceValues
           const emitted = funcAsyncUpdate(values => {
             lastUpdateValue = values
             if (lastUpdateValue !== expectedDerivedLast) {
@@ -340,10 +341,10 @@ function test(options: TestOptions): void {
                   ` !== ${String(expectedDerivedLast)}`,
               )
             }
-            return values
+            return updateResult
           })
           if (emitted) {
-            derivedEmitted(lastUpdateValue!)
+            derivedEmitted(updateResult)
           }
         }
         break
