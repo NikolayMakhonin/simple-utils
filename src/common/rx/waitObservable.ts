@@ -9,12 +9,9 @@ export function waitObservable<T>(
 ): Promise<T> {
   return new Promise<T>(resolve => {
     let resolved = false
-    if (abortSignal?.aborted) {
-      _reject(abortSignal.reason)
-      return
-    }
-    const unsubscribeAbort = abortSignal?.subscribe(_reject)
 
+    // eslint-disable-next-line prefer-const
+    let unsubscribeAbort: Unsubscribe | null | undefined
     // eslint-disable-next-line prefer-const
     let unsubscribeObservable: Unsubscribe | null | undefined
     function _resolve(value: T) {
@@ -33,8 +30,17 @@ export function waitObservable<T>(
       resolve(Promise.reject(error))
     }
 
+    if (abortSignal?.aborted) {
+      _reject(abortSignal.reason)
+      return
+    }
+    unsubscribeAbort = abortSignal?.subscribe(_reject)
+
     let first = true
     unsubscribeObservable = observable.subscribe(value => {
+      if (resolved) {
+        return
+      }
       if (!predicate || predicate(value, first)) {
         _resolve(value)
       }

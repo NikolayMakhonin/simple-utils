@@ -22,8 +22,8 @@ export type SubjectOptions<T> = {
 }
 
 export class Subject<From = void> implements ISubject<From> {
-  readonly #listeners = new Map<object, (event: From) => void>()
-  readonly #listenersAdd = new Map<object, (event: From) => void>()
+  readonly #listeners = new Map<object, Listener<From>>()
+  readonly #listenersAdd = new Map<object, Listener<From>>()
   readonly #invalidates = new Map<object, Invalidate>()
   readonly #startStopNotifier: null | StartStopNotifier<From>
   readonly #emit: Emit<From> | null
@@ -58,6 +58,10 @@ export class Subject<From = void> implements ISubject<From> {
     this.#autoClear = autoClear ?? false
   }
 
+  get emitLast(): boolean {
+    return this.#emitLast
+  }
+
   get hasLast(): boolean {
     return this.#hasLast
   }
@@ -67,7 +71,7 @@ export class Subject<From = void> implements ISubject<From> {
   }
 
   get hasListeners(): boolean {
-    return this.#listeners.size > 0
+    return this.#listeners.size > 0 || this.#listenersAdd.size > 0
   }
 
   subscribe(

@@ -181,10 +181,12 @@ function test(options: TestOptions): void {
         source.invalidate()
         break
       case 'update':
-        source.update(value => {
-          lastUpdateValue = value
-          return randomValue()
-        })
+        if (source.emitLast) {
+          source.update(value => {
+            lastUpdateValue = value
+            return randomValue()
+          })
+        }
         break
       case 'emit':
         source.emit(randomValue())

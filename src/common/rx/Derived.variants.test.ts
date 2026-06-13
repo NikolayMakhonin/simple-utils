@@ -259,9 +259,11 @@ function test(options: TestOptions): void {
       case 'update':
         if (sources.length > 0) {
           const source = randomItem(rnd, sources)
-          source.update(() => {
-            return randomItem(rnd, args.values)
-          })
+          if (source.emitLast) {
+            source.update(() => {
+              return randomItem(rnd, args.values)
+            })
+          }
         }
         break
       case 'emit':
