@@ -162,11 +162,12 @@ function generateContext(options: GenerateContextOptions): TestContext {
       funcAsyncUpdate(update)
       return true
     },
-    funcAsyncInvalidate: () => {
+    funcAsyncInvalidate: (): boolean => {
       if (!funcAsyncInvalidate) {
-        return
+        return false
       }
       funcAsyncInvalidate()
+      return true
     },
   }
 }
@@ -177,7 +178,7 @@ type TestContext = {
   setOnFuncAsyncCalled: (onCalled: (values: Value[]) => void) => void
   funcAsyncEmit: (values: Value[]) => boolean
   funcAsyncUpdate: (update: Updater<Value[]>) => boolean
-  funcAsyncInvalidate: () => void
+  funcAsyncInvalidate: () => boolean
 }
 
 type TestOptions = {
@@ -214,7 +215,12 @@ function test(options: TestOptions): void {
   const expectedSources = sources.map((_, i) => ({
     hasLast: sourceArgs[i].hasLast,
     last: sourceArgs[i].last,
+    invalidated: false,
   }))
+
+  let derivedStarted = false
+  const expectedSourcePending = sources.map(() => false)
+  let derivedPendingCount = 0
 
   let activeSubscribes = 0
 
@@ -262,11 +268,34 @@ function test(options: TestOptions): void {
   const derivedAutoClear = args.derived_autoClear ?? false
   let expectedDerivedHasLast = args.derived_hasLast ?? false
   let expectedDerivedLast: Value[] | undefined = args.derived_last
+  let expectedDerivedInvalidated = false
+
+  function derivedInvalidated(): void {
+    expectedDerivedInvalidated = true
+  }
 
   function derivedEmitted(value: Value[]): void {
     if (derivedEmitLast) {
       expectedDerivedHasLast = true
       expectedDerivedLast = value
+    }
+    expectedDerivedInvalidated = false
+  }
+
+  function sourceBecomePending(sourceIndex: number): void {
+    if (!expectedSourcePending[sourceIndex]) {
+      expectedSourcePending[sourceIndex] = true
+      derivedPendingCount++
+      if (derivedPendingCount === 1) {
+        derivedInvalidated()
+      }
+    }
+  }
+
+  function sourceBecomeFresh(sourceIndex: number): void {
+    if (expectedSourcePending[sourceIndex]) {
+      expectedSourcePending[sourceIndex] = false
+      derivedPendingCount--
     }
   }
 
@@ -282,10 +311,31 @@ function test(options: TestOptions): void {
     }
   })
 
-  function sourceEmitted(sourceIndex: number, value: Value): void {
+  function derivedFuncRanSync(): void {
+    if (derivedEmitLast) {
+      expectedDerivedHasLast = true
+    }
+    expectedDerivedInvalidated = false
+  }
+
+  function preSourceEmit(sourceIndex: number): void {
+    if (derivedStarted && !expectedSources[sourceIndex].invalidated) {
+      expectedSources[sourceIndex].invalidated = true
+      sourceBecomePending(sourceIndex)
+    }
+  }
+
+  function postSourceEmit(sourceIndex: number, value: Value): void {
     if (sourceArgs[sourceIndex].emitLast) {
       expectedSources[sourceIndex].hasLast = true
       expectedSources[sourceIndex].last = value
+    }
+    expectedSources[sourceIndex].invalidated = false
+    if (derivedStarted) {
+      sourceBecomeFresh(sourceIndex)
+      if (derivedPendingCount === 0 && !args.async) {
+        derivedFuncRanSync()
+      }
     }
   }
 
@@ -293,7 +343,14 @@ function test(options: TestOptions): void {
     switch (action) {
       case 'invalidate':
         if (sources.length > 0) {
-          const source = randomItem(rnd, sources)
+          const sourceIndex = randomInt(rnd, 0, sources.length)
+          const source = sources[sourceIndex]
+          if (!expectedSources[sourceIndex].invalidated) {
+            expectedSources[sourceIndex].invalidated = true
+            if (derivedStarted) {
+              sourceBecomePending(sourceIndex)
+            }
+          }
           source.invalidate()
         }
         break
@@ -304,6 +361,7 @@ function test(options: TestOptions): void {
           if (source.emitLast) {
             const value = randomItem(rnd, args.values)
             const expectedLast = expectedSources[sourceIndex].last
+            preSourceEmit(sourceIndex)
             source.update(last => {
               if (last !== expectedLast) {
                 throw new Error(
@@ -312,7 +370,7 @@ function test(options: TestOptions): void {
               }
               return value
             })
-            sourceEmitted(sourceIndex, value)
+            postSourceEmit(sourceIndex, value)
           }
         }
         break
@@ -321,15 +379,18 @@ function test(options: TestOptions): void {
           const sourceIndex = randomInt(rnd, 0, sources.length)
           const source = sources[sourceIndex]
           const value = randomItem(rnd, args.values)
+          preSourceEmit(sourceIndex)
           source.emit(value)
-          sourceEmitted(sourceIndex, value)
+          postSourceEmit(sourceIndex, value)
         }
         break
-      case 'funcAsyncInvalidate':
-        if (funcAsyncInvalidate) {
-          funcAsyncInvalidate()
+      case 'funcAsyncInvalidate': {
+        const invalidated = funcAsyncInvalidate()
+        if (invalidated) {
+          derivedInvalidated()
         }
         break
+      }
       case 'funcAsyncUpdate':
         if (derivedEmitLast && lastSourceValues) {
           const updateResult = lastSourceValues
@@ -362,21 +423,35 @@ function test(options: TestOptions): void {
           unsubscribe()
           activeSubscribes--
           if (activeSubscribes === 0) {
+            derivedStarted = false
+            for (let i = 0; i < sources.length; i++) {
+              expectedSourcePending[i] = false
+            }
+            derivedPendingCount = 0
             for (let i = 0; i < sources.length; i++) {
               if (sourceArgs[i].autoClear) {
                 expectedSources[i].hasLast = false
                 expectedSources[i].last = undefined
+                expectedSources[i].invalidated = false
               }
             }
             if (derivedAutoClear) {
               expectedDerivedHasLast = false
               expectedDerivedLast = undefined
+              expectedDerivedInvalidated = false
             }
           }
         }
         break
       case 'subscribe': {
         const isFirst = activeSubscribes === 0
+        if (isFirst) {
+          for (let i = 0; i < sources.length; i++) {
+            expectedSourcePending[i] = true
+            derivedPendingCount++
+          }
+          derivedStarted = true
+        }
         activeSubscribes++
         const syncEvents: Event[] = []
         let subscribing = true
@@ -395,6 +470,23 @@ function test(options: TestOptions): void {
           },
         )
         subscribing = false
+        if (isFirst) {
+          for (let i = 0; i < sources.length; i++) {
+            if (expectedSources[i].hasLast) {
+              sourceBecomeFresh(i)
+            }
+            if (expectedSources[i].invalidated) {
+              sourceBecomePending(i)
+            }
+          }
+          if (derivedPendingCount === 0) {
+            if (!args.async) {
+              derivedFuncRanSync()
+            }
+          } else {
+            derivedInvalidated()
+          }
+        }
         // A non-first subscriber never restarts the source subscription, so the
         // only synchronous delivery is the derived stored last value; this makes
         // the subscribe call a clean probe of the derived hasLast/last state
@@ -402,6 +494,7 @@ function test(options: TestOptions): void {
         // harness, so the derived last model is tracked exclusively in async mode
         if (!isFirst && args.async) {
           const valueEvents = syncEvents.filter(o => o !== 'invalidate')
+          const invalidateEvents = syncEvents.filter(o => o === 'invalidate')
           if (expectedDerivedHasLast) {
             if (valueEvents.length !== 1) {
               throw new Error(
@@ -419,6 +512,13 @@ function test(options: TestOptions): void {
             throw new Error(
               `derived subscribe delivered ${valueEvents.length} values,` +
                 ` expected 0 (no hasLast)`,
+            )
+          }
+          const expectedInvalidateCount = expectedDerivedInvalidated ? 1 : 0
+          if (invalidateEvents.length !== expectedInvalidateCount) {
+            throw new Error(
+              `derived subscribe delivered ${invalidateEvents.length} invalidates,` +
+                ` expected ${expectedInvalidateCount}`,
             )
           }
         }
