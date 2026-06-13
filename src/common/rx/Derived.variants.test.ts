@@ -369,6 +369,7 @@ function test(options: TestOptions): void {
             const value = randomItem(rnd, args.values)
             const expectedLast = expectedSources[sourceIndex].last
             preSourceEmit(sourceIndex)
+            postSourceEmit(sourceIndex, value)
             source.update(last => {
               if (last !== expectedLast) {
                 throw new Error(
@@ -377,7 +378,6 @@ function test(options: TestOptions): void {
               }
               return value
             })
-            postSourceEmit(sourceIndex, value)
           }
         }
         break
@@ -387,8 +387,8 @@ function test(options: TestOptions): void {
           const source = sources[sourceIndex]
           const value = randomItem(rnd, args.values)
           preSourceEmit(sourceIndex)
-          source.emit(value)
           postSourceEmit(sourceIndex, value)
+          source.emit(value)
         }
         break
       case 'funcAsyncInvalidate': {
@@ -458,6 +458,21 @@ function test(options: TestOptions): void {
             derivedPendingCount++
           }
           derivedStarted = true
+          for (let i = 0; i < sources.length; i++) {
+            if (expectedSources[i].hasLast) {
+              sourceBecomeFresh(i)
+            }
+            if (expectedSources[i].invalidated) {
+              sourceBecomePending(i)
+            }
+          }
+          if (derivedPendingCount === 0) {
+            if (!args.async) {
+              derivedFuncRanSync()
+            }
+          } else {
+            derivedInvalidated()
+          }
         }
         activeSubscribes++
         const syncEvents: Event[] = []
@@ -479,23 +494,6 @@ function test(options: TestOptions): void {
         )
         derivedSubscribing = false
         subscribing = false
-        if (isFirst) {
-          for (let i = 0; i < sources.length; i++) {
-            if (expectedSources[i].hasLast) {
-              sourceBecomeFresh(i)
-            }
-            if (expectedSources[i].invalidated) {
-              sourceBecomePending(i)
-            }
-          }
-          if (derivedPendingCount === 0) {
-            if (!args.async) {
-              derivedFuncRanSync()
-            }
-          } else {
-            derivedInvalidated()
-          }
-        }
         // A non-first subscriber never restarts the source subscription, so the
         // only synchronous delivery is the derived stored last value; this makes
         // the subscribe call a clean probe of the derived hasLast/last state
@@ -541,6 +539,9 @@ function test(options: TestOptions): void {
 
   function doActions(count: number, funcAsyncOnly?: boolean): void {
     const availableActions = funcAsyncOnly ? actionsFuncAsync : actions
+    if (availableActions.length === 0) {
+      return
+    }
     for (let i = 0; i < count; i++) {
       const action = randomItem(rnd, availableActions)
       doAction(action)
