@@ -165,6 +165,7 @@ export class Subject<From = void> implements ISubject<From> {
       }
       this.#emitting = false
     }
+    let promises: PromiseLike<void>[] | undefined
     try {
       this.#emitting = true
       this.invalidate()
@@ -173,7 +174,6 @@ export class Subject<From = void> implements ISubject<From> {
         this.#last = event
         this.#hasLast = true
       }
-      let promises: PromiseLike<void>[] | undefined
       this.#listeners.forEach(listener => {
         const promiseOrValue = listener(event)
         if (isPromiseLike(promiseOrValue)) {
@@ -183,16 +183,15 @@ export class Subject<From = void> implements ISubject<From> {
           promises.push(promiseOrValue)
         }
       })
-      if (promises) {
-        return Promise.all(promises).then(onFinally, err => {
-          onFinally()
-          throw err
-        })
-      }
-      onFinally()
     } catch (error) {
       onFinally()
       throw error
+    }
+    // Reentrancy flag is released before awaiting async listeners
+    // Async listeners must not block a later synchronous emit
+    onFinally()
+    if (promises) {
+      return Promise.all(promises).then(() => {})
     }
   }
 
