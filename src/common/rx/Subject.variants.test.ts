@@ -15,20 +15,25 @@ type Value = number | Number | null | undefined
 
 export type TestVariantsArgs = {
   seed: number
+
   source_emitLastEvent: boolean | null | undefined
   source_hasLast: boolean | null | undefined
   source_last: Value
   source_autoClear: boolean | null | undefined
+
   dest_emitLastEvent: boolean | null | undefined
   dest_startStopNotifier: boolean
   dest_hasLast: boolean | null | undefined
   dest_last: Value
   dest_actionOnCircular: ActionOnCircular | null | undefined
   dest_autoClear: boolean | null | undefined
+
   invalidates: number
+  updates: number
   emits: number
   unsubscribes: number
   subscribes: number
+
   values: Value[]
 }
 
@@ -141,10 +146,13 @@ function test(options: TestOptions): void {
     },
   )
 
-  type Action = 'invalidate' | 'emit' | 'unsubscribe' | 'subscribe'
+  type Action = 'invalidate' | 'update' | 'emit' | 'unsubscribe' | 'subscribe'
   const actions: Action[] = []
   for (let i = 0; i < args.invalidates; i++) {
     actions.push('invalidate')
+  }
+  for (let i = 0; i < args.updates; i++) {
+    actions.push('update')
   }
   for (let i = 0; i < args.emits; i++) {
     actions.push('emit')
@@ -158,6 +166,7 @@ function test(options: TestOptions): void {
   arrayShuffle(rnd, actions)
 
   let lastActionIndex: number | null = null
+  let lastUpdateValue: Value | null = null
 
   function randomValue(): Value {
     return randomItem(rnd, args.values)
@@ -170,6 +179,12 @@ function test(options: TestOptions): void {
     switch (action) {
       case 'invalidate':
         source.invalidate()
+        break
+      case 'update':
+        source.update(value => {
+          lastUpdateValue = value
+          return randomValue()
+        })
         break
       case 'emit':
         source.emit(randomValue())
@@ -216,16 +231,20 @@ describe('Derived', { timeout: 7 * 60 * 60 * 1000 }, () => {
       source_hasLast: [undefined, null, false, true],
       source_last: [undefined, null, 0, 1, new Number(0), new Number(1)],
       source_autoClear: [undefined, null, false, true],
+
       dest_emitLastEvent: [undefined, null, false, true],
       dest_startStopNotifier: [false, true],
       dest_hasLast: [undefined, null, false, true],
       dest_last: [undefined, null, 0, 1, new Number(0), new Number(1)],
       dest_actionOnCircular: [undefined, null, 'throw', 'emitLast'],
       dest_autoClear: [undefined, null, false, true],
+
       invalidates: Array.from({ length: 3 }, (_, i) => i),
+      updates: Array.from({ length: 3 }, (_, i) => i),
       emits: Array.from({ length: 3 }, (_, i) => i),
       unsubscribes: Array.from({ length: 3 }, (_, i) => i),
       subscribes: Array.from({ length: 3 }, (_, i) => i),
+
       values: [[undefined, null, 0, 1, new Number(0), new Number(1)]],
     })({
       limitTime: 60 * 1000,

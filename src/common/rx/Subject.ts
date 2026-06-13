@@ -1,16 +1,14 @@
-import type { ActionOnCircular, Invalidate, ISubject, Listener } from './types'
+import type {
+  ActionOnCircular,
+  Emit,
+  Invalidate,
+  ISubject,
+  Listener,
+  StartStopNotifier,
+  Update,
+} from './types'
 import { type PromiseOrValue, type Unsubscribe } from 'src/common/types/common'
 import { isPromiseLike } from 'src/common/async/promise/isPromiseLike'
-
-export type Emit<T> = (value: T) => PromiseOrValue<void>
-export type Updater<T> = (event: T) => T
-export type Update<T> = (updater: Updater<T>) => void
-
-export type StartStopNotifier<T> = (
-  emit: Emit<T>,
-  update: Update<T>,
-  invalidate: Invalidate,
-) => void | Unsubscribe
 
 export type SubjectOptions<T> = {
   emitLastEvent?: null | boolean

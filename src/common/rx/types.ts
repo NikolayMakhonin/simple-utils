@@ -63,3 +63,11 @@ export type DerivedOrValuesFunc<S extends Stores, T> = (
 /** Action to perform on circular subscription or emit */
 
 export type ActionOnCircular = 'emitLast' | 'throw' | false
+export type Emit<T> = (value: T) => PromiseOrValue<void>
+export type Updater<T> = (event: T) => T
+export type Update<T> = (updater: Updater<T>) => void
+export type StartStopNotifier<T> = (
+  emit: Emit<T>,
+  update: Update<T>,
+  invalidate: Invalidate,
+) => void | Unsubscribe

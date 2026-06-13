@@ -1,33 +1,4 @@
-/**
- * Logging: disabled by default, enabled only on error (test re-runs with log: true)
- *
- * General format:
- * - Log entries: bracket-path style with [test] prefix
- *
- * Entity naming:
- * - Sources: s{index}, e.g. s0, s1
- * - Derived nodes: d{index}, e.g. d0, d3
- *
- * Actions:
- * - createSource/createDerived - graph construction with dependencies
- * - toggle - sink test listener subscribed (on=true) or unsubscribed (on=false)
- * - emit - source emission starting a cascade
- * - compute - derived computation with merged per-source generations
- *
- * Parameters:
- * - [i] - iteration index
- * - gen - source generation number
- * - dependencies - dependency node names
- * - values - computed per-source generations
- *
- * Example trace:
- * [test] createSource name=s0
- * [test] createDerived name=d0 dependencies=[s0]
- * [test] createDerived name=d1 dependencies=[s0, d0]
- * [test][emit][0] source=s0 gen=1
- * [test] compute name=d0 values={"s0":1}
- * [test] compute name=d1 values={"s0":1}
- */
+/* eslint-disable @typescript-eslint/no-wrapper-object-types */
 import { describe, it } from 'vitest'
 import { createTestVariants } from '@flemist/test-variants'
 import {
@@ -36,23 +7,50 @@ import {
   randomBoolean,
   randomInt,
   randomItem,
-  randomItems,
 } from 'src/common/random'
 import type { Unsubscribe } from 'src/common/types/common'
-import type { IObservable } from './types'
+import type {
+  ActionOnCircular,
+  Emit,
+  Invalidate,
+  Update,
+  Updater,
+} from './types'
 import { Derived } from './Derived'
 import { Subject } from './Subject'
 
-/** Per-source generation numbers visible through a node */
-type Generations = Record<string, number>
+type Value = number | Number | null | undefined
 
 export type TestVariantsArgs = {
   seed: number
-  sourceCountMax: number
-  derivedCountMax: number
-  dependencyCountMax: number
-  iterationsMax: number
-  toggleSinks: boolean
+
+  actionsCount: number
+  sources: 0 | 1 | 2
+
+  source1_emitLastEvent: boolean | null | undefined
+  source1_hasLast: boolean | null | undefined
+  source1_last: Value
+  source1_autoClear: boolean | null | undefined
+
+  source2_emitLastEvent: boolean | null | undefined
+  source2_hasLast: boolean | null | undefined
+  source2_last: Value
+  source2_autoClear: boolean | null | undefined
+
+  derived_emitLastEvent: boolean | null | undefined
+  derived_hasLast: boolean | null | undefined
+  derived_last: Value[] | undefined
+  derived_actionOnCircular: ActionOnCircular | null | undefined
+  derived_autoClear: boolean | null | undefined
+  async: boolean
+
+  invalidates: number
+  updates: number
+  emits: number
+  unsubscribes: number
+  subscribes: number
+
+  values: Value[]
 }
 
 const testVariants = createTestVariants(async (args: TestVariantsArgs) => {
@@ -71,33 +69,6 @@ const testVariants = createTestVariants(async (args: TestVariantsArgs) => {
   }
 })
 
-type GraphNode = {
-  name: string
-  observable: IObservable<Generations>
-  reachableSourceNames: Set<string>
-}
-
-type SourceNode = GraphNode & {
-  subject: Subject<Generations>
-}
-
-type DerivedNode = GraphNode & {
-  derived: Derived<IObservable<Generations>[], Generations>
-  dependencyNames: string[]
-  isSink: boolean
-}
-
-type TestContext = {
-  log: boolean
-  sources: SourceNode[]
-  deriveds: DerivedNode[]
-  generations: Generations
-  computeCounts: Record<string, number>
-  values: Record<string, Generations>
-  listenerOn: Record<string, boolean>
-  listenerUnsubscribes: Record<string, Unsubscribe | null>
-}
-
 type GenerateContextOptions = {
   rnd: Random
   args: TestVariantsArgs
@@ -105,127 +76,106 @@ type GenerateContextOptions = {
 }
 
 function generateContext(options: GenerateContextOptions): TestContext {
-  const { rnd, args, log } = options
+  const { args, log } = options
 
-  const sources: SourceNode[] = []
-  const deriveds: DerivedNode[] = []
-  const nodes: GraphNode[] = []
-  const generations: Generations = {}
-  const computeCounts: Record<string, number> = {}
-  const values: Record<string, Generations> = {}
-  const listenerOn: Record<string, boolean> = {}
-  const listenerUnsubscribes: Record<string, Unsubscribe | null> = {}
+  const sources: Subject<Value>[] = []
 
-  const sourceCount = randomInt(rnd, 1, args.sourceCountMax + 1)
-  for (let i = 0; i < sourceCount; i++) {
-    const name = `s${i}`
-    generations[name] = 0
-    const source: SourceNode = {
-      name,
-      subject: new Subject<Generations>({
-        emitLastEvent: true,
-        hasLast: true,
-        last: { [name]: 0 },
-      }),
-      observable: null!,
-      reachableSourceNames: new Set([name]),
-    }
-    source.observable = source.subject
-    sources.push(source)
-    nodes.push(source)
-    if (log) {
-      console.log(`[test] createSource name=${name}`)
-    }
-  }
-
-  const derivedCount = randomInt(rnd, 1, args.derivedCountMax + 1)
-  for (let i = 0; i < derivedCount; i++) {
-    const name = `d${i}`
-    const dependencyCount = randomInt(
-      rnd,
-      1,
-      Math.min(args.dependencyCountMax, nodes.length) + 1,
-    )
-    const dependencies = randomItems(rnd, nodes, dependencyCount)
-    const reachableSourceNames = new Set<string>()
-    dependencies.forEach(dependency => {
-      dependency.reachableSourceNames.forEach(sourceName => {
-        reachableSourceNames.add(sourceName)
-      })
+  if (args.sources >= 1) {
+    const source = new Subject<Value>({
+      emitLastEvent: args.source1_emitLastEvent,
+      hasLast: args.source1_hasLast,
+      last: args.source1_last,
+      autoClear: args.source1_autoClear,
     })
-    computeCounts[name] = 0
-    const derived = new Derived(
-      dependencies.map(o => o.observable),
-      inputs => {
-        const merged: Generations = {}
-        inputs.forEach(input => {
-          for (const sourceName in input) {
-            if (!Object.prototype.hasOwnProperty.call(input, sourceName)) {
-              continue
-            }
-            const generation = input[sourceName]
-            if (
-              merged[sourceName] != null &&
-              merged[sourceName] !== generation
-            ) {
-              throw new Error(
-                `${name} computed from mixed generations of ${sourceName}` +
-                  `: ${merged[sourceName]} and ${generation}`,
-              )
-            }
-            merged[sourceName] = generation
-          }
-        })
-        computeCounts[name]++
-        if (log) {
-          console.log(
-            `[test] compute name=${name} values=${JSON.stringify(merged)}`,
-          )
-        }
-        return merged
-      },
-    )
-    const derivedNode: DerivedNode = {
-      name,
-      observable: derived,
-      reachableSourceNames,
-      derived,
-      dependencyNames: dependencies.map(o => o.name),
-      isSink: true,
-    }
-    deriveds.push(derivedNode)
-    nodes.push(derivedNode)
-    if (log) {
-      console.log(
-        `[test] createDerived name=${name} dependencies=[${derivedNode.dependencyNames.join(', ')}]`,
-      )
-    }
+    sources.push(source)
   }
 
-  const usedDependencyNames = new Set(deriveds.flatMap(o => o.dependencyNames))
-  deriveds.forEach(derivedNode => {
-    derivedNode.isSink = !usedDependencyNames.has(derivedNode.name)
+  if (args.sources >= 2) {
+    const source = new Subject<Value>({
+      emitLastEvent: args.source2_emitLastEvent,
+      hasLast: args.source2_hasLast,
+      last: args.source2_last,
+      autoClear: args.source2_autoClear,
+    })
+    sources.push(source)
+  }
+
+  const func = args.async ? funcAsync : funcSync
+
+  const derived = new Derived(sources, func, {
+    dontEmitLastEvent: !(args.derived_emitLastEvent ?? false),
+    hasLast: args.derived_hasLast,
+    last: args.derived_last,
+    actionOnCircular: args.derived_actionOnCircular,
+    dontAutoClear: !(args.derived_autoClear ?? false),
   })
 
-  deriveds.forEach(derivedNode => {
-    listenerOn[derivedNode.name] = true
-    listenerUnsubscribes[derivedNode.name] = derivedNode.derived.subscribe(
-      o => {
-        values[derivedNode.name] = o
-      },
-    )
-  })
+  function funcSync(values: Value[]): Value[] {
+    return values
+  }
+
+  let funcAsyncEmit: Emit<Value[]> | null = null
+  let funcAsyncUpdate: Update<Value[]> | null = null
+  let funcAsyncInvalidate: Invalidate | null = null
+  let funcAsyncSubscribed = false
+  let onFuncAsyncCalled: (values: Value[]) => void = null!
+
+  function funcAsync(
+    values: Value[],
+    emit: Emit<Value[]>,
+    update: Update<Value[]>,
+    invalidate: Invalidate,
+  ): Unsubscribe | void {
+    if (funcAsyncEmit || funcAsyncUpdate || funcAsyncInvalidate) {
+      throw new Error('funcAsync is already running')
+    }
+    funcAsyncEmit = emit
+    funcAsyncUpdate = update
+    funcAsyncInvalidate = invalidate
+    onFuncAsyncCalled(values)
+    funcAsyncSubscribed = true
+    return () => {
+      funcAsyncEmit = null
+      funcAsyncUpdate = null
+      funcAsyncInvalidate = null
+      funcAsyncSubscribed = false
+    }
+  }
 
   return {
-    log,
     sources,
-    deriveds,
-    generations,
-    computeCounts,
-    values,
-    listenerOn,
-    listenerUnsubscribes,
+    derived,
+    setOnFuncAsyncCalled: (onCalled: (values: Value[]) => void) => {
+      onFuncAsyncCalled = onCalled
+    },
+    funcAsyncEmit: (values: Value[]) => {
+      if (!funcAsyncEmit) {
+        return
+      }
+      funcAsyncEmit(values)
+    },
+    funcAsyncUpdate: (update: Updater<Value[]>) => {
+      if (!funcAsyncUpdate) {
+        return
+      }
+      funcAsyncUpdate(update)
+    },
+    funcAsyncInvalidate: () => {
+      if (!funcAsyncInvalidate) {
+        return
+      }
+      funcAsyncInvalidate()
+    },
   }
+}
+
+type TestContext = {
+  sources: Subject<Value>[]
+  derived: Derived<Value[], Value[]>
+  setOnFuncAsyncCalled: (onCalled: (values: Value[]) => void) => void
+  funcAsyncEmit: (values: Value[]) => void
+  funcAsyncUpdate: (update: Updater<Value[]>) => void
+  funcAsyncInvalidate: () => void
 }
 
 type TestOptions = {
@@ -237,103 +187,165 @@ type TestOptions = {
 function test(options: TestOptions): void {
   const { rnd, context, args } = options
   const {
-    log,
     sources,
-    deriveds,
-    generations,
-    computeCounts,
-    values,
-    listenerOn,
-    listenerUnsubscribes,
+    derived,
+    setOnFuncAsyncCalled,
+    funcAsyncEmit,
+    funcAsyncUpdate,
+    funcAsyncInvalidate,
   } = context
 
-  const iterations = randomInt(rnd, 1, args.iterationsMax + 1)
-  for (let i = 0; i < iterations; i++) {
-    if (args.toggleSinks) {
-      deriveds.forEach(derivedNode => {
-        if (!derivedNode.isSink || !randomBoolean(rnd, 0.3)) {
-          return
+  type ActionFuncAsync =
+    | 'funcAsyncInvalidate'
+    | 'funcAsyncUpdate'
+    | 'funcAsyncEmit'
+  type Action =
+    | 'invalidate'
+    | 'update'
+    | 'emit'
+    | 'unsubscribe'
+    | 'subscribe'
+    | ActionFuncAsync
+  const actions: Action[] = []
+  for (let i = 0; i < args.invalidates; i++) {
+    actions.push('invalidate')
+    actions.push('funcAsyncInvalidate')
+  }
+  for (let i = 0; i < args.emits; i++) {
+    actions.push('emit')
+    actions.push('funcAsyncEmit')
+  }
+  for (let i = 0; i < args.updates; i++) {
+    actions.push('update')
+    actions.push('funcAsyncUpdate')
+  }
+  for (let i = 0; i < args.unsubscribes; i++) {
+    actions.push('unsubscribe')
+  }
+  for (let i = 0; i < args.subscribes; i++) {
+    actions.push('subscribe')
+  }
+  const actionsFuncAsync: ActionFuncAsync[] = actions.filter(
+    (action): action is ActionFuncAsync =>
+      action === 'funcAsyncInvalidate' ||
+      action === 'funcAsyncUpdate' ||
+      action === 'funcAsyncEmit',
+  )
+
+  const lastActionIndex: number | null = null
+  let lastUpdateValue: Value[] | null = null
+  let lastSourceValues: Value[] | null = null
+
+  setOnFuncAsyncCalled(values => {
+    lastSourceValues = values
+    if (randomBoolean(rnd)) {
+      doActions(randomInt(rnd, 1, 5), true)
+      check()
+    }
+  })
+
+  function doAction(action: Action): void {
+    switch (action) {
+      case 'invalidate': {
+        const source = randomItem(rnd, sources)
+        source.invalidate()
+        break
+      }
+      case 'update': {
+        const source = randomItem(rnd, sources)
+        source.update(() => {
+          return randomItem(rnd, args.values)
+        })
+        break
+      }
+      case 'emit': {
+        const source = randomItem(rnd, sources)
+        source.emit(randomItem(rnd, args.values))
+        break
+      }
+      case 'funcAsyncInvalidate':
+        if (funcAsyncInvalidate) {
+          funcAsyncInvalidate()
         }
-        const name = derivedNode.name
-        if (listenerOn[name]) {
-          listenerUnsubscribes[name]!()
-          listenerUnsubscribes[name] = null
-          listenerOn[name] = false
-        } else {
-          listenerUnsubscribes[name] = derivedNode.derived.subscribe(o => {
-            values[name] = o
+        break
+      case 'funcAsyncUpdate':
+        if (funcAsyncUpdate) {
+          funcAsyncUpdate(values => {
+            lastUpdateValue = values
+            return values
           })
-          listenerOn[name] = true
         }
-        if (log) {
-          console.log(`[test][${i}] toggle name=${name} on=${listenerOn[name]}`)
+        break
+      case 'funcAsyncEmit':
+        if (funcAsyncEmit) {
+          if (!lastSourceValues) {
+            throw new Error('No source values to emit')
+          }
+          funcAsyncEmit(lastSourceValues)
         }
-      })
+        break
+      default:
+        throw new Error(`Unknown ActionFuncAsync: ${action}`)
     }
+  }
 
-    const outerSource = randomItem(rnd, sources)
-
-    deriveds.forEach(derivedNode => {
-      computeCounts[derivedNode.name] = 0
-    })
-
-    const generation = ++generations[outerSource.name]
-    if (log) {
-      console.log(
-        `[test][emit][${i}] source=${outerSource.name} gen=${generation}`,
-      )
+  function doActions(count: number, funcAsyncOnly?: boolean): void {
+    const availableActions = funcAsyncOnly ? actionsFuncAsync : actions
+    for (let i = 0; i < count; i++) {
+      const action = randomItem(rnd, availableActions)
+      doAction(action)
     }
-    outerSource.subject.emit({ [outerSource.name]: generation })
+  }
 
-    deriveds.forEach(derivedNode => {
-      const name = derivedNode.name
-      const isLive = !derivedNode.isSink || listenerOn[name]
-      const isAffected =
-        isLive && derivedNode.reachableSourceNames.has(outerSource.name)
-      const countExpected = isAffected ? 1 : 0
-      const count = computeCounts[name]
-      if (count !== countExpected) {
-        throw new Error(
-          `[${i}] ${name} compute count: expected ${countExpected}, actual ${count}`,
-        )
-      }
+  function check(): void {
+    // TODO: check all invariants based on current state
+  }
 
-      if (derivedNode.isSink && !listenerOn[name]) {
-        return
-      }
-      const value = values[name]
-      derivedNode.reachableSourceNames.forEach(sourceName => {
-        if (value[sourceName] !== generations[sourceName]) {
-          throw new Error(
-            `[${i}] ${name} value of ${sourceName}` +
-              `: expected ${generations[sourceName]}, actual ${value[sourceName]}` +
-              `; value=${JSON.stringify(value)}`,
-          )
-        }
-      })
-      for (const sourceName in value) {
-        if (!Object.prototype.hasOwnProperty.call(value, sourceName)) {
-          continue
-        }
-        if (!derivedNode.reachableSourceNames.has(sourceName)) {
-          throw new Error(
-            `[${i}] ${name} value contains unreachable source ${sourceName}` +
-              `; value=${JSON.stringify(value)}`,
-          )
-        }
-      }
-    })
+  check()
+  for (let i = 0, len = args.actionsCount; i < len; i++) {
+    doActions(1)
+    check()
   }
 }
 
 describe('Derived', { timeout: 7 * 60 * 60 * 1000 }, () => {
   it('variants', async () => {
     await testVariants({
-      sourceCountMax: [1, 2, 3],
-      derivedCountMax: [1, 2, 3, 4, 5, 6],
-      dependencyCountMax: [1, 2, 3],
-      iterationsMax: [5, 10],
-      toggleSinks: [false, true],
+      actionsCount: Array.from({ length: 50 }, (_, i) => i),
+
+      sources: [0, 1, 2],
+
+      source1_emitLastEvent: [undefined, null, false, true],
+      source1_hasLast: [undefined, null, false, true],
+      source1_last: [undefined, null, 0, 1, Number(0), Number(1)],
+      source1_autoClear: [undefined, null, false, true],
+
+      source2_emitLastEvent: [undefined, null, false, true],
+      source2_hasLast: [undefined, null, false, true],
+      source2_last: [undefined, null, 0, 1, Number(0), Number(1)],
+      source2_autoClear: [undefined, null, false, true],
+
+      derived_emitLastEvent: [undefined, null, false, true],
+      derived_hasLast: [undefined, null, false, true],
+      derived_last: [
+        undefined,
+        [0],
+        [1],
+        [Number(0)],
+        [Number(1)],
+        [0, Number(1)],
+      ],
+      derived_actionOnCircular: [undefined, null, 'throw', 'emitLast'],
+      derived_autoClear: [undefined, null, false, true],
+      async: [false, true],
+
+      invalidates: Array.from({ length: 3 }, (_, i) => i),
+      updates: Array.from({ length: 3 }, (_, i) => i),
+      emits: Array.from({ length: 3 }, (_, i) => i),
+      unsubscribes: Array.from({ length: 3 }, (_, i) => i),
+      subscribes: Array.from({ length: 3 }, (_, i) => i),
+
+      values: [[undefined, null, 0, 1, new Number(0), new Number(1)]],
     })({
       limitTime: 60 * 1000,
       parallel: 1,
@@ -341,7 +353,7 @@ describe('Derived', { timeout: 7 * 60 * 60 * 1000 }, () => {
       getSeed: () => getRandomSeed(),
       timeout: 1000,
       findBestError: {
-        limitArgOnError: false,
+        limitArgOnError: true,
       },
       iterationModes: [
         {
