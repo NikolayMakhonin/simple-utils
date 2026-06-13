@@ -8,6 +8,7 @@ import {
 import { type PromiseOrValue, type Unsubscribe } from 'src/common/types/common'
 import { Subject } from './Subject'
 
+/** @deprecated Not used anywhere */
 export class SubjectWithId<Id, T = void> implements ISubjectWithId<Id, T> {
   readonly #subjects = new Map<Id, Subject<T>>()
   readonly #getLastEvent?: null | ((id: Id) => T)
