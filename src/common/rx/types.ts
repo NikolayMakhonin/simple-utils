@@ -60,3 +60,6 @@ export type DerivedOrValueFunc<Value, T> = (
 export type DerivedOrValuesFunc<S extends Stores, T> = (
   values: StoresValues<S>,
 ) => ObservableOrValue<T>
+/** Action to perform on circular subscription or emit */
+
+export type ActionOnCircular = 'emitLast' | 'throw' | false

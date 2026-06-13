@@ -96,4 +96,40 @@ describe('Subject', () => {
 
     unsubscribe()
   })
+
+  it('clean clears the retained value and stale flag after the last unsubscribe', () => {
+    const subject = new Subject<number>({
+      emitLastEvent: true,
+      autoClear: true,
+    })
+    const events: string[] = []
+    const unsubscribe = subject.subscribe(o => {
+      events.push(`value ${o}`)
+    })
+    subject.emit(1)
+    subject.invalidate()
+    expect(subject.hasLast).toBe(true)
+
+    unsubscribe()
+    expect(subject.hasLast).toBe(false)
+
+    // A new subscriber receives neither the cleared value nor the cleared stale flag
+    const unsubscribeRestarted = subject.subscribe(
+      o => {
+        events.push(`restarted value ${o}`)
+      },
+      () => {
+        events.push('restarted invalidate')
+      },
+    )
+    expect(events).toEqual(['value 1'])
+
+    subject.emit(2)
+    expect(events).toEqual([
+      'value 1',
+      'restarted invalidate',
+      'restarted value 2',
+    ])
+    unsubscribeRestarted()
+  })
 })

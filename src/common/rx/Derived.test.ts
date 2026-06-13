@@ -36,12 +36,36 @@ describe('Derived', () => {
     source1.emit(3)
     expect(results).toEqual([111, 112, 122, 122])
 
-    // Resubscription delivers the stale last value, then computes from current values
+    // Resubscription computes from current values without a stale initial
+    // delivery, because the retained value was cleared on the last unsubscribe
     const resultsRestarted: number[] = []
     const unsubscribeRestarted = derived.subscribe(o => {
       resultsRestarted.push(o)
     })
-    expect(resultsRestarted).toEqual([122, 123])
+    expect(resultsRestarted).toEqual([123])
+    unsubscribeRestarted()
+  })
+
+  it('clean disabled retains the last value', () => {
+    const source = createSource(1)
+    const derived = new Derived([source], ([o]) => o * 2, {
+      dontAutoClear: false,
+    })
+    const results: number[] = []
+    const unsubscribe = derived.subscribe(o => {
+      results.push(o)
+    })
+    expect(results).toEqual([2])
+
+    unsubscribe()
+    source.emit(3)
+
+    // Resubscription delivers the retained last value, then computes from current values
+    const resultsRestarted: number[] = []
+    const unsubscribeRestarted = derived.subscribe(o => {
+      resultsRestarted.push(o)
+    })
+    expect(resultsRestarted).toEqual([2, 6])
     unsubscribeRestarted()
   })
 
@@ -105,6 +129,35 @@ describe('Derived', () => {
 
     unsubscribeSpy()
     unsubscribeCombined()
+  })
+
+  it('waits for the first delivery from every source', () => {
+    const source1 = createSource(1)
+    const source2 = new Subject<number>()
+    const events: string[] = []
+    const derived = new Derived(
+      [source1, source2],
+      ([value1, value2]) => value1 + value2,
+    )
+    const unsubscribe = derived.subscribe(
+      o => {
+        events.push(`value ${o}`)
+      },
+      () => {
+        events.push('invalidate')
+      },
+    )
+    // source2 has delivered nothing yet: the computation is deferred,
+    // the subscriber is notified that the value is pending
+    expect(events).toEqual(['invalidate'])
+
+    source2.emit(10)
+    expect(events).toEqual(['invalidate', 'value 11'])
+
+    source1.emit(2)
+    expect(events).toEqual(['invalidate', 'value 11', 'invalidate', 'value 12'])
+
+    unsubscribe()
   })
 
   it('subscription while a source is stale', () => {

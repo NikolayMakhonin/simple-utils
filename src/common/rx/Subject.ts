@@ -1,4 +1,4 @@
-import type { Invalidate, ISubject, Listener } from './types'
+import type { ActionOnCircular, Invalidate, ISubject, Listener } from './types'
 import { type PromiseOrValue, type Unsubscribe } from 'src/common/types/common'
 import { isPromiseLike } from 'src/common/async/promise/isPromiseLike'
 
@@ -9,16 +9,18 @@ export type Update<T> = (updater: Updater<T>) => void
 export type StartStopNotifier<T> = (
   emit: Emit<T>,
   update: Update<T>,
+  invalidate: Invalidate,
 ) => void | Unsubscribe
-
-export type ActionOnCycle = 'emitLast' | 'throw' | false
 
 export type SubjectOptions<T> = {
   emitLastEvent?: null | boolean
   startStopNotifier?: null | StartStopNotifier<T>
   hasLast?: null | boolean
   last?: T
-  actionOnCycle?: null | ActionOnCycle
+  /** Action to perform on circular subscription or emission. Default is 'throw' */
+  actionOnCircular?: null | ActionOnCircular
+  /** Clears state when the last subscriber unsubscribes */
+  autoClear?: null | boolean
 }
 
 export class Subject<From = void> implements ISubject<From> {
@@ -26,8 +28,9 @@ export class Subject<From = void> implements ISubject<From> {
   readonly #listenersAdd = new Map<object, (event: From) => void>()
   readonly #invalidates = new Map<object, Invalidate>()
   readonly #startStopNotifier: null | StartStopNotifier<From>
-  readonly #emit: ((value: From) => PromiseOrValue<void>) | null
-  readonly #update: ((updater: (event: From) => From) => void) | null
+  readonly #emit: Emit<From> | null
+  readonly #update: Update<From> | null
+  readonly #invalidate: Invalidate | null
   #unsubscribeNotifier: null | Unsubscribe = null
   readonly #emitLast: boolean
   #hasLast: boolean
@@ -35,22 +38,26 @@ export class Subject<From = void> implements ISubject<From> {
   #emitting: boolean = false
   #subscribing: boolean = false
   #invalidated: boolean = false
-  readonly #actionOnCycle: ActionOnCycle
+  readonly #actionOnCycle: ActionOnCircular
+  readonly #autoClear: boolean
 
   constructor({
     emitLastEvent,
     startStopNotifier,
     hasLast,
     last,
-    actionOnCycle,
+    actionOnCircular,
+    autoClear,
   }: SubjectOptions<From> = {}) {
     this.#startStopNotifier = startStopNotifier ?? null
     this.#emit = startStopNotifier ? value => this.emit(value) : null
     this.#update = startStopNotifier ? updater => this.update(updater) : null
+    this.#invalidate = startStopNotifier ? () => this.invalidate() : null
     this.#emitLast = emitLastEvent ?? false
     this.#hasLast = hasLast ?? false
     this.#last = last
-    this.#actionOnCycle = actionOnCycle ?? false
+    this.#actionOnCycle = actionOnCircular ?? 'throw'
+    this.#autoClear = autoClear ?? false
   }
 
   get hasLast(): boolean {
@@ -97,7 +104,11 @@ export class Subject<From = void> implements ISubject<From> {
       try {
         this.#subscribing = true
         this.#unsubscribeNotifier =
-          this.#startStopNotifier(this.#emit!, this.#update!) ?? null
+          this.#startStopNotifier(
+            this.#emit!,
+            this.#update!,
+            this.#invalidate!,
+          ) ?? null
       } finally {
         this.#subscribing = false
       }
@@ -106,14 +117,17 @@ export class Subject<From = void> implements ISubject<From> {
       this.#listeners.delete(id)
       this.#listenersAdd.delete(id)
       this.#invalidates.delete(id)
-      if (
-        this.#startStopNotifier &&
-        this.#listeners.size === 0 &&
-        this.#listenersAdd.size === 0
-      ) {
-        const unsubscribeNotifier = this.#unsubscribeNotifier
-        this.#unsubscribeNotifier = null
-        unsubscribeNotifier?.()
+      if (this.#listeners.size === 0 && this.#listenersAdd.size === 0) {
+        if (this.#startStopNotifier) {
+          const unsubscribeNotifier = this.#unsubscribeNotifier
+          this.#unsubscribeNotifier = null
+          unsubscribeNotifier?.()
+        }
+        if (this.#autoClear) {
+          this.#hasLast = false
+          this.#last = undefined
+          this.#invalidated = false
+        }
       }
     }
   }

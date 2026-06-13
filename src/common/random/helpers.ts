@@ -69,21 +69,59 @@ export function randomIndexWeighted(
   return length - 1
 }
 
-export function randomItem<T>(rnd: Random, items: ArrayLike<T>): T {
-  if (items.length === 0) {
+export function randomItem<T>(
+  rnd: Random,
+  items: Array<T> | ArrayLike<T>,
+  remove?: null | false,
+): T
+export function randomItem<T>(
+  rnd: Random,
+  items: Array<T>,
+  remove?: null | boolean,
+): T
+export function randomItem<T>(
+  rnd: Random,
+  items: Array<T> | ArrayLike<T>,
+  remove?: null | boolean,
+): T {
+  const length = items.length
+  if (length === 0) {
     throw new Error('[random][randomItem] items is empty')
   }
-  const index = randomInt(rnd, items.length)
-  return items[index]
+  const index = randomInt(rnd, length)
+  const item = items[index]
+  if (remove) {
+    const arr = items as Array<T>
+    arr[index] = arr[length - 1]
+    arr.length = length - 1
+  }
+  return item
 }
 
-export function randomItems<T>(rnd: Random, items: T[], count: number): T[] {
+export function randomItems<T>(
+  rnd: Random,
+  items: Array<T> | ArrayLike<T>,
+  count: number,
+  remove?: null | false,
+): T[]
+export function randomItems<T>(
+  rnd: Random,
+  items: Array<T>,
+  count: number,
+  remove?: null | boolean,
+): T[]
+export function randomItems<T>(
+  rnd: Random,
+  items: Array<T> | ArrayLike<T>,
+  count: number,
+  remove?: null | boolean,
+): T[] {
   if (items.length === 0) {
     throw new Error('[random][randomItems] items is empty')
   }
   const result: T[] = []
   for (let i = 0; i < count; i++) {
-    result.push(randomItem(rnd, items))
+    result.push(randomItem(rnd, items as Array<T>, remove))
   }
   return result
 }
@@ -98,4 +136,16 @@ export function randomEnum<EnumType extends Record<string, any>>(
     values = values.filter(predicate)
   }
   return randomItem(rnd, values) as EnumType[keyof EnumType]
+}
+
+export function arrayShuffle<T>(rnd: Random, array: T[]): T[] {
+  for (let i = 1, len = array.length; i < len; i++) {
+    const j = randomInt(rnd, 0, i + 1)
+    if (i !== j) {
+      const temp = array[i]
+      array[i] = array[j]
+      array[j] = temp
+    }
+  }
+  return array
 }
