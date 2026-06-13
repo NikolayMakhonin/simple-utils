@@ -23,6 +23,9 @@ export function waitObservable<T>(
       resolved = true
       resolve(value)
     }
+    // see: https://github.com/nodejs/node/issues/43655
+    // resolve(Promise.reject()) instead of reject() to work around Node.js GC hang on mass rejections;
+    // fixed in Node.js >=20.15.0, browsers are not affected
     function _reject(error: any) {
       unsubscribeAbort?.()
       unsubscribeObservable?.()

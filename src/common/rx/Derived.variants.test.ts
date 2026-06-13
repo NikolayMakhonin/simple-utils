@@ -236,6 +236,10 @@ function test(options: TestOptions): void {
   let lastUpdateValue: Value[] | null = null
   let lastSourceValues: Value[] | null = null
 
+  type Event = 'invalidate' | Value[]
+  const events: Event[] = []
+  const unsubscribes: Unsubscribe[] = []
+
   setOnFuncAsyncCalled(values => {
     lastSourceValues = values
     if (randomBoolean(rnd)) {
@@ -246,23 +250,26 @@ function test(options: TestOptions): void {
 
   function doAction(action: Action): void {
     switch (action) {
-      case 'invalidate': {
-        const source = randomItem(rnd, sources)
-        source.invalidate()
+      case 'invalidate':
+        if (sources.length > 0) {
+          const source = randomItem(rnd, sources)
+          source.invalidate()
+        }
         break
-      }
-      case 'update': {
-        const source = randomItem(rnd, sources)
-        source.update(() => {
-          return randomItem(rnd, args.values)
-        })
+      case 'update':
+        if (sources.length > 0) {
+          const source = randomItem(rnd, sources)
+          source.update(() => {
+            return randomItem(rnd, args.values)
+          })
+        }
         break
-      }
-      case 'emit': {
-        const source = randomItem(rnd, sources)
-        source.emit(randomItem(rnd, args.values))
+      case 'emit':
+        if (sources.length > 0) {
+          const source = randomItem(rnd, sources)
+          source.emit(randomItem(rnd, args.values))
+        }
         break
-      }
       case 'funcAsyncInvalidate':
         if (funcAsyncInvalidate) {
           funcAsyncInvalidate()
@@ -284,8 +291,26 @@ function test(options: TestOptions): void {
           funcAsyncEmit(lastSourceValues)
         }
         break
+      case 'unsubscribe':
+        if (unsubscribes.length > 0) {
+          const unsubscribe = randomItem(rnd, unsubscribes, true)
+          unsubscribe()
+        }
+        break
+      case 'subscribe': {
+        const unsubscribe = derived.subscribe(
+          o => {
+            events.push(o)
+          },
+          () => {
+            events.push('invalidate')
+          },
+        )
+        unsubscribes.push(unsubscribe)
+        break
+      }
       default:
-        throw new Error(`Unknown ActionFuncAsync: ${action}`)
+        throw new Error(`Unknown action: ${action}`)
     }
   }
 
@@ -317,12 +342,12 @@ describe('Derived', { timeout: 7 * 60 * 60 * 1000 }, () => {
 
       source1_emitLastEvent: [undefined, null, false, true],
       source1_hasLast: [undefined, null, false, true],
-      source1_last: [undefined, null, 0, 1, Number(0), Number(1)],
+      source1_last: [undefined, null, 0, 1, new Number(0), new Number(1)],
       source1_autoClear: [undefined, null, false, true],
 
       source2_emitLastEvent: [undefined, null, false, true],
       source2_hasLast: [undefined, null, false, true],
-      source2_last: [undefined, null, 0, 1, Number(0), Number(1)],
+      source2_last: [undefined, null, 0, 1, new Number(0), new Number(1)],
       source2_autoClear: [undefined, null, false, true],
 
       derived_emitLastEvent: [undefined, null, false, true],
@@ -331,9 +356,9 @@ describe('Derived', { timeout: 7 * 60 * 60 * 1000 }, () => {
         undefined,
         [0],
         [1],
-        [Number(0)],
-        [Number(1)],
-        [0, Number(1)],
+        [new Number(0)],
+        [new Number(1)],
+        [0, new Number(1)],
       ],
       derived_actionOnCircular: [undefined, null, 'throw', 'emitLast'],
       derived_autoClear: [undefined, null, false, true],

@@ -8,7 +8,7 @@ import {
   randomItem,
 } from 'src/common/random'
 import type { Unsubscribe } from 'src/common/types/common'
-import type { ActionOnCircular, Listener } from './types'
+import type { ActionOnCircular, Invalidate, Listener } from './types'
 import { Subject } from './Subject'
 
 type Value = number | Number | null | undefined
@@ -90,7 +90,7 @@ function generateContext(options: GenerateContextOptions): TestContext {
     dest,
     subscribe(
       listener: Listener<Value>,
-      invalidate?: null | Listener<void>,
+      invalidate?: null | Invalidate,
     ): Unsubscribe {
       subscribes++
       if (subscribes === 1 && !args.dest_startStopNotifier) {
@@ -121,7 +121,7 @@ type TestContext = {
   dest: Subject<Value>
   subscribe(
     listener: Listener<Value>,
-    invalidate?: null | Listener<void>,
+    invalidate?: null | Invalidate,
   ): Unsubscribe
 }
 
@@ -224,7 +224,7 @@ function test(options: TestOptions): void {
   actions.forEach(doActionAndCheck)
 }
 
-describe('Derived', { timeout: 7 * 60 * 60 * 1000 }, () => {
+describe('Subject', { timeout: 7 * 60 * 60 * 1000 }, () => {
   it('variants', async () => {
     await testVariants({
       source_emitLastEvent: [undefined, null, false, true],

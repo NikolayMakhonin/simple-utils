@@ -49,10 +49,16 @@ function startStopNotifier<S extends Stores, T>(
   const isPending: boolean[] = []
   let pendingCount = 0
   let isStarted = false
-  const unsubscribes: Unsubscribe[] = []
+  let unsubscribes: Unsubscribe[] = []
+
+  let asyncUnsubscribe: Unsubscribe | null = null
 
   function run() {
     if (func.length > 1) {
+      if (asyncUnsubscribe) {
+        asyncUnsubscribe()
+        asyncUnsubscribe = null
+      }
       const unsubscribe = (func as DerivedFuncAsync<S, T>)(
         values,
         emit,
@@ -60,7 +66,7 @@ function startStopNotifier<S extends Stores, T>(
         invalidate,
       )
       if (unsubscribe) {
-        unsubscribes.push(unsubscribe)
+        asyncUnsubscribe = unsubscribe
       }
     } else {
       const result = (func as DerivedFuncSync<S, T>)(values)
@@ -110,15 +116,21 @@ function startStopNotifier<S extends Stores, T>(
   }
 
   return () => {
-    unsubscribes.forEach(o => o())
-    unsubscribes.length = 0
+    if (asyncUnsubscribe) {
+      asyncUnsubscribe()
+      asyncUnsubscribe = null
+    }
+    if (unsubscribes) {
+      unsubscribes.forEach(o => o())
+      unsubscribes = null!
+    }
   }
 }
 
 /**
  * Computes a value from sources on every source emission
  * Glitch-free: a single upstream change never produces a computation from mixed source generations
- * Computes and emits value exclusively when all sources have delivered at least once and not are in invalid state
+ * Computes and emits value exclusively when all sources have delivered at least once and are not in an invalid state
  * Emits every computed value, including values equal to the previous one
  * Subscribes to sources exclusively while it has subscribers
  * Auto clears state when the last subscriber unsubscribes by default

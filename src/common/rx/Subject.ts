@@ -7,7 +7,7 @@ import type {
   StartStopNotifier,
   Update,
 } from './types'
-import { type PromiseOrValue, type Unsubscribe } from 'src/common/types/common'
+import type { PromiseOrValue, Unsubscribe } from 'src/common/types/common'
 import { isPromiseLike } from 'src/common/async/promise/isPromiseLike'
 
 export type SubjectOptions<T> = {
@@ -36,7 +36,7 @@ export class Subject<From = void> implements ISubject<From> {
   #emitting: boolean = false
   #subscribing: boolean = false
   #invalidated: boolean = false
-  readonly #actionOnCycle: ActionOnCircular
+  readonly #actionOnCircular: ActionOnCircular
   readonly #autoClear: boolean
 
   constructor({
@@ -54,7 +54,7 @@ export class Subject<From = void> implements ISubject<From> {
     this.#emitLast = emitLastEvent ?? false
     this.#hasLast = hasLast ?? false
     this.#last = last
-    this.#actionOnCycle = actionOnCircular ?? 'throw'
+    this.#actionOnCircular = actionOnCircular ?? 'throw'
     this.#autoClear = autoClear ?? false
   }
 
@@ -74,6 +74,9 @@ export class Subject<From = void> implements ISubject<From> {
     listener: Listener<From>,
     invalidate?: null | Invalidate,
   ): Unsubscribe {
+    if (this.#subscribing && this.#actionOnCircular === 'throw') {
+      throw new Error('[Rx][Subject] Circular subscription detected')
+    }
     const id = {}
     if (this.#emitting) {
       this.#listenersAdd.set(id, listener)
@@ -83,12 +86,10 @@ export class Subject<From = void> implements ISubject<From> {
     if (invalidate != null) {
       this.#invalidates.set(id, invalidate)
     }
-    if (this.#subscribing && this.#actionOnCycle === 'throw') {
-      throw new Error('[Rx][Subject] Circular subscription detected')
-    }
     if (
       this.#hasLast ||
-      (this.#subscribing && this.#actionOnCycle === 'emitLast')
+      // Even if there is no hasLast we should send something, even undefined
+      (this.#subscribing && this.#actionOnCircular === 'emitLast')
     ) {
       listener(this.#last!)
     }
@@ -141,10 +142,10 @@ export class Subject<From = void> implements ISubject<From> {
 
   emit(event: From): PromiseOrValue<void> {
     if (this.#emitting) {
-      if (this.#actionOnCycle === 'throw') {
+      if (this.#actionOnCircular === 'throw') {
         throw new Error('[Rx][Subject] Circular emit detected')
       }
-      if (this.#actionOnCycle === 'emitLast') {
+      if (this.#actionOnCircular === 'emitLast') {
         this.#last = event
         this.#hasLast = true
       }
