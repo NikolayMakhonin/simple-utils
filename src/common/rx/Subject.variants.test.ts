@@ -135,8 +135,23 @@ function test(options: TestOptions): void {
   const { rnd, context, args } = options
   const { source, dest, subscribe } = context
 
+  const sourceEmitLast = args.source_emitLastEvent ?? false
+  const sourceAutoClear = args.source_autoClear ?? false
+  const destEmitLast = args.dest_emitLastEvent ?? false
+  const destAutoClear = args.dest_autoClear ?? false
+
+  let expectedSourceHasLast = args.source_hasLast ?? false
+  let expectedSourceLast: Value = args.source_last
+  let expectedDestHasLast = args.dest_hasLast ?? false
+  let expectedDestLast: Value = args.dest_last
+
   type Event = 'invalidate' | Value
   const events: Event[] = []
+
+  let activeSubscribes = 1
+  if (!args.dest_startStopNotifier && expectedSourceHasLast) {
+    destEmitted(expectedSourceLast)
+  }
   const unsubscribe = subscribe(
     o => {
       events.push(o)
@@ -145,6 +160,11 @@ function test(options: TestOptions): void {
       events.push('invalidate')
     },
   )
+  if (args.dest_startStopNotifier && expectedSourceHasLast) {
+    destEmitted(expectedSourceLast)
+  }
+
+  const unsubscribes: Unsubscribe[] = [unsubscribe]
 
   type Action = 'invalidate' | 'update' | 'emit' | 'unsubscribe' | 'subscribe'
   const actions: Action[] = []
@@ -172,7 +192,19 @@ function test(options: TestOptions): void {
     return randomItem(rnd, args.values)
   }
 
-  const unsubscribes: Unsubscribe[] = []
+  function sourceEmitted(value: Value): void {
+    if (sourceEmitLast) {
+      expectedSourceHasLast = true
+      expectedSourceLast = value
+    }
+  }
+
+  function destEmitted(value: Value): void {
+    if (destEmitLast) {
+      expectedDestHasLast = true
+      expectedDestLast = value
+    }
+  }
 
   function doAction(action: Action, index: number): void {
     lastActionIndex = index
@@ -182,22 +214,53 @@ function test(options: TestOptions): void {
         break
       case 'update':
         if (source.emitLast) {
-          source.update(value => {
-            lastUpdateValue = value
-            return randomValue()
+          const value = randomValue()
+          source.update(last => {
+            lastUpdateValue = last
+            return value
           })
+          if (lastUpdateValue !== expectedSourceLast) {
+            throw new Error(
+              `update last: ${String(lastUpdateValue)} !== ${String(expectedSourceLast)}`,
+            )
+          }
+          sourceEmitted(value)
+          if (activeSubscribes > 0) {
+            destEmitted(value)
+          }
         }
         break
-      case 'emit':
-        source.emit(randomValue())
+      case 'emit': {
+        const value = randomValue()
+        source.emit(value)
+        sourceEmitted(value)
+        if (activeSubscribes > 0) {
+          destEmitted(value)
+        }
         break
+      }
       case 'unsubscribe':
         if (unsubscribes.length > 0) {
           const unsubscribe = randomItem(rnd, unsubscribes, true)
           unsubscribe()
+          activeSubscribes--
+          if (activeSubscribes === 0) {
+            if (destAutoClear) {
+              expectedDestHasLast = false
+              expectedDestLast = undefined
+            }
+            if (sourceAutoClear) {
+              expectedSourceHasLast = false
+              expectedSourceLast = undefined
+            }
+          }
         }
         break
       case 'subscribe': {
+        const isFirst = activeSubscribes === 0
+        if (isFirst && !args.dest_startStopNotifier && expectedSourceHasLast) {
+          destEmitted(expectedSourceLast)
+        }
         const unsubscribe = subscribe(
           o => {
             events.push(o)
@@ -206,6 +269,10 @@ function test(options: TestOptions): void {
             events.push('invalidate')
           },
         )
+        activeSubscribes++
+        if (isFirst && args.dest_startStopNotifier && expectedSourceHasLast) {
+          destEmitted(expectedSourceLast)
+        }
         unsubscribes.push(unsubscribe)
         break
       }
@@ -215,7 +282,45 @@ function test(options: TestOptions): void {
   }
 
   function check(): void {
-    // TODO: check all invariants based on current state
+    if (source.emitLast !== sourceEmitLast) {
+      throw new Error(
+        `source.emitLast: ${source.emitLast} !== ${sourceEmitLast}`,
+      )
+    }
+    if (source.hasLast !== expectedSourceHasLast) {
+      throw new Error(
+        `source.hasLast: ${source.hasLast} !== ${expectedSourceHasLast}`,
+      )
+    }
+    if (source.last !== expectedSourceLast) {
+      throw new Error(
+        `source.last: ${String(source.last)} !== ${String(expectedSourceLast)}`,
+      )
+    }
+    if (source.hasListeners !== activeSubscribes > 0) {
+      throw new Error(
+        `source.hasListeners: ${source.hasListeners} !== ${activeSubscribes > 0}`,
+      )
+    }
+
+    if (dest.emitLast !== destEmitLast) {
+      throw new Error(`dest.emitLast: ${dest.emitLast} !== ${destEmitLast}`)
+    }
+    if (dest.hasLast !== expectedDestHasLast) {
+      throw new Error(
+        `dest.hasLast: ${dest.hasLast} !== ${expectedDestHasLast}`,
+      )
+    }
+    if (dest.last !== expectedDestLast) {
+      throw new Error(
+        `dest.last: ${String(dest.last)} !== ${String(expectedDestLast)}`,
+      )
+    }
+    if (dest.hasListeners !== activeSubscribes > 0) {
+      throw new Error(
+        `dest.hasListeners: ${dest.hasListeners} !== ${activeSubscribes > 0}`,
+      )
+    }
   }
 
   function doActionAndCheck(action: Action, index: number): void {

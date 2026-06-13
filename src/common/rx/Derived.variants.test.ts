@@ -148,17 +148,19 @@ function generateContext(options: GenerateContextOptions): TestContext {
     setOnFuncAsyncCalled: (onCalled: (values: Value[]) => void) => {
       onFuncAsyncCalled = onCalled
     },
-    funcAsyncEmit: (values: Value[]) => {
+    funcAsyncEmit: (values: Value[]): boolean => {
       if (!funcAsyncEmit) {
-        return
+        return false
       }
       funcAsyncEmit(values)
+      return true
     },
-    funcAsyncUpdate: (update: Updater<Value[]>) => {
+    funcAsyncUpdate: (update: Updater<Value[]>): boolean => {
       if (!funcAsyncUpdate) {
-        return
+        return false
       }
       funcAsyncUpdate(update)
+      return true
     },
     funcAsyncInvalidate: () => {
       if (!funcAsyncInvalidate) {
@@ -173,8 +175,8 @@ type TestContext = {
   sources: Subject<Value>[]
   derived: Derived<Value[], Value[]>
   setOnFuncAsyncCalled: (onCalled: (values: Value[]) => void) => void
-  funcAsyncEmit: (values: Value[]) => void
-  funcAsyncUpdate: (update: Updater<Value[]>) => void
+  funcAsyncEmit: (values: Value[]) => boolean
+  funcAsyncUpdate: (update: Updater<Value[]>) => boolean
   funcAsyncInvalidate: () => void
 }
 
@@ -194,6 +196,27 @@ function test(options: TestOptions): void {
     funcAsyncUpdate,
     funcAsyncInvalidate,
   } = context
+
+  const sourceArgs = [
+    {
+      emitLast: args.source1_emitLastEvent ?? false,
+      hasLast: args.source1_hasLast ?? false,
+      last: args.source1_last as Value,
+      autoClear: args.source1_autoClear ?? false,
+    },
+    {
+      emitLast: args.source2_emitLastEvent ?? false,
+      hasLast: args.source2_hasLast ?? false,
+      last: args.source2_last as Value,
+      autoClear: args.source2_autoClear ?? false,
+    },
+  ]
+  const expectedSources = sources.map((_, i) => ({
+    hasLast: sourceArgs[i].hasLast,
+    last: sourceArgs[i].last,
+  }))
+
+  let activeSubscribes = 0
 
   type ActionFuncAsync =
     | 'funcAsyncInvalidate'
@@ -232,9 +255,20 @@ function test(options: TestOptions): void {
       action === 'funcAsyncEmit',
   )
 
-  const lastActionIndex: number | null = null
   let lastUpdateValue: Value[] | null = null
   let lastSourceValues: Value[] | null = null
+
+  const derivedEmitLast = args.derived_emitLastEvent ?? false
+  const derivedAutoClear = args.derived_autoClear ?? false
+  let expectedDerivedHasLast = args.derived_hasLast ?? false
+  let expectedDerivedLast: Value[] | undefined = args.derived_last
+
+  function derivedEmitted(value: Value[]): void {
+    if (derivedEmitLast) {
+      expectedDerivedHasLast = true
+      expectedDerivedLast = value
+    }
+  }
 
   type Event = 'invalidate' | Value[]
   const events: Event[] = []
@@ -248,6 +282,13 @@ function test(options: TestOptions): void {
     }
   })
 
+  function sourceEmitted(sourceIndex: number, value: Value): void {
+    if (sourceArgs[sourceIndex].emitLast) {
+      expectedSources[sourceIndex].hasLast = true
+      expectedSources[sourceIndex].last = value
+    }
+  }
+
   function doAction(action: Action): void {
     switch (action) {
       case 'invalidate':
@@ -258,18 +299,30 @@ function test(options: TestOptions): void {
         break
       case 'update':
         if (sources.length > 0) {
-          const source = randomItem(rnd, sources)
+          const sourceIndex = randomInt(rnd, 0, sources.length)
+          const source = sources[sourceIndex]
           if (source.emitLast) {
-            source.update(() => {
-              return randomItem(rnd, args.values)
+            const value = randomItem(rnd, args.values)
+            const expectedLast = expectedSources[sourceIndex].last
+            source.update(last => {
+              if (last !== expectedLast) {
+                throw new Error(
+                  `sources[${sourceIndex}] update last: ${String(last)} !== ${String(expectedLast)}`,
+                )
+              }
+              return value
             })
+            sourceEmitted(sourceIndex, value)
           }
         }
         break
       case 'emit':
         if (sources.length > 0) {
-          const source = randomItem(rnd, sources)
-          source.emit(randomItem(rnd, args.values))
+          const sourceIndex = randomInt(rnd, 0, sources.length)
+          const source = sources[sourceIndex]
+          const value = randomItem(rnd, args.values)
+          source.emit(value)
+          sourceEmitted(sourceIndex, value)
         }
         break
       case 'funcAsyncInvalidate':
@@ -278,33 +331,96 @@ function test(options: TestOptions): void {
         }
         break
       case 'funcAsyncUpdate':
-        if (funcAsyncUpdate && args.derived_emitLastEvent) {
-          funcAsyncUpdate(values => {
+        if (derivedEmitLast) {
+          const emitted = funcAsyncUpdate(values => {
             lastUpdateValue = values
+            if (lastUpdateValue !== expectedDerivedLast) {
+              throw new Error(
+                `funcAsyncUpdate last: ${String(lastUpdateValue)}` +
+                  ` !== ${String(expectedDerivedLast)}`,
+              )
+            }
             return values
           })
+          if (emitted) {
+            derivedEmitted(lastUpdateValue!)
+          }
         }
         break
       case 'funcAsyncEmit':
         if (lastSourceValues) {
-          funcAsyncEmit(lastSourceValues)
+          const emitted = funcAsyncEmit(lastSourceValues)
+          if (emitted) {
+            derivedEmitted(lastSourceValues)
+          }
         }
         break
       case 'unsubscribe':
         if (unsubscribes.length > 0) {
           const unsubscribe = randomItem(rnd, unsubscribes, true)
           unsubscribe()
+          activeSubscribes--
+          if (activeSubscribes === 0) {
+            for (let i = 0; i < sources.length; i++) {
+              if (sourceArgs[i].autoClear) {
+                expectedSources[i].hasLast = false
+                expectedSources[i].last = undefined
+              }
+            }
+            if (derivedAutoClear) {
+              expectedDerivedHasLast = false
+              expectedDerivedLast = undefined
+            }
+          }
         }
         break
       case 'subscribe': {
+        const isFirst = activeSubscribes === 0
+        activeSubscribes++
+        const syncEvents: Event[] = []
+        let subscribing = true
         const unsubscribe = derived.subscribe(
           o => {
+            if (subscribing) {
+              syncEvents.push(o)
+            }
             events.push(o)
           },
           () => {
+            if (subscribing) {
+              syncEvents.push('invalidate')
+            }
             events.push('invalidate')
           },
         )
+        subscribing = false
+        // A non-first subscriber never restarts the source subscription, so the
+        // only synchronous delivery is the derived stored last value; this makes
+        // the subscribe call a clean probe of the derived hasLast/last state
+        // Sync func emits on every source delivery without going through the test
+        // harness, so the derived last model is tracked exclusively in async mode
+        if (!isFirst && args.async) {
+          const valueEvents = syncEvents.filter(o => o !== 'invalidate')
+          if (expectedDerivedHasLast) {
+            if (valueEvents.length !== 1) {
+              throw new Error(
+                `derived subscribe delivered ${valueEvents.length} values,` +
+                  ` expected 1 (hasLast)`,
+              )
+            }
+            if (valueEvents[0] !== expectedDerivedLast) {
+              throw new Error(
+                `derived last: ${String(valueEvents[0])}` +
+                  ` !== ${String(expectedDerivedLast)}`,
+              )
+            }
+          } else if (valueEvents.length !== 0) {
+            throw new Error(
+              `derived subscribe delivered ${valueEvents.length} values,` +
+                ` expected 0 (no hasLast)`,
+            )
+          }
+        }
         unsubscribes.push(unsubscribe)
         break
       }
@@ -322,7 +438,30 @@ function test(options: TestOptions): void {
   }
 
   function check(): void {
-    // TODO: check all invariants based on current state
+    for (let i = 0; i < sources.length; i++) {
+      const source = sources[i]
+      const expected = expectedSources[i]
+      if (source.emitLast !== sourceArgs[i].emitLast) {
+        throw new Error(
+          `sources[${i}].emitLast: ${source.emitLast} !== ${sourceArgs[i].emitLast}`,
+        )
+      }
+      if (source.hasLast !== expected.hasLast) {
+        throw new Error(
+          `sources[${i}].hasLast: ${source.hasLast} !== ${expected.hasLast}`,
+        )
+      }
+      if (source.last !== expected.last) {
+        throw new Error(
+          `sources[${i}].last: ${String(source.last)} !== ${String(expected.last)}`,
+        )
+      }
+      if (source.hasListeners !== activeSubscribes > 0) {
+        throw new Error(
+          `sources[${i}].hasListeners: ${source.hasListeners} !== ${activeSubscribes > 0}`,
+        )
+      }
+    }
   }
 
   check()
