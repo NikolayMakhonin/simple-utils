@@ -52,6 +52,9 @@ export type OfObservable<T> = T extends IObservable<infer U> ? U : never
 
 export type UnwrapObservable<T> = T extends IObservable<infer U> ? U : T
 
+export type UnwrapObservableOrValue<T> =
+  T extends ObservableOrValue<infer U> ? U : T
+
 export type ObservableOrValue<T = void> = IObservable<T> | T
 
 export type Stores =
@@ -59,7 +62,7 @@ export type Stores =
   | Array<ObservableOrValue<any>>
 
 export type StoresValues<T> = {
-  [K in keyof T]: UnwrapObservable<T[K]>
+  [K in keyof T]: UnwrapObservableOrValue<T[K]>
 }
 
 export type Observables<T> = {

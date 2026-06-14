@@ -51,7 +51,13 @@ export class Subject<From = void> implements ISubject<From> {
     this.#startStopNotifier = startStopNotifier ?? null
     this.#emit = startStopNotifier ? value => this.emit(value) : null
     this.#update = startStopNotifier ? updater => this.update(updater) : null
-    this.#invalidate = startStopNotifier ? () => this.invalidate() : null
+    // Reset before invalidate so the guard passes even when already invalidated
+    this.#invalidate = startStopNotifier
+      ? () => {
+          this.#invalidated = false
+          this.invalidate()
+        }
+      : null
     this.#emitLast = emitLastEvent ?? false
     this.#hasLast = hasLast ?? false
     this.#last = last
@@ -168,7 +174,10 @@ export class Subject<From = void> implements ISubject<From> {
     let promises: PromiseLike<void>[] | undefined
     try {
       this.#emitting = true
+      // Reset so invalidate fires even when already invalidated
+      this.#invalidated = false
       this.invalidate()
+      // The value is about to be delivered, so the subject is valid again
       this.#invalidated = false
       if (this.#emitLast) {
         this.#last = event

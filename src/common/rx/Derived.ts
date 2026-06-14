@@ -136,9 +136,12 @@ function startStopNotifier<S extends Stores, T>(
           if (!isPending[index]) {
             isPending[index] = true
             pendingCount++
-            if (pendingCount === 1) {
-              invalidate()
-            }
+          }
+          invalidate()
+          if (asyncUnsubscribe != null) {
+            const prevUnsubscribe = asyncUnsubscribe
+            asyncUnsubscribe = null
+            prevUnsubscribe()
           }
         },
       ),

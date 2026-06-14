@@ -378,7 +378,7 @@ type TestOptions = {
 
 type Value = number | Number | null | undefined
 
-describe('DerivedConsistency', { timeout: 7 * 60 * 60 * 1000 }, () => {
+describe('Derived consistency', { timeout: 7 * 60 * 60 * 1000 }, () => {
   it('variants', async () => {
     await testVariants({
       source_emitLastEvent: [undefined, null, false, true],

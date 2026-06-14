@@ -51,15 +51,22 @@ describe('Subject', () => {
     subject.invalidate()
     expect(events).toEqual(['invalidate', 'value 1', 'invalidate'])
 
-    // Emit of a stale subject delivers the value without repeated invalidate
+    // Emit always notifies invalidate callbacks before delivering
     subject.emit(2)
-    expect(events).toEqual(['invalidate', 'value 1', 'invalidate', 'value 2'])
+    expect(events).toEqual([
+      'invalidate',
+      'value 1',
+      'invalidate',
+      'invalidate',
+      'value 2',
+    ])
 
     // Emit of a valid subject invalidates again
     subject.emit(3)
     expect(events).toEqual([
       'invalidate',
       'value 1',
+      'invalidate',
       'invalidate',
       'value 2',
       'invalidate',
@@ -68,7 +75,7 @@ describe('Subject', () => {
 
     unsubscribe()
     subject.emit(4)
-    expect(events.length).toBe(6)
+    expect(events.length).toBe(7)
   })
 
   it('subscribe while invalidated', () => {
@@ -92,7 +99,7 @@ describe('Subject', () => {
     expect(events).toEqual(['value 1', 'invalidate'])
 
     subject.emit(2)
-    expect(events).toEqual(['value 1', 'invalidate', 'value 2'])
+    expect(events).toEqual(['value 1', 'invalidate', 'invalidate', 'value 2'])
 
     unsubscribe()
   })
