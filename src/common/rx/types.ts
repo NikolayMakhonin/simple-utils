@@ -46,7 +46,7 @@ export type Stores =
   | Array<ObservableOrValue<any>>
 
 export type StoresValues<T> = {
-  [K in keyof T]: T[K] extends ObservableOrValue<infer U> ? U : T[K]
+  [K in keyof T]: T[K] extends IObservable<infer U> ? U : T[K]
 }
 
 export type Observables<T> = {
