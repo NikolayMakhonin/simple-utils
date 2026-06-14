@@ -1,16 +1,42 @@
 import { Derived } from '../Derived'
-import type { DerivedFunc, DerivedOrValuesFunc, Stores } from '../types'
+import type {
+  DerivedFunc,
+  DerivedOrValueFunc,
+  DerivedOrValuesFunc,
+  ObservableOrValue,
+  Stores,
+} from '../types'
 import { staticObservable } from '../staticObservable'
 import { EMPTY_FUNC } from 'src/common/constants'
+import { isObservable } from '../helpers'
 
 export function derivedOrValues<S extends Stores, T>(
   sources: S,
   func: DerivedOrValuesFunc<S, T>,
   initialValue?: T | undefined,
 ) {
-  return new Derived(sources, func, {
-    last: initialValue,
-    hasLast: initialValue !== undefined,
+  return new Derived(
+    sources,
+    values => {
+      return func(values)
+    },
+    {
+      last: initialValue,
+      hasLast: initialValue !== undefined,
+    },
+  )
+}
+
+export function derivedOrValue<Value, T>(
+  source: ObservableOrValue<Value>,
+  func: DerivedOrValueFunc<Value, T>,
+) {
+  if (!isObservable(source)) {
+    return func(source)
+  }
+  return new Derived([source], ([value], emit) => {
+    emit(value)
+    return EMPTY_FUNC
   })
 }
 

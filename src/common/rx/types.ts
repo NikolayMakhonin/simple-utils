@@ -62,6 +62,10 @@ export type Stores =
   | Array<ObservableOrValue<any>>
 
 export type StoresValues<T> = {
+  [K in keyof T]: UnwrapObservable<T[K]>
+}
+
+export type StoresOrValues<T> = {
   [K in keyof T]: UnwrapObservableOrValue<T[K]>
 }
 
@@ -88,5 +92,5 @@ export type DerivedOrValueFunc<Value, T> = (
 ) => ObservableOrValue<T>
 
 export type DerivedOrValuesFunc<S extends Stores, T> = (
-  values: StoresValues<S>,
+  values: StoresOrValues<S>,
 ) => ObservableOrValue<T>
