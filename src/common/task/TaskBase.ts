@@ -76,7 +76,7 @@ export class TaskBase<
   }
 
   private logError(error: any): void {
-    const level = error instanceof AbortError ? LogLevel.warn : LogLevel.error
+    const level = error instanceof AbortError ? LogLevel.debug : LogLevel.error
     if (this.#options?.logLevel == null || this.#options.logLevel >= level) {
       if (level >= LogLevel.error) {
         console.error('[TaskBase]', error)
