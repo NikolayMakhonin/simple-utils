@@ -1,5 +1,8 @@
 import type {
   ActionOnCircular,
+  DerivedFunc,
+  DerivedFuncAsync,
+  DerivedFuncSync,
   Emit,
   Invalidate,
   IObservable,
@@ -12,18 +15,6 @@ import type { Unsubscribe } from 'src/common/types/common'
 import { Subject } from './Subject'
 import { isObservable } from './helpers'
 
-/** Must be pure */
-export type DerivedFuncSync<S extends Stores, T> = (
-  values: StoresValues<S>,
-) => T
-
-export type DerivedFuncAsync<S extends Stores, T> = (
-  values: StoresValues<S>,
-  emit: Emit<T>,
-  update: Update<T>,
-  invalidate: Invalidate,
-) => Unsubscribe | void
-
 export type DerivedOptions<T> = {
   /** Does not auto-clear state when the last subscriber unsubscribes */
   dontAutoClear?: null | boolean
@@ -33,10 +24,6 @@ export type DerivedOptions<T> = {
   /** Action to perform on circular subscription or emission. Default is 'throw' */
   actionOnCircular?: null | ActionOnCircular
 }
-
-export type DerivedFunc<S extends Stores, T> =
-  | DerivedFuncSync<S, T>
-  | DerivedFuncAsync<S, T>
 
 function startStopNotifier<S extends Stores, T>(
   sources: S,
