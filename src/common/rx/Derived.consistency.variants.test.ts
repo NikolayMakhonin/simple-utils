@@ -435,7 +435,7 @@ describe('Derived consistency', { timeout: 7 * 60 * 60 * 1000 }, () => {
         },
       ],
       saveErrorVariants: {
-        dir: 'tmp/test/DerivedConsistency/variants',
+        dir: 'tmp/test/Derived.consistency/variants',
         attemptsPerVariant: 10,
         useToFindBestError: false,
       },
