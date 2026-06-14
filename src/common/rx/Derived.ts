@@ -138,6 +138,8 @@ function startStopNotifier<S extends Stores, T>(
             pendingCount++
           }
           invalidate()
+          // Dispose the in-flight async func so no value computed from
+          // a stale source generation reaches downstream
           if (asyncUnsubscribe != null) {
             const prevUnsubscribe = asyncUnsubscribe
             asyncUnsubscribe = null

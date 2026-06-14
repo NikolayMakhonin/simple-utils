@@ -51,11 +51,12 @@ export class Subject<From = void> implements ISubject<From> {
     this.#startStopNotifier = startStopNotifier ?? null
     this.#emit = startStopNotifier ? value => this.emit(value) : null
     this.#update = startStopNotifier ? updater => this.update(updater) : null
-    // Reset before invalidate so the guard passes even when already invalidated
+    // Propagate every upstream invalidate downstream even when already
+    // invalidated, so subscribers see each source go stale independently
     this.#invalidate = startStopNotifier
       ? () => {
-          this.#invalidated = false
-          this.invalidate()
+          this.#invalidated = true
+          this.#notifyInvalidate()
         }
       : null
     this.#emitLast = emitLastEvent ?? false
@@ -148,6 +149,10 @@ export class Subject<From = void> implements ISubject<From> {
       return
     }
     this.#invalidated = true
+    this.#notifyInvalidate()
+  }
+
+  #notifyInvalidate(): void {
     this.#invalidates.forEach(o => o())
   }
 
@@ -174,9 +179,9 @@ export class Subject<From = void> implements ISubject<From> {
     let promises: PromiseLike<void>[] | undefined
     try {
       this.#emitting = true
-      // Reset so invalidate fires even when already invalidated
-      this.#invalidated = false
-      this.invalidate()
+      // Notify invalidate callbacks before delivering, even when already
+      // invalidated, so downstream consumers see a stale->fresh transition
+      this.#notifyInvalidate()
       // The value is about to be delivered, so the subject is valid again
       this.#invalidated = false
       if (this.#emitLast) {
