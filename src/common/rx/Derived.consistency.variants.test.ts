@@ -399,8 +399,8 @@ describe('Derived consistency', { timeout: 7 * 60 * 60 * 1000 }, () => {
       dest_actionOnCircular: [undefined, null, 'throw', 'emitLast'],
       dest_autoClear: [undefined, null, false, true],
 
-      chainLength1: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-      chainLength2: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      chainLength1: Array.from({ length: 10 }, (_, i) => i),
+      chainLength2: Array.from({ length: 10 }, (_, i) => i),
       async: [false, true],
       actionsCount: Array.from({ length: 50 }, (_, i) => i),
 
@@ -410,7 +410,14 @@ describe('Derived consistency', { timeout: 7 * 60 * 60 * 1000 }, () => {
       unsubscribes: Array.from({ length: 3 }, (_, i) => i),
       subscribes: Array.from({ length: 3 }, (_, i) => i),
 
-      values: [[undefined, null, 0, 1, new Number(0), new Number(1)]],
+      values: [
+        [
+          undefined,
+          null,
+          ...Array.from({ length: 100 }, (_, i) => i),
+          ...Array.from({ length: 100 }, (_, i) => new Number(i)),
+        ],
+      ],
     })({
       limitTime: 60 * 1000,
       parallel: 1,
