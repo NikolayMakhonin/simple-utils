@@ -2,26 +2,27 @@ import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
 import type { Priority } from 'src/common/async/priority/Priority'
 import type { PromiseOrValue } from 'src/common/types/common'
 
-export type Task<T> = {
-  result: Promise<T>
-  setReadyToRun: (readyToRun: boolean) => void
+export type PriorityQueueTask<T> = {
+  readonly result: Promise<T>
+  readonly setReadyToRun: (readyToRun: boolean) => void
 }
+
+export type PriorityQueueRunFunc<T> = (
+  abortSignal?: null | IAbortSignalFast,
+) => PromiseOrValue<T>
 
 export interface IPriorityQueue {
   run<T>(
-    func:
-      | ((abortSignal?: null | IAbortSignalFast) => PromiseOrValue<T>)
-      | null
-      | undefined,
+    func: PriorityQueueRunFunc<T> | null | undefined,
     priority?: null | Priority,
     abortSignal?: null | IAbortSignalFast,
   ): Promise<T>
 }
 
-export interface IPriorityQueueTask {
+export interface IPriorityQueueRunTask {
   runTask<T>(
-    func: (abortSignal?: null | IAbortSignalFast) => PromiseOrValue<T>,
+    func: PriorityQueueRunFunc<T> | null | undefined,
     priority?: null | Priority,
     abortSignal?: null | IAbortSignalFast,
-  ): Task<T>
+  ): PriorityQueueTask<T>
 }

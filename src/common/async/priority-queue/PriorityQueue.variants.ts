@@ -11,7 +11,7 @@ import {
   type ITimeController,
   TimeControllerMock,
 } from '@flemist/time-controller'
-import { delay } from 'src/common/async/wait'
+import { delay, waitTimeControllerMock } from 'src/common/async/wait'
 import {
   getRandomSeed,
   Random,
@@ -19,11 +19,26 @@ import {
   randomInt,
   randomItem,
 } from 'src/common/random'
+import { formatAny, type FormatAnyOptions } from '../../string'
+import { deepEqualJsonLike, equalArray } from '../../object'
+
+function formatObject(obj: any, options?: null | FormatAnyOptions): string {
+  return formatAny(obj, {
+    maxDepth: 5,
+    maxItems: 10,
+    ...options,
+  })
+}
 
 type TestVariantsArgs = {
   seed: number
 
-  // TODO
+  actionsCount: number
+  priority: boolean
+  addTime: boolean
+  taskMode: boolean
+  abort: boolean
+  duration: boolean
 }
 
 const testVariants = createTestVariants(async (args: TestVariantsArgs) => {
@@ -48,19 +63,126 @@ type GenerateContextOptions = {
   log: boolean
 }
 
+type Action = {
+  id: number
+  priority: number | null
+  addTime: number
+  /** Should be >= addTime */
+  readyToRunTime: number | null
+  /** Abort time, should be >= addTime */
+  abortTime: number | null
+  duration: number
+}
+
 function generateContext(options: GenerateContextOptions): TestContext {
   const { args, log } = options
 
+  let hasError = false
+  let firstError: any = null
+  function onError(error: any) {
+    if (hasError) {
+      return
+    }
+    hasError = true
+    firstError = error
+  }
+
+  const priorityQueue = new PriorityQueue()
+  const timeController = new TimeControllerMock()
+  const orderActual: number[] = []
+
   // TODO
 
+  async function run(action: Action): Promise<void> {
+    const priority =
+      action.priority != null ? priorityCreate(action.priority) : null
+    let abortController: IAbortControllerFast | null = null
+    if (action.abortTime != null) {
+      abortController = new AbortControllerFast()
+      timeController.setTimeout(() => {
+        abortController!.abort()
+      }, action.abortTime)
+    }
+
+    if (action.addTime != null) {
+      await delay(action.addTime, abortController?.signal, timeController)
+    }
+
+    let started = false
+    let timeStart: number | null = null
+
+    const runFunc = async (
+      abortSignal?: null | IAbortSignalFast,
+    ): Promise<void> => {
+      if (started) {
+        onError(
+          new Error(
+            `[test] Action started multiple times: ${formatObject(action)}`,
+          ),
+        )
+      }
+      started = true
+
+      timeStart = timeController.now()
+      orderActual.push(action.id)
+      await delay(action.duration, abortSignal, timeController)
+    }
+
+    if (action.readyToRunTime != null) {
+      const task = priorityQueue.runTask(
+        runFunc,
+        priority,
+        abortController?.signal,
+      )
+      timeController.setTimeout(() => {
+        task.setReadyToRun(true)
+      }, action.readyToRunTime)
+      await task.result
+    } else {
+      await priorityQueue.run(runFunc, priority, abortController?.signal)
+    }
+
+    if (timeStart == null) {
+      throw new Error(
+        `[test] Action run func did not start: ${formatObject(action)}`,
+      )
+    }
+
+    const durationActual = timeController.now() - timeStart
+    if (durationActual !== action.duration) {
+      throw new Error(
+        `[test] duration actual (${action.duration}) !== expected (${durationActual}) for action ${formatObject(action)}`,
+      )
+    }
+  }
+
   return {
-    // TODO
+    throwIfError() {
+      if (hasError) {
+        throw firstError
+      }
+    },
+    timeController,
+    run,
+    actions,
+    orderActual,
+    orderExpected,
   }
 }
 
 type TestContext = {
-  // TODO
+  throwIfError: () => void
+  timeController: TimeControllerMock
+  run: Run
+  /** Actions to add to the queue, in the order of adding */
+  actions: Action[]
+  /** Actual order action ids */
+  orderActual: number[]
+  /** Expected order action ids */
+  orderExpected: number[]
 }
+
+type Run = (action: Action) => Promise<void>
 
 type TestOptions = {
   rnd: Random
@@ -68,10 +190,46 @@ type TestOptions = {
   args: TestVariantsArgs
 }
 
-function test(options: TestOptions): void {
+async function test(options: TestOptions): Promise<void> {
   const { rnd, context, args } = options
+  const { throwIfError, timeController, actions, orderActual, orderExpected } =
+    context
 
-  // TODO
+  const promises = actions.map(action => context.run(action))
+
+  let hasError = false
+  let error: any = null
+  let hasResult = false
+  Promise.all(promises).then(
+    () => {
+      hasResult = true
+    },
+    o => {
+      hasError = true
+      error = o
+    },
+  )
+
+  await waitTimeControllerMock(timeController)
+  throwIfError()
+
+  if (hasError) {
+    throw error
+  }
+  if (!hasResult) {
+    throw new Error(
+      `[test] Actions did not complete in time:\n${formatObject({ actions, orderActual, orderExpected })}`,
+    )
+  }
+  if (!deepEqualJsonLike(orderActual, orderExpected)) {
+    throw new Error(
+      `[test] Order actual !== expected:\n${formatObject({ actions, orderActual, orderExpected })}`,
+    )
+  }
+
+  timeController.addTime(1e9)
+  await waitTimeControllerMock(timeController)
+  throwIfError()
 }
 
 describe('PriorityQueue', async () => {

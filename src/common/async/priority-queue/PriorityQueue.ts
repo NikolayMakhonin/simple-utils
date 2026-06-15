@@ -1,4 +1,9 @@
-import type { IPriorityQueue, IPriorityQueueTask, Task } from './contracts'
+import type {
+  IPriorityQueue,
+  IPriorityQueueRunTask,
+  PriorityQueueTask,
+  PriorityQueueRunFunc,
+} from './contracts'
 import type { PromiseOrValue } from 'src/common/types/common'
 import { PairingHeap, PairingNode } from '@flemist/pairing-heap'
 import {
@@ -25,7 +30,7 @@ function queueItemLessThan(o1: QueueItem<any>, o2: QueueItem<any>): boolean {
 
 let nextOrder: number = 1
 
-export class PriorityQueue implements IPriorityQueue, IPriorityQueueTask {
+export class PriorityQueue implements IPriorityQueue, IPriorityQueueRunTask {
   readonly #queue: PairingHeap<QueueItem<any>>
 
   constructor() {
@@ -35,22 +40,18 @@ export class PriorityQueue implements IPriorityQueue, IPriorityQueueTask {
   }
 
   run<T>(
-    func:
-      | ((abortSignal?: null | IAbortSignalFast) => PromiseOrValue<T>)
-      | null
-      | undefined,
+    func: PriorityQueueRunFunc<T> | null | undefined,
     priority?: null | Priority,
     abortSignal?: null | IAbortSignalFast,
   ): Promise<T> {
     return this._run(false, func, priority, abortSignal) as any
   }
 
-  /** @deprecated */
   runTask<T>(
-    func: (abortSignal?: null | IAbortSignalFast) => PromiseOrValue<T>,
+    func: PriorityQueueRunFunc<T> | null | undefined,
     priority?: null | Priority,
     abortSignal?: null | IAbortSignalFast,
-  ): Task<T> {
+  ): PriorityQueueTask<T> {
     return this._run(true, func, priority, abortSignal) as any
   }
 
@@ -62,7 +63,7 @@ export class PriorityQueue implements IPriorityQueue, IPriorityQueueTask {
       | undefined,
     priority?: null | Priority,
     abortSignal?: null | IAbortSignalFast,
-  ): Task<T> | Promise<T> {
+  ): PriorityQueueTask<T> | Promise<T> {
     // const promise = new CustomPromise<T>(abortSignal)
     let resolve: (value: T) => void = null!
     let reject: (error: any) => void = null!
