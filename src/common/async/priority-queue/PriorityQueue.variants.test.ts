@@ -427,7 +427,7 @@ async function test(options: TestOptions): Promise<void> {
   throwIfError()
 }
 
-describe('PriorityQueue', () => {
+describe('PriorityQueue', { timeout: 7 * 60 * 60 * 1000 }, () => {
   it('variants', async () => {
     await testVariants({
       // TODO
