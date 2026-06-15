@@ -9,7 +9,8 @@ import {
   AbortError,
 } from '@flemist/abort-controller-fast'
 import { TimeControllerMock } from '@flemist/time-controller'
-import { delay, waitTimeControllerMock } from 'src/common/async/wait'
+import { delay } from 'src/common/async/wait/delay'
+import { waitTimeControllerMock } from 'src/common/async/wait/waitTimeControllerMock'
 import {
   arrayShuffle,
   getRandomSeed,
@@ -19,6 +20,7 @@ import {
 } from 'src/common/random'
 import { formatAny, type FormatAnyOptions } from 'src/common/string'
 import { deepEqualJsonLike } from 'src/common/object'
+import type { PriorityQueueRunFunc } from './contracts'
 
 function formatObject(obj: any, options?: null | FormatAnyOptions): string {
   return formatAny(obj, {
@@ -94,9 +96,7 @@ function generateContext(options: GenerateContextOptions): TestContext {
   async function run(action: Action): Promise<void> {
     const priority =
       action.priority != null ? priorityCreate(action.priority) : null
-    if (action.addTime != null) {
-      await delay(action.addTime, null, timeController)
-    }
+    await delay(action.addTime, null, timeController)
 
     let abortController: IAbortControllerFast | null = null
     if (action.abortTime != null) {
@@ -113,9 +113,27 @@ function generateContext(options: GenerateContextOptions): TestContext {
     let started = false
     let timeStart: number | null = null
 
-    const runFunc = async (
-      abortSignal?: null | IAbortSignalFast,
-    ): Promise<number> => {
+    const runFuncSync: PriorityQueueRunFunc<number> = abortSignal => {
+      if (started) {
+        onError(
+          new Error(
+            `[test] Action started multiple times: ${formatObject(action)}`,
+          ),
+        )
+      }
+      started = true
+
+      timeStart = timeController.now()
+      orderActual.push(action.id)
+
+      if (action.throwError) {
+        throw new TestError(`TEST_ERROR: ${action.id}`)
+      }
+
+      return action.id
+    }
+
+    const runFuncAsync: PriorityQueueRunFunc<number> = async abortSignal => {
       if (started) {
         onError(
           new Error(
@@ -136,8 +154,10 @@ function generateContext(options: GenerateContextOptions): TestContext {
       return action.id
     }
 
-    let runResult: number | null = null as any
-    let runError: TestError | AbortError | null = null as any
+    const runFunc = action.duration === 0 ? runFuncSync : runFuncAsync
+
+    let runResult: number | null = null
+    let runError: TestError | AbortError | null = null
     try {
       if (action.readyToRunTime != null) {
         const task = priorityQueue.runTask(
@@ -387,7 +407,7 @@ async function test(options: TestOptions): Promise<void> {
   throwIfError()
 }
 
-describe('PriorityQueue', async () => {
+describe('PriorityQueue', () => {
   it('variants', async () => {
     await testVariants({
       // TODO
