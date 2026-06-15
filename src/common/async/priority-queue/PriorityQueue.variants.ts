@@ -16,10 +16,9 @@ import {
   Random,
   randomBoolean,
   randomInt,
-  randomItem,
 } from 'src/common/random'
-import { formatAny, type FormatAnyOptions } from '../../string'
-import { deepEqualJsonLike, equalArray } from '../../object'
+import { formatAny, type FormatAnyOptions } from 'src/common/string'
+import { deepEqualJsonLike } from 'src/common/object'
 
 function formatObject(obj: any, options?: null | FormatAnyOptions): string {
   return formatAny(obj, {
@@ -162,8 +161,9 @@ function generateContext(options: GenerateContextOptions): TestContext {
     } catch (error: any) {
       if (error instanceof TestError || error instanceof AbortError) {
         runError = error
+      } else {
+        throw error
       }
-      throw error
     }
 
     if (timeStart == null) {
@@ -237,7 +237,7 @@ function generateContext(options: GenerateContextOptions): TestContext {
     const durationActual = timeController.now() - timeStart
     if (durationActual !== action.duration) {
       throw new Error(
-        `[test] duration actual (${action.duration}) !== expected (${durationActual}) for action ${formatObject(action)}`,
+        `[test] duration actual (${durationActual}) !== expected (${action.duration}) for action ${formatObject(action)}`,
       )
     }
   }
