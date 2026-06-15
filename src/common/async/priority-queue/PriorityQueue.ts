@@ -45,6 +45,7 @@ export class PriorityQueue implements IPriorityQueue, IPriorityQueueTask {
     return this._run(false, func, priority, abortSignal) as any
   }
 
+  /** @deprecated */
   runTask<T>(
     func: (abortSignal?: null | IAbortSignalFast) => PromiseOrValue<T>,
     priority?: null | Priority,
