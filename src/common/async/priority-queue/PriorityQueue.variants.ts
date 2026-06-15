@@ -1,4 +1,4 @@
-import { describe, it, assert } from 'vitest'
+import { describe, it } from 'vitest'
 import { PriorityQueue } from './PriorityQueue'
 import { priorityCreate } from 'src/common/async/priority/Priority'
 import { createTestVariants } from '@flemist/test-variants'
@@ -44,11 +44,11 @@ const testVariants = createTestVariants(async (args: TestVariantsArgs) => {
   const rnd = new Random(args.seed)
   try {
     const context = generateContext({ rnd: rnd.clone(), args, log: false })
-    test({ rnd: rnd.clone(), context, args })
+    await test({ context })
   } catch (err) {
     try {
       const context = generateContext({ rnd: rnd.clone(), args, log: true })
-      test({ rnd: rnd.clone(), context, args })
+      await test({ context })
     } catch {
       // Ignore re-run error, throw original
     }
@@ -75,8 +75,6 @@ type Action = {
 }
 
 function generateContext(options: GenerateContextOptions): TestContext {
-  const { args, log } = options
-
   let hasError = false
   let firstError: any = null
   function onError(error: any) {
@@ -166,16 +164,14 @@ function generateContext(options: GenerateContextOptions): TestContext {
       }
     }
 
-    if (timeStart == null) {
-      throw new Error(
-        `[test] Action run func did not start: ${formatObject(action)}`,
-      )
-    }
-
-    if (
+    const shouldAbort =
       action.abortTime != null &&
       action.abortTime <= (action.readyToRunTime ?? 0) + action.duration
-    ) {
+    const shouldAbortBeforeStart =
+      action.abortTime != null &&
+      action.abortTime <= (action.readyToRunTime ?? 0)
+
+    if (shouldAbort) {
       if (runError == null) {
         throw new Error(
           `[test] Action was expected to be aborted but completed successfully: ${formatObject(
@@ -197,9 +193,7 @@ function generateContext(options: GenerateContextOptions): TestContext {
           )}, error: ${formatObject(runError)}`,
         )
       }
-    }
-
-    if (action.throwError) {
+    } else if (action.throwError) {
       if (runError == null) {
         throw new Error(
           `[test] Action should throw error but did not: ${formatObject({
@@ -234,11 +228,35 @@ function generateContext(options: GenerateContextOptions): TestContext {
       }
     }
 
-    const durationActual = timeController.now() - timeStart
-    if (durationActual !== action.duration) {
+    if (shouldAbortBeforeStart) {
+      if (timeStart != null) {
+        throw new Error(
+          `[test] Action was expected to be aborted before start but has start time: ${formatObject(
+            action,
+          )}, timeStart: ${timeStart}`,
+        )
+      }
+    } else if (timeStart == null) {
       throw new Error(
-        `[test] duration actual (${durationActual}) !== expected (${action.duration}) for action ${formatObject(action)}`,
+        `[test] Action run func did not start: ${formatObject(action)}`,
       )
+    } else {
+      const durationActual = timeController.now() - timeStart
+      const durationExpected =
+        action.abortTime == null
+          ? action.duration
+          : Math.max(
+              0,
+              Math.min(
+                action.duration,
+                action.abortTime - (action.readyToRunTime ?? 0),
+              ),
+            )
+      if (durationActual !== durationExpected) {
+        throw new Error(
+          `[test] duration actual (${durationActual}) !== expected (${durationExpected}) for action ${formatObject(action)}`,
+        )
+      }
     }
   }
 
@@ -324,13 +342,11 @@ type TestContext = {
 type Run = (action: Action) => Promise<void>
 
 type TestOptions = {
-  rnd: Random
   context: TestContext
-  args: TestVariantsArgs
 }
 
 async function test(options: TestOptions): Promise<void> {
-  const { rnd, context, args } = options
+  const { context } = options
   const { throwIfError, timeController, actions, orderActual, orderExpected } =
     context
 
