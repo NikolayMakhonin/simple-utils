@@ -6,13 +6,12 @@ import {
   type IAbortSignalFast,
   type IAbortControllerFast,
   AbortControllerFast,
+  AbortError,
 } from '@flemist/abort-controller-fast'
-import {
-  type ITimeController,
-  TimeControllerMock,
-} from '@flemist/time-controller'
+import { TimeControllerMock } from '@flemist/time-controller'
 import { delay, waitTimeControllerMock } from 'src/common/async/wait'
 import {
+  arrayShuffle,
   getRandomSeed,
   Random,
   randomBoolean,
@@ -34,11 +33,12 @@ type TestVariantsArgs = {
   seed: number
 
   actionsCount: number
-  priority: boolean
-  addTime: boolean
-  taskMode: boolean
-  abort: boolean
-  duration: boolean
+  readyToRunTimeMax: number | null
+  abortTimeMax: number | null
+  throwError: boolean
+  priorityMax: number | null
+  addTimeMax: number
+  durationMax: number
 }
 
 const testVariants = createTestVariants(async (args: TestVariantsArgs) => {
@@ -67,11 +67,12 @@ type Action = {
   id: number
   priority: number | null
   addTime: number
-  /** Should be >= addTime */
+  /** from addTime */
   readyToRunTime: number | null
-  /** Abort time, should be >= addTime */
+  /** from addTime */
   abortTime: number | null
   duration: number
+  throwError: boolean
 }
 
 function generateContext(options: GenerateContextOptions): TestContext {
@@ -90,22 +91,26 @@ function generateContext(options: GenerateContextOptions): TestContext {
   const priorityQueue = new PriorityQueue()
   const timeController = new TimeControllerMock()
   const orderActual: number[] = []
-
-  // TODO
+  const actions = generateActions(options)
+  const orderExpected = calculateOrder(actions)
 
   async function run(action: Action): Promise<void> {
     const priority =
       action.priority != null ? priorityCreate(action.priority) : null
+    if (action.addTime != null) {
+      await delay(action.addTime, null, timeController)
+    }
+
     let abortController: IAbortControllerFast | null = null
     if (action.abortTime != null) {
       abortController = new AbortControllerFast()
-      timeController.setTimeout(() => {
-        abortController!.abort()
-      }, action.abortTime)
-    }
-
-    if (action.addTime != null) {
-      await delay(action.addTime, abortController?.signal, timeController)
+      if (action.abortTime === 0) {
+        abortController.abort(new AbortError(`TEST_ABORT: ${action.id}`))
+      } else {
+        timeController.setTimeout(() => {
+          abortController!.abort(new AbortError(`TEST_ABORT: ${action.id}`))
+        }, action.abortTime)
+      }
     }
 
     let started = false
@@ -113,7 +118,7 @@ function generateContext(options: GenerateContextOptions): TestContext {
 
     const runFunc = async (
       abortSignal?: null | IAbortSignalFast,
-    ): Promise<void> => {
+    ): Promise<number> => {
       if (started) {
         onError(
           new Error(
@@ -126,26 +131,107 @@ function generateContext(options: GenerateContextOptions): TestContext {
       timeStart = timeController.now()
       orderActual.push(action.id)
       await delay(action.duration, abortSignal, timeController)
+
+      if (action.throwError) {
+        throw new TestError(`TEST_ERROR: ${action.id}`)
+      }
+
+      return action.id
     }
 
-    if (action.readyToRunTime != null) {
-      const task = priorityQueue.runTask(
-        runFunc,
-        priority,
-        abortController?.signal,
-      )
-      timeController.setTimeout(() => {
-        task.setReadyToRun(true)
-      }, action.readyToRunTime)
-      await task.result
-    } else {
-      await priorityQueue.run(runFunc, priority, abortController?.signal)
+    let runResult: number | null = null as any
+    let runError: TestError | AbortError | null = null as any
+    try {
+      if (action.readyToRunTime != null) {
+        const task = priorityQueue.runTask(
+          runFunc,
+          priority,
+          abortController?.signal,
+        )
+        timeController.setTimeout(() => {
+          task.setReadyToRun(true)
+        }, action.readyToRunTime)
+        runResult = await task.result
+      } else {
+        runResult = await priorityQueue.run(
+          runFunc,
+          priority,
+          abortController?.signal,
+        )
+      }
+    } catch (error: any) {
+      if (error instanceof TestError || error instanceof AbortError) {
+        runError = error
+      }
+      throw error
     }
 
     if (timeStart == null) {
       throw new Error(
         `[test] Action run func did not start: ${formatObject(action)}`,
       )
+    }
+
+    if (
+      action.abortTime != null &&
+      action.abortTime <= (action.readyToRunTime ?? 0) + action.duration
+    ) {
+      if (runError == null) {
+        throw new Error(
+          `[test] Action was expected to be aborted but completed successfully: ${formatObject(
+            action,
+          )}`,
+        )
+      }
+      if (!(runError instanceof AbortError)) {
+        throw new Error(
+          `[test] Action was expected to be aborted but threw different error: ${formatObject(
+            action,
+          )}, error: ${formatObject(runError)}`,
+        )
+      }
+      if (runError.message !== `TEST_ABORT: ${action.id}`) {
+        throw new Error(
+          `[test] Action was aborted with unexpected error message: ${formatObject(
+            action,
+          )}, error: ${formatObject(runError)}`,
+        )
+      }
+    }
+
+    if (action.throwError) {
+      if (runError == null) {
+        throw new Error(
+          `[test] Action should throw error but did not: ${formatObject({
+            action,
+          })}`,
+        )
+      }
+      if (runError.message !== `TEST_ERROR: ${action.id}`) {
+        throw new Error(
+          `[test] Action threw unexpected error: ${formatObject({
+            action,
+            runError,
+          })}`,
+        )
+      }
+    } else {
+      if (runError != null) {
+        throw new Error(
+          `[test] Action threw error but should not: ${formatObject({
+            action,
+            runError,
+          })}`,
+        )
+      }
+      if (runResult !== action.id) {
+        throw new Error(
+          `[test] Action run result unexpected: ${formatObject({
+            action,
+            runResult,
+          })}`,
+        )
+      }
     }
 
     const durationActual = timeController.now() - timeStart
@@ -168,6 +254,59 @@ function generateContext(options: GenerateContextOptions): TestContext {
     orderActual,
     orderExpected,
   }
+}
+
+class TestError extends Error {}
+
+function generateActions(options: GenerateContextOptions): Action[] {
+  const { rnd, args, log } = options
+  const actions: Action[] = []
+  for (let i = 0; i < args.actionsCount; i++) {
+    const action = generateAction(options, i)
+    actions.push(action)
+  }
+  arrayShuffle(rnd, actions)
+
+  if (log) {
+    console.log(`[test] Actions: ${formatObject(actions)}`)
+  }
+
+  return actions
+}
+
+function generateAction(options: GenerateContextOptions, id: number): Action {
+  const { rnd, args } = options
+
+  const priority = randomIntWithNull(rnd, args.priorityMax)
+  const addTime = randomInt(rnd, 0, args.addTimeMax + 1)
+  const readyToRunTime = randomIntWithNull(rnd, args.readyToRunTimeMax)
+  const abortTime = randomIntWithNull(rnd, args.abortTimeMax)
+  const duration = randomInt(rnd, 0, args.durationMax + 1)
+  const throwError = args.throwError ? randomBoolean(rnd) : false
+
+  return {
+    id,
+    priority,
+    addTime,
+    readyToRunTime,
+    abortTime,
+    duration,
+    throwError,
+  }
+}
+
+function randomIntWithNull(rnd: Random, max: number | null): number | null {
+  if (max == null) {
+    return null
+  }
+  if (randomBoolean(rnd)) {
+    return null
+  }
+  return randomInt(rnd, 0, max + 1)
+}
+
+function calculateOrder(actions: Action[]): number[] {
+  // TODO
 }
 
 type TestContext = {
