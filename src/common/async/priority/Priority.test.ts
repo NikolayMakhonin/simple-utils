@@ -1,21 +1,19 @@
-import { Priority, priorityCompare, priorityCreate } from './Priority'
+import { describe, it, assert } from 'vitest'
+import { type Priority, priorityCompare, priorityCreate } from './Priority'
 import { createTestVariants } from '@flemist/test-variants'
 
-describe('priority > Priority', function () {
-  this.timeout(120000)
-
-  function orderToString(order: number) {
+describe('priority > Priority', { timeout: 120_000 }, function () {
+  function orderToString(order: number | null) {
     return order == null ? '50' : (order + 50).toString(10).padStart(2, '0')
   }
 
   function createTestPriorityStr(
     index: number,
-    order1: number,
-    order2: number,
-    order3: number,
-    order4: number,
+    order1: number | null,
+    order2: number | null,
+    order3: number | null,
+    order4: number | null,
   ) {
-    let result: string
     let str = orderToString(index >= 1 ? order1 : null)
     str += '-' + orderToString(index >= 2 ? order2 : null)
     str += '-' + orderToString(index >= 3 ? order3 : null)
@@ -25,13 +23,13 @@ describe('priority > Priority', function () {
 
   function createTestPriority(
     index: number,
-    order1: number,
-    order2: number,
-    order3: number,
-    order4: number,
+    order1: number | null,
+    order2: number | null,
+    order3: number | null,
+    order4: number | null,
   ) {
-    let result: Priority
-    let priority: Priority
+    let result: Priority | null = null
+    let priority: Priority | null = null
     if (order1 != null) {
       priority = priorityCreate(order1)
       if (index >= 1) {
@@ -75,16 +73,16 @@ describe('priority > Priority', function () {
       order2_4,
     }: {
       index1: number
-      order1_1: number
-      order1_2: number
-      order1_3: number
-      order1_4: number
+      order1_1: number | null
+      order1_2: number | null
+      order1_3: number | null
+      order1_4: number | null
 
       index2: number
-      order2_1: number
-      order2_2: number
-      order2_3: number
-      order2_4: number
+      order2_1: number | null
+      order2_2: number | null
+      order2_3: number | null
+      order2_4: number | null
     }) => {
       const priority1Str = createTestPriorityStr(
         index1,

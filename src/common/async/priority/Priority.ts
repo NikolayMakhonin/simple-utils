@@ -38,29 +38,15 @@ export function priorityCompare(
   o1: Priority | null | undefined,
   o2: Priority | null | undefined,
 ): number {
-  if (o1 === o2) {
-    return 0
-  }
-
-  if (o1 == null && o2 == null) {
-    return 0
-  }
-  if (o1 == null) {
-    return -1
-  }
-  if (o2 == null) {
-    return 1
-  }
-
-  const b1 = o1 && o1.branch
-  const b2 = o2 && o2.branch
-  const len1 = b1 ? b1.length : 0
-  const len2 = b2 ? b2.length : 0
+  const b1 = o1?.branch
+  const b2 = o2?.branch
+  const len1 = b1?.length ?? 0
+  const len2 = b2?.length ?? 0
   const len = len1 > len2 ? len1 : len2
 
   for (let i = 0; i < len; i++) {
-    const order1 = i >= len1 ? 0 : b1[len1 - 1 - i]
-    const order2 = i >= len2 ? 0 : b2[len2 - 1 - i]
+    const order1 = i >= len1 ? 0 : b1![len1 - 1 - i]
+    const order2 = i >= len2 ? 0 : b2![len2 - 1 - i]
     if (order1 !== order2) {
       return order1 > order2 ? 1 : -1
     }

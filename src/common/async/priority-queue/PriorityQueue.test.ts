@@ -3,11 +3,14 @@ import { PriorityQueue } from './PriorityQueue'
 import { priorityCreate } from 'src/common/async/priority/Priority'
 import { createTestVariants } from '@flemist/test-variants'
 import {
-  IAbortSignalFast,
-  IAbortControllerFast,
+  type IAbortSignalFast,
+  type IAbortControllerFast,
   AbortControllerFast,
 } from '@flemist/abort-controller-fast'
-import { ITimeController, TimeControllerMock } from '@flemist/time-controller'
+import {
+  type ITimeController,
+  TimeControllerMock,
+} from '@flemist/time-controller'
 import { delay } from '../wait'
 
 describe(

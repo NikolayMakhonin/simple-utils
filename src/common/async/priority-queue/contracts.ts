@@ -1,9 +1,6 @@
-import { IAbortSignalFast } from '@flemist/abort-controller-fast'
-import { Priority } from 'src/common/async/priority/Priority'
-
-export type PromiseOrValue<T> = T | Promise<T>
-
-export type TCompare<T> = (o1: T, o2: T) => number
+import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
+import type { Priority } from 'src/common/async/priority/Priority'
+import type { PromiseOrValue } from 'src/common/types/common'
 
 export type Task<T> = {
   result: Promise<T>

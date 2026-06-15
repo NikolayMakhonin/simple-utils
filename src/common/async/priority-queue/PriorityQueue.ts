@@ -1,16 +1,12 @@
-import {
-  IPriorityQueue,
-  IPriorityQueueTask,
-  PromiseOrValue,
-  Task,
-} from './contracts'
+import type { IPriorityQueue, IPriorityQueueTask, Task } from './contracts'
+import type { PromiseOrValue } from 'src/common/types/common'
 import { PairingHeap, PairingNode } from '@flemist/pairing-heap'
 import {
-  Priority,
+  type Priority,
   priorityCompare,
   priorityCreate,
 } from 'src/common/async/priority/Priority'
-import { IAbortSignalFast } from '@flemist/abort-controller-fast'
+import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
 import { EMPTY_FUNC } from 'src/common/constants'
 
 type QueueItem<T> = {
@@ -22,10 +18,7 @@ type QueueItem<T> = {
   readyToRun: boolean
 }
 
-export function queueItemLessThan(
-  o1: QueueItem<any>,
-  o2: QueueItem<any>,
-): boolean {
+function queueItemLessThan(o1: QueueItem<any>, o2: QueueItem<any>): boolean {
   return priorityCompare(o1.priority, o2.priority) < 0
 }
 
@@ -60,7 +53,7 @@ export class PriorityQueue implements IPriorityQueue, IPriorityQueueTask {
   }
 
   private _run<T>(
-    taskMode: true | false,
+    taskMode: boolean,
     func:
       | ((abortSignal?: null | IAbortSignalFast) => PromiseOrValue<T>)
       | null

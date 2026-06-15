@@ -1,6 +1,6 @@
 import { PriorityQueue } from './PriorityQueue'
-import { Priority } from 'src/common/async/priority/Priority'
-import { IAbortSignalFast } from '@flemist/abort-controller-fast'
+import type { Priority } from 'src/common/async/priority/Priority'
+import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
 
 export type AwaitPriority = (
   priority?: null | Priority,
@@ -17,4 +17,13 @@ export function createAwaitPriority(): AwaitPriority {
   }
 }
 
-export const awaitPriorityDefault = createAwaitPriority()
+let _awaitPriorityDefault: AwaitPriority | null = null
+export function awaitPriorityDefault(
+  priority?: null | Priority,
+  abortSignal?: null | IAbortSignalFast,
+): Promise<void> {
+  if (!_awaitPriorityDefault) {
+    _awaitPriorityDefault = createAwaitPriority()
+  }
+  return _awaitPriorityDefault(priority, abortSignal)
+}
