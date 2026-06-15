@@ -3,10 +3,10 @@ import { PriorityQueue } from './PriorityQueue'
 import { priorityCreate } from 'src/common/async/priority/Priority'
 import { createTestVariants } from '@flemist/test-variants'
 import {
-  type IAbortSignalFast,
   type IAbortControllerFast,
   AbortControllerFast,
   AbortError,
+  type IAbortSignalFast,
 } from '@flemist/abort-controller-fast'
 import { TimeControllerMock } from '@flemist/time-controller'
 import { delay } from 'src/common/async/wait/delay'
@@ -114,6 +114,7 @@ function generateContext(options: GenerateContextOptions): TestContext {
     let timeStart: number | null = null
 
     const runFuncSync: PriorityQueueRunFunc<number> = abortSignal => {
+      checkAbortSignal(abortSignal, abortController?.signal)
       if (started) {
         onError(
           new Error(
@@ -143,9 +144,11 @@ function generateContext(options: GenerateContextOptions): TestContext {
       }
       started = true
 
+      checkAbortSignal(abortSignal, abortController?.signal)
       timeStart = timeController.now()
       orderActual.push(action.id)
       await delay(action.duration, abortSignal, timeController)
+      checkAbortSignal(abortSignal, abortController?.signal)
 
       if (action.throwError) {
         throw new TestError(`TEST_ERROR: ${action.id}`)
@@ -291,6 +294,25 @@ function generateContext(options: GenerateContextOptions): TestContext {
     actions,
     orderActual,
     orderExpected,
+  }
+}
+
+function checkAbortSignal(
+  actual: IAbortSignalFast | null | undefined,
+  expected: IAbortSignalFast | null | undefined,
+) {
+  if ((actual == null) !== (expected == null)) {
+    throw new Error(
+      `[test] Abort signal presence mismatch, (actual == null)(${actual == null}) !== (expected == null)(${expected == null})`,
+    )
+  }
+  if (actual == null || expected == null) {
+    return
+  }
+  if (actual.aborted !== expected.aborted) {
+    throw new Error(
+      `[test] Abort signal aborted state mismatch, actual.aborted: ${actual.aborted} !== expected.aborted: ${expected.aborted}`,
+    )
   }
 }
 
