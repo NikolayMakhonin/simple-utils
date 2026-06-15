@@ -114,7 +114,6 @@ function generateContext(options: GenerateContextOptions): TestContext {
     let timeStart: number | null = null
 
     const runFuncSync: PriorityQueueRunFunc<number> = abortSignal => {
-      checkAbortSignal(abortSignal, abortController?.signal)
       if (started) {
         onError(
           new Error(
@@ -124,6 +123,7 @@ function generateContext(options: GenerateContextOptions): TestContext {
       }
       started = true
 
+      checkAbortSignal(abortSignal, abortController?.signal)
       timeStart = timeController.now()
       orderActual.push(action.id)
 
@@ -372,7 +372,7 @@ function calculateOrder(actions: Action[]): number[] {
 type TestContext = {
   throwIfError: () => void
   timeController: TimeControllerMock
-  run: Run
+  run: (action: Action) => Promise<void>
   /** Actions to add to the queue, in the order of adding */
   actions: Action[]
   /** Actual order action ids */
@@ -380,8 +380,6 @@ type TestContext = {
   /** Expected order action ids */
   orderExpected: number[]
 }
-
-type Run = (action: Action) => Promise<void>
 
 type TestOptions = {
   context: TestContext
