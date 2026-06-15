@@ -50,8 +50,6 @@ describe(
         assert.strictEqual(log[i], 'run' + i)
       }
 
-      console.log(log.join('\r\n'))
-
       let prevIndex = count - 1
       for (let i = count; i < log.length; i++) {
         const index = parseInt(log[i].match(/\d+/)![0], 10)
@@ -88,9 +86,6 @@ describe(
             },
           )
         }
-        if (abortSignal?.aborted) {
-          throw abortSignal.reason
-        }
         results.push(`${timeController.now() - timeStart}-3: ${name} end`)
         return name
       }
@@ -117,7 +112,7 @@ describe(
         )
 
         let promise: Promise<string>
-        if (funcParams.readyToRunTime) {
+        if (funcParams.readyToRunTime != null) {
           const task = priorityQueue.runTask(
             func,
             priorityCreate(funcParams.order),
@@ -397,33 +392,16 @@ describe(
 
       const expectedResults = getExpectedResults(funcsParams)
 
-      // if (!arrayEquals(results, expectedResults)) {
       assert.deepStrictEqual(
         results.sort(compare),
         expectedResults.sort(compare),
       )
-      // }
 
       results.length = 0
       timeController.addTime(1000000)
       await awaitTime(timeController, 1, 20)
       assert.strictEqual(results.length, 0)
     })
-
-    function arrayEquals<T>(a1: T[], a2: T[]): boolean {
-      const set1 = new Set(a1)
-      const set2 = new Set(a2)
-
-      let result = true
-      set1.forEach(o => {
-        result &&= set2.has(o)
-      })
-      set2.forEach(o => {
-        result &&= set1.has(o)
-      })
-
-      return result
-    }
 
     it.skip('custom 1', { timeout: 300_000 }, async () => {
       await testVariants({
@@ -485,26 +463,6 @@ describe(
       })()
     })
 
-    it.skip('custom 4', { timeout: 300_000 }, async () => {
-      await testVariants({
-        readyToRunTime1: [0],
-        readyToRunTime2: [0],
-        readyToRunTime3: [0],
-        abortTime1: [null],
-        abortTime2: [null],
-        abortTime3: [0],
-        order1: [0],
-        order2: [0],
-        order3: [0],
-        runTime1: [null],
-        runTime2: [null],
-        runTime3: [null],
-        startTime1: [0],
-        startTime2: [0],
-        startTime3: [0],
-      })()
-    })
-
     it.skip('profiling', { timeout: 300_000 }, async () => {
       await testVariants({
         readyToRunTime1: [0],
@@ -533,13 +491,13 @@ describe(
       const isBrowser = typeof window !== 'undefined'
 
       await testVariants({
-        readyToRunTime1: [0],
-        readyToRunTime2: isBrowser ? [null, 1] : [null, 0, 1, 2],
-        readyToRunTime3: [0],
+        readyToRunTime1: isBrowser ? [null, 1] : [null, 0, 1, 2],
+        readyToRunTime2: [null],
+        readyToRunTime3: [null],
 
         abortTime1: isBrowser ? [null, 2] : [null, 0, 1, 2],
-        abortTime2: [0],
-        abortTime3: isBrowser ? [null, 0] : [null, 0, 1, 2],
+        abortTime2: isBrowser ? [null, 0] : [null, 0, 1, 2],
+        abortTime3: [null],
 
         order1: [0, 1, 2],
         order2: [0, 1, 2],
