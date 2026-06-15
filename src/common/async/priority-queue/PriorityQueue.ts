@@ -16,6 +16,7 @@ type QueueItem<T> = {
   resolve: (value: T) => void
   reject: (error: any) => void
   readyToRun: boolean
+  node: PairingNode<QueueItem<T>> | null
 }
 
 function queueItemLessThan(o1: QueueItem<any>, o2: QueueItem<any>): boolean {
@@ -76,9 +77,28 @@ export class PriorityQueue implements IPriorityQueue, IPriorityQueueTask {
       resolve,
       reject,
       readyToRun: !taskMode,
+      node: null,
     }
 
-    this.#queue.add(item)
+    item.node = this.#queue.add(item)
+
+    if (abortSignal) {
+      if (abortSignal.aborted) {
+        this.#queue.delete(item.node)
+        item.node = null
+        reject(abortSignal.reason)
+        return taskMode
+          ? ({ result: promise, setReadyToRun: EMPTY_FUNC } as any)
+          : promise
+      }
+      abortSignal.subscribe(reason => {
+        if (item.node != null) {
+          this.#queue.delete(item.node)
+          item.node = null
+          item.reject(reason)
+        }
+      })
+    }
 
     if (taskMode) {
       const _this = this
@@ -142,6 +162,8 @@ export class PriorityQueue implements IPriorityQueue, IPriorityQueueTask {
         item = nextNode.item
         queue.delete(nextNode)
       }
+
+      item.node = null
 
       if (item.abortSignal && item.abortSignal.aborted) {
         item.reject(item.abortSignal.reason)

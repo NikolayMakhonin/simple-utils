@@ -156,7 +156,7 @@ describe(
 
       if (funcParams.abortTime != null) {
         timeController.setTimeout(function abortTimerCallback() {
-          funcParams.abortController.abort(funcParams.name)
+          funcParams.abortController!.abort(funcParams.name)
         }, funcParams.startTime + funcParams.abortTime)
       }
       timeController.setTimeout(enqueue, funcParams.startTime)
@@ -243,7 +243,7 @@ describe(
         }
 
         if (startedFuncParams && time === startedFuncParamsEndTime) {
-          state[startedFuncParamsIndex] = 'completed'
+          state[startedFuncParamsIndex!] = 'completed'
           resultsExpected[index++] = `${time}-3: ${startedFuncParams.name} end`
           resultsExpected[index++] =
             `${time}-3: ${startedFuncParams.name} result: ${startedFuncParams.name}`
@@ -256,7 +256,8 @@ describe(
             if (state[i] === 'enqueued') {
               const funcParams = funcsParams[i]
               if (
-                time >= funcParams.startTime + funcParams.readyToRunTime &&
+                time >=
+                  funcParams.startTime + (funcParams.readyToRunTime ?? 0) &&
                 (!startedFuncParams ||
                   funcParams.order < startedFuncParams.order ||
                   (funcParams.order === startedFuncParams.order &&
@@ -272,7 +273,7 @@ describe(
               startedFuncParams.abortTime == null
                 ? null
                 : startedFuncParams.startTime + startedFuncParams.abortTime
-            state[startedFuncParamsIndex] = 'started'
+            state[startedFuncParamsIndex!] = 'started'
             if (time !== startedFuncParamsAbortTime) {
               resultsExpected[index++] =
                 `${time}-2: ${startedFuncParams.name} start`
@@ -362,7 +363,7 @@ describe(
           abortController:
             abortTime2 == null ? null : new AbortControllerFast(),
           order: order2,
-          readyToRunTime: readyToRunTime1,
+          readyToRunTime: readyToRunTime2,
         },
         {
           name: 'func3',
@@ -372,7 +373,7 @@ describe(
           abortController:
             abortTime3 == null ? null : new AbortControllerFast(),
           order: order3,
-          readyToRunTime: readyToRunTime1,
+          readyToRunTime: readyToRunTime3,
         },
       ]
       const len = funcsParams.length
