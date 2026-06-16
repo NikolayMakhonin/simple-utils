@@ -190,6 +190,11 @@ function randomIntWithNull(rnd: Random, max: number | null): number | null {
   return randomInt(rnd, 0, max + 1)
 }
 
+// Event phases control processing order within the same time tick.
+// IMMEDIATE events (completions, aborts, non-zero ready) are processed before pickAndRun.
+// ADD events are processed with IMMEDIATE events.
+// DEFERRED_READY events (readyToRunTime === 0) are processed after the first pickAndRun,
+// modeling that readyToRun set synchronously at addTime takes effect after the queue processes.
 const PHASE_IMMEDIATE = 0
 const PHASE_ADD = 1
 const PHASE_DEFERRED_READY = 2
@@ -209,39 +214,36 @@ type SimEvent = {
 function calculateOrder(actions: Action[]): number[] {
   const actionsLen = actions.length
   const order: number[] = []
-  let processorBusy = false
-  let nextInsertionOrder = 1
+  let busy = false
+  let nextOrder = 1
 
-  // Queue state indexed by action index
+  // Per-action state arrays indexed by action position in the actions array
   const branches: (number[] | null)[] = new Array(actionsLen).fill(null)
   const isReady = new Uint8Array(actionsLen)
   const isActive = new Uint8Array(actionsLen)
 
-  const events: SimEvent[] = buildEvents(actions)
+  const events = buildEvents(actions)
   events.sort(eventCompare)
 
-  let eventIndex = 0
-  while (eventIndex < events.length) {
-    const currentTime = events[eventIndex].time
+  let ei = 0
+  while (ei < events.length) {
+    const time = events[ei].time
 
+    // Pass 1: apply IMMEDIATE and ADD events, then try to run
     while (
-      eventIndex < events.length &&
-      events[eventIndex].time === currentTime &&
-      events[eventIndex].phase < PHASE_DEFERRED_READY
+      ei < events.length &&
+      events[ei].time === time &&
+      events[ei].phase < PHASE_DEFERRED_READY
     ) {
-      applyEvent(events[eventIndex++])
+      applyEvent(events[ei++])
     }
+    tryRun(time)
 
-    pickAndRun(currentTime)
-
-    while (
-      eventIndex < events.length &&
-      events[eventIndex].time === currentTime
-    ) {
-      applyEvent(events[eventIndex++])
+    // Pass 2: apply DEFERRED_READY events, then try to run again
+    while (ei < events.length && events[ei].time === time) {
+      applyEvent(events[ei++])
     }
-
-    pickAndRun(currentTime)
+    tryRun(time)
   }
 
   return order
@@ -250,7 +252,7 @@ function calculateOrder(actions: Action[]): number[] {
     const idx = event.actionIndex
     switch (event.type) {
       case TYPE_COMPLETE:
-        processorBusy = false
+        busy = false
         break
       case TYPE_ABORT:
         isActive[idx] = 0
@@ -262,7 +264,7 @@ function calculateOrder(actions: Action[]): number[] {
         break
       case TYPE_ADD: {
         const action = actions[idx]
-        const insertionOrder = nextInsertionOrder++
+        const insertionOrder = nextOrder++
         if (action.abortTime === 0) {
           break
         }
@@ -277,14 +279,16 @@ function calculateOrder(actions: Action[]): number[] {
     }
   }
 
-  function pickAndRun(time: number): void {
-    while (!processorBusy) {
+  function tryRun(time: number): void {
+    while (!busy) {
       let best = -1
       for (let i = 0; i < actionsLen; i++) {
-        if (isActive[i] && isReady[i]) {
-          if (best === -1 || entryLessThan(i, best)) {
-            best = i
-          }
+        if (
+          isActive[i] &&
+          isReady[i] &&
+          (best === -1 || branchLessThan(i, best))
+        ) {
+          best = i
         }
       }
       if (best === -1) {
@@ -303,8 +307,8 @@ function calculateOrder(actions: Action[]): number[] {
             completeTime = abortFireTime
           }
         }
-        processorBusy = true
-        insertSorted(events, eventIndex, {
+        busy = true
+        insertSorted(events, ei, {
           time: completeTime,
           phase: PHASE_IMMEDIATE,
           actionIndex: best,
@@ -314,17 +318,18 @@ function calculateOrder(actions: Action[]): number[] {
     }
   }
 
-  function entryLessThan(i1: number, i2: number): boolean {
-    const b1 = branches[i1]!
-    const b2 = branches[i2]!
-    const len1 = b1.length
-    const len2 = b2.length
-    const len = len1 > len2 ? len1 : len2
+  // Mirrors priorityCompare: compares branch arrays from end (highest level) to start (lowest level)
+  function branchLessThan(a: number, b: number): boolean {
+    const bA = branches[a]!
+    const bB = branches[b]!
+    const lenA = bA.length
+    const lenB = bB.length
+    const len = lenA > lenB ? lenA : lenB
     for (let i = 0; i < len; i++) {
-      const v1 = i >= len1 ? 0 : b1[len1 - 1 - i]
-      const v2 = i >= len2 ? 0 : b2[len2 - 1 - i]
-      if (v1 !== v2) {
-        return v1 < v2
+      const vA = i >= lenA ? 0 : bA[lenA - 1 - i]
+      const vB = i >= lenB ? 0 : bB[lenB - 1 - i]
+      if (vA !== vB) {
+        return vA < vB
       }
     }
     return false
@@ -732,6 +737,7 @@ describe('PriorityQueue', { timeout: 7 * 60 * 60 * 1000 }, () => {
       durationMax: Array.from({ length: 50 }, (_, i) => i),
     })({
       limitTime: 60 * 1000,
+      limitTests: 200_000,
       parallel: 1,
       cycles: 1e9,
       getSeed: () => getRandomSeed(),
