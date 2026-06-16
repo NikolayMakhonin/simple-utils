@@ -1,10 +1,10 @@
 // @ai ChatGPT
-// TODO: use pool from @flemist/time-limits to limit concurrent fetches
+// TODO: use pool from @flemist/simple-utils to limit concurrent fetches
 // TODO: extract to separate CLI module
 
 import * as fs from 'fs'
 import * as path from 'path'
-// import { pool } from '@flemist/time-limits'
+// import { pool } from '@flemist/simple-utils'
 
 type Options = {
   maxAgeDays: number

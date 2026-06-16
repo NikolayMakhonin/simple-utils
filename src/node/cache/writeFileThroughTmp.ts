@@ -1,9 +1,9 @@
 import { type IPool } from 'src/common/async/pool/Pool'
 import { poolRunWait } from 'src/common/async/pool/poolRunWait'
-import path from 'path'
+import * as path from 'path'
 import { poolFs } from 'src/node/fs/pools'
-import fs from 'fs'
-import { promiseAllWait } from '../../common'
+import * as fs from 'fs'
+import { promiseAllWait } from 'src/common'
 
 export async function writeFileThroughTmp(
   filePath: string,

@@ -34,7 +34,6 @@ export function poolRunThrow<Result>({
         return func(holdPool, abortSignal)
       },
       () => {
-        // We should not wait for release
         pool.release(count)
       },
     ),

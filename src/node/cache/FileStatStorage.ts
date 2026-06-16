@@ -1,9 +1,9 @@
 import { type IPool } from 'src/common/async/pool/Pool'
 import { poolRunWait } from 'src/common/async/pool/poolRunWait'
-import type { CacheStat, IStorageDb } from '../../common'
-import path from 'path'
-import { poolFs } from '../fs'
-import fs from 'fs'
+import type { CacheStat, IStorageDb } from 'src/common'
+import * as path from 'path'
+import { poolFs } from 'src/node/fs'
+import * as fs from 'fs'
 import type { IFileStorage } from './FileStorage'
 
 export type FileStatStorageOptions = {

@@ -255,7 +255,7 @@ export function poolsWait({
   priority?: null | Priority
   abortSignal?: null | IAbortSignalFast
   awaitPriority?: null | AwaitPriority
-}) {
+}): Promise<void> {
   const len = pools.length
   if (typeof count !== 'number' && count.length !== len) {
     throw new Error(
@@ -291,7 +291,7 @@ export async function poolsWaitHold({
   priority?: null | Priority
   abortSignal?: null | IAbortSignalFast
   awaitPriority?: null | AwaitPriority
-}) {
+}): Promise<void> {
   await poolsWait({ pools, count, priority, abortSignal, awaitPriority })
   if (!poolsHold(pools, count)) {
     throw new Error('[poolsWaitHold] hold failed after wait succeeded')
