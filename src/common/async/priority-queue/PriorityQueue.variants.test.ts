@@ -236,58 +236,59 @@ function calculateOrder(actions: Action[]): number[] {
       events[eventIndex].time === time &&
       events[eventIndex].phase === PHASE_EARLY
     ) {
-      applyEvent(events[eventIndex++])
+      const event = events[eventIndex++]
+      const actionIndex = event.actionIndex
+      switch (event.type) {
+        case EVENT_COMPLETE:
+          busy = false
+          break
+        case EVENT_ABORT:
+          isActive[actionIndex] = 0
+          break
+        case EVENT_READY:
+          if (isActive[actionIndex]) {
+            isReady[actionIndex] = 1
+          }
+          break
+        case EVENT_ADD: {
+          const action = actions[actionIndex]
+          const insertionOrder = nextOrder++
+          if (action.abortTime === 0) {
+            break
+          }
+          branches[actionIndex] =
+            action.priority != null
+              ? [insertionOrder, action.priority]
+              : [insertionOrder]
+          isReady[actionIndex] = action.readyToRunTime == null ? 1 : 0
+          isActive[actionIndex] = 1
+          break
+        }
+      }
     }
+
     pickAndRun(time)
 
     while (eventIndex < events.length && events[eventIndex].time === time) {
-      applyEvent(events[eventIndex++])
+      const event = events[eventIndex++]
+      if (isActive[event.actionIndex]) {
+        isReady[event.actionIndex] = 1
+      }
     }
+
     pickAndRun(time)
   }
 
   return order
 
-  function applyEvent(event: SimEvent): void {
-    const actionIndex = event.actionIndex
-    switch (event.type) {
-      case EVENT_COMPLETE:
-        busy = false
-        break
-      case EVENT_ABORT:
-        isActive[actionIndex] = 0
-        break
-      case EVENT_READY:
-        if (isActive[actionIndex]) {
-          isReady[actionIndex] = 1
-        }
-        break
-      case EVENT_ADD: {
-        const action = actions[actionIndex]
-        const insertionOrder = nextOrder++
-        if (action.abortTime === 0) {
-          break
-        }
-        branches[actionIndex] =
-          action.priority != null
-            ? [insertionOrder, action.priority]
-            : [insertionOrder]
-        isReady[actionIndex] = action.readyToRunTime == null ? 1 : 0
-        isActive[actionIndex] = 1
-        break
-      }
-    }
-  }
-
   function pickAndRun(time: number): void {
     while (!busy) {
       let best = -1
       for (let i = 0; i < actionsLen; i++) {
-        if (
-          isActive[i] &&
-          isReady[i] &&
-          (best === -1 || branchLessThan(branches[i]!, branches[best]!))
-        ) {
+        if (!isActive[i] || !isReady[i]) {
+          continue
+        }
+        if (best === -1 || branchLessThan(branches[i]!, branches[best]!)) {
           best = i
         }
       }
