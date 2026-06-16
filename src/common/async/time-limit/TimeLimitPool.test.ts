@@ -119,40 +119,49 @@ describe('time-limits > TimeLimits Old', { timeout: 300000 }, () => {
         )
       }
 
-      await awaiter()
-
-      if (mode === 'async' || mode === 'random') {
-        timeController.addTime(asyncTime)
-      }
-      await awaiter()
-      await awaiter()
-      assert.strictEqual(completedCount, maxCount)
-
-      timeController.addTime(timeMs)
-      await awaiter()
-      if (mode === 'async' || mode === 'random') {
-        timeController.addTime(asyncTime)
+      // delay(0) returns Promise.resolve() without calling timeController.setTimeout, so releases propagate through microtasks;
+      // waitTimeControllerMock is still needed to advance mock time for async func delays (asyncTime)
+      if (timeMs === 0) {
+        await waitTimeControllerMock(timeController, Promise.all(promises), {
+          awaitsPerIteration: 12,
+        })
+        assert.strictEqual(completedCount, maxCount * 3)
+      } else {
         await awaiter()
-      }
-      assert.strictEqual(completedCount, maxCount * 2)
 
-      timeController.addTime(timeMs)
-      await awaiter()
-      if (mode === 'async' || mode === 'random') {
-        timeController.addTime(asyncTime)
+        if (mode === 'async' || mode === 'random') {
+          timeController.addTime(asyncTime)
+        }
         await awaiter()
-      }
-      assert.strictEqual(completedCount, maxCount * 3)
-
-      timeController.addTime(timeMs)
-      await awaiter()
-      if (mode === 'async' || mode === 'random') {
-        timeController.addTime(asyncTime)
         await awaiter()
-      }
-      assert.strictEqual(completedCount, maxCount * 3)
+        assert.strictEqual(completedCount, maxCount)
 
-      await Promise.all(promises)
+        timeController.addTime(timeMs)
+        await awaiter()
+        if (mode === 'async' || mode === 'random') {
+          timeController.addTime(asyncTime)
+          await awaiter()
+        }
+        assert.strictEqual(completedCount, maxCount * 2)
+
+        timeController.addTime(timeMs)
+        await awaiter()
+        if (mode === 'async' || mode === 'random') {
+          timeController.addTime(asyncTime)
+          await awaiter()
+        }
+        assert.strictEqual(completedCount, maxCount * 3)
+
+        timeController.addTime(timeMs)
+        await awaiter()
+        if (mode === 'async' || mode === 'random') {
+          timeController.addTime(asyncTime)
+          await awaiter()
+        }
+        assert.strictEqual(completedCount, maxCount * 3)
+
+        await Promise.all(promises)
+      }
 
       if (awaitPriority && (mode !== 'random' || maxCount > 5)) {
         assert.ok(
@@ -184,7 +193,7 @@ describe('time-limits > TimeLimits Old', { timeout: 300000 }, () => {
       },
       maxCount: [1, 2, 3, 10],
       timeMs: ({ mode }) => (mode === 'random' ? [3, 5, 10] : [0, 1, 2, 5, 10]),
-    })()
+    })({ timeout: 2000 })
   })
 })
 
@@ -461,7 +470,10 @@ describe('time-limits > TimeLimits', () => {
 
       async function run() {
         await waitTimeControllerMock(timeController, null, {
-          timeout: 95,
+          timeout:
+            countPerTimeLimit *
+              (Math.max(timeLimit1, timeLimit2, timeLimit3) + 3) +
+            3,
           awaitsPerIteration: 12,
         })
 
@@ -504,6 +516,6 @@ describe('time-limits > TimeLimits', () => {
       maxCount1: typeof window !== 'undefined' ? [1, 2, 5] : [0, 1, 2, 5],
       maxCount2: typeof window !== 'undefined' ? [1, 2, 5] : [0, 1, 2, 5],
       maxCount3: typeof window !== 'undefined' ? [1, 2, 5] : [0, 1, 2, 5],
-    })()
+    })({ timeout: 2000 })
   })
 })
