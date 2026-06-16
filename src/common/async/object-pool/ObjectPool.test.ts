@@ -248,7 +248,7 @@ describe('object-pool > ObjectPool', () => {
         Promise.all(promises),
         waitTimeControllerMock(timeController, null, {
           timeout: totalCount + countObjects,
-          awaitsPerIteration: 34,
+          awaitsPerIteration: 10 * totalCount,
         }).then(() => {
           throw new Error('Timeout')
         }),
@@ -274,6 +274,6 @@ describe('object-pool > ObjectPool', () => {
       abort: [null, 'before', 'after'],
       async: [false, true],
       maxSize: ({ countObjects }) => [0, 1, 4].map(o => o + countObjects),
-    })()
+    })({ timeout: 2000 })
   })
 })

@@ -197,21 +197,25 @@ export class ObjectPool<TObject extends object>
       awaitPriority,
     )
 
-    for (let i = objects.length; i < count; i++) {
-      const obj = await this._create()
-      if (obj == null) {
-        throw new Error('[ObjectPool][use] create returned null or undefined')
-      }
-      if (this._heldObjects) {
-        this._heldObjects.add(obj)
-      }
-      objects.push(obj)
-    }
     try {
+      for (let i = objects.length; i < count; i++) {
+        const obj = await this._create()
+        if (obj == null) {
+          throw new Error('[ObjectPool][use] create returned null or undefined')
+        }
+        if (this._heldObjects) {
+          this._heldObjects.add(obj)
+        }
+        objects.push(obj)
+      }
       const result = await func(objects, abortSignal)
       return result
     } finally {
       const releasedCount = await this.release(objects)
+      const unreleased = count - releasedCount
+      if (unreleased > 0) {
+        await this._pool.release(unreleased, true)
+      }
       if (this._destroy) {
         for (let i = releasedCount, len = objects.length; i < len; i++) {
           const obj = objects[i]
