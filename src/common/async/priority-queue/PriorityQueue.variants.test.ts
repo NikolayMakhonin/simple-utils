@@ -190,19 +190,17 @@ function randomIntWithNull(rnd: Random, max: number | null): number | null {
   return randomInt(rnd, 0, max + 1)
 }
 
-// Event phases control processing order within the same time tick.
-// IMMEDIATE events (completions, aborts, non-zero ready) are processed before pickAndRun.
-// ADD events are processed with IMMEDIATE events.
-// DEFERRED_READY events (readyToRunTime === 0) are processed after the first pickAndRun,
+// Simulation event phases control processing order within the same time tick.
+// PHASE_EARLY events (completions, aborts, adds, non-zero readyToRunTime) are processed before pickAndRun.
+// PHASE_LATE events (readyToRunTime === 0) are processed after the first pickAndRun,
 // modeling that readyToRun set synchronously at addTime takes effect after the queue processes.
-const PHASE_IMMEDIATE = 0
-const PHASE_ADD = 1
-const PHASE_DEFERRED_READY = 2
+const PHASE_EARLY = 0
+const PHASE_LATE = 1
 
-const TYPE_COMPLETE = 0
-const TYPE_ABORT = 1
-const TYPE_READY = 2
-const TYPE_ADD = 3
+const EVENT_COMPLETE = 0
+const EVENT_ABORT = 1
+const EVENT_READY = 2
+const EVENT_ADD = 3
 
 type SimEvent = {
   time: number
@@ -217,76 +215,75 @@ function calculateOrder(actions: Action[]): number[] {
   let busy = false
   let nextOrder = 1
 
-  // Per-action state arrays indexed by action position in the actions array
   const branches: (number[] | null)[] = new Array(actionsLen).fill(null)
   const isReady = new Uint8Array(actionsLen)
   const isActive = new Uint8Array(actionsLen)
 
   const events = buildEvents(actions)
-  events.sort(eventCompare)
+  events.sort(compareEvents)
 
-  let ei = 0
-  while (ei < events.length) {
-    const time = events[ei].time
+  let eventIndex = 0
+  while (eventIndex < events.length) {
+    const time = events[eventIndex].time
 
-    // Pass 1: apply IMMEDIATE and ADD events, then try to run
+    // Phase 1: apply early events, then pick and run
     while (
-      ei < events.length &&
-      events[ei].time === time &&
-      events[ei].phase < PHASE_DEFERRED_READY
+      eventIndex < events.length &&
+      events[eventIndex].time === time &&
+      events[eventIndex].phase === PHASE_EARLY
     ) {
-      applyEvent(events[ei++])
+      applyEvent(events[eventIndex++])
     }
-    tryRun(time)
+    pickAndRun(time)
 
-    // Pass 2: apply DEFERRED_READY events, then try to run again
-    while (ei < events.length && events[ei].time === time) {
-      applyEvent(events[ei++])
+    // Phase 2: apply late events, then pick and run again
+    while (eventIndex < events.length && events[eventIndex].time === time) {
+      applyEvent(events[eventIndex++])
     }
-    tryRun(time)
+    pickAndRun(time)
   }
 
   return order
 
   function applyEvent(event: SimEvent): void {
-    const idx = event.actionIndex
+    const actionIndex = event.actionIndex
     switch (event.type) {
-      case TYPE_COMPLETE:
+      case EVENT_COMPLETE:
         busy = false
         break
-      case TYPE_ABORT:
-        isActive[idx] = 0
+      case EVENT_ABORT:
+        isActive[actionIndex] = 0
         break
-      case TYPE_READY:
-        if (isActive[idx]) {
-          isReady[idx] = 1
+      case EVENT_READY:
+        if (isActive[actionIndex]) {
+          isReady[actionIndex] = 1
         }
         break
-      case TYPE_ADD: {
-        const action = actions[idx]
+      case EVENT_ADD: {
+        const action = actions[actionIndex]
         const insertionOrder = nextOrder++
         if (action.abortTime === 0) {
           break
         }
-        branches[idx] =
+        branches[actionIndex] =
           action.priority != null
             ? [insertionOrder, action.priority]
             : [insertionOrder]
-        isReady[idx] = action.readyToRunTime == null ? 1 : 0
-        isActive[idx] = 1
+        isReady[actionIndex] = action.readyToRunTime == null ? 1 : 0
+        isActive[actionIndex] = 1
         break
       }
     }
   }
 
-  function tryRun(time: number): void {
+  function pickAndRun(time: number): void {
     while (!busy) {
       let best = -1
       for (let i = 0; i < actionsLen; i++) {
         if (
           isActive[i] &&
           isReady[i] &&
-          (best === -1 || branchLessThan(i, best))
+          (best === -1 || compareBranches(i, best))
         ) {
           best = i
         }
@@ -308,28 +305,28 @@ function calculateOrder(actions: Action[]): number[] {
           }
         }
         busy = true
-        insertSorted(events, ei, {
+        insertEvent(events, eventIndex, {
           time: completeTime,
-          phase: PHASE_IMMEDIATE,
+          phase: PHASE_EARLY,
           actionIndex: best,
-          type: TYPE_COMPLETE,
+          type: EVENT_COMPLETE,
         })
       }
     }
   }
 
   // Mirrors priorityCompare: compares branch arrays from end (highest level) to start (lowest level)
-  function branchLessThan(a: number, b: number): boolean {
-    const bA = branches[a]!
-    const bB = branches[b]!
-    const lenA = bA.length
-    const lenB = bB.length
+  function compareBranches(a: number, b: number): boolean {
+    const branchA = branches[a]!
+    const branchB = branches[b]!
+    const lenA = branchA.length
+    const lenB = branchB.length
     const len = lenA > lenB ? lenA : lenB
     for (let i = 0; i < len; i++) {
-      const vA = i >= lenA ? 0 : bA[lenA - 1 - i]
-      const vB = i >= lenB ? 0 : bB[lenB - 1 - i]
-      if (vA !== vB) {
-        return vA < vB
+      const valueA = i >= lenA ? 0 : branchA[lenA - 1 - i]
+      const valueB = i >= lenB ? 0 : branchB[lenB - 1 - i]
+      if (valueA !== valueB) {
+        return valueA < valueB
       }
     }
     return false
@@ -343,34 +340,33 @@ function buildEvents(actions: Action[]): SimEvent[] {
 
     events.push({
       time: action.addTime,
-      phase: PHASE_ADD,
+      phase: PHASE_EARLY,
       actionIndex: i,
-      type: TYPE_ADD,
+      type: EVENT_ADD,
     })
 
     if (action.abortTime != null && action.abortTime !== 0) {
       events.push({
         time: action.addTime + action.abortTime,
-        phase: PHASE_IMMEDIATE,
+        phase: PHASE_EARLY,
         actionIndex: i,
-        type: TYPE_ABORT,
+        type: EVENT_ABORT,
       })
     }
 
     if (action.readyToRunTime != null) {
       events.push({
         time: action.addTime + action.readyToRunTime,
-        phase:
-          action.readyToRunTime === 0 ? PHASE_DEFERRED_READY : PHASE_IMMEDIATE,
+        phase: action.readyToRunTime === 0 ? PHASE_LATE : PHASE_EARLY,
         actionIndex: i,
-        type: TYPE_READY,
+        type: EVENT_READY,
       })
     }
   }
   return events
 }
 
-function eventCompare(a: SimEvent, b: SimEvent): number {
+function compareEvents(a: SimEvent, b: SimEvent): number {
   if (a.time !== b.time) {
     return a.time > b.time ? 1 : -1
   }
@@ -384,7 +380,7 @@ function eventCompare(a: SimEvent, b: SimEvent): number {
       : 0
 }
 
-function insertSorted(
+function insertEvent(
   events: SimEvent[],
   searchFrom: number,
   event: SimEvent,
@@ -393,7 +389,7 @@ function insertSorted(
   let hi = events.length
   while (lo < hi) {
     const mid = (lo + hi) >>> 1
-    if (eventCompare(events[mid], event) <= 0) {
+    if (compareEvents(events[mid], event) <= 0) {
       lo = mid + 1
     } else {
       hi = mid
