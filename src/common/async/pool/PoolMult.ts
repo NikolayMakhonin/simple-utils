@@ -57,7 +57,7 @@ export class PoolMult implements IPool {
     }
     const released = this._pool.release(count * this._multiplier)
     if (isPromiseLike(released)) {
-      return Promise.resolve(released).then(() => count)
+      return released.then(() => count)
     }
     return count
   }

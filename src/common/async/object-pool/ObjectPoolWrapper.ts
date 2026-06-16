@@ -17,6 +17,10 @@ export class ObjectPoolWrapper<TObject extends object>
     return this._objectPool.availableObjects
   }
 
+  get heldObjects(): ReadonlySet<TObject> | null {
+    return this._objectPool.heldObjects
+  }
+
   get pool(): IPool {
     return this._objectPool.pool
   }

@@ -1,7 +1,7 @@
 import type { IObservable } from './types'
 import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
 import type { Unsubscribe } from 'src/common/types/common'
-import { rejectAsResolve } from '../async'
+import { rejectAsResolve } from 'src/common/async/promise/rejectAsResolve'
 
 export function waitObservable<T>(
   observable: IObservable<T>,

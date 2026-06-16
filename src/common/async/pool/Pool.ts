@@ -130,7 +130,7 @@ export function poolWait({
       if (hold != null && hold !== false) {
         const holdCount = typeof hold === 'number' ? hold : count
         if (!pool.hold(holdCount)) {
-          throw new Error('[poolWait] Unexpected unable to hold pool')
+          throw new Error('[poolWait] hold failed after canHold succeeded')
         }
       }
     },

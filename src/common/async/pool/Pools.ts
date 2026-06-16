@@ -12,7 +12,7 @@ export class Pools implements IPool {
   private readonly _pools: IPool[]
 
   constructor(...pools: IPool[]) {
-    if (!pools?.length) {
+    if (!pools.length) {
       throw new Error('[Pools][constructor] pools should not be empty')
     }
     this._pools = pools
@@ -128,7 +128,7 @@ export function poolsHold(pools: IPool[], count: number | number[]): boolean {
   }
   for (let i = 0, len = pools.length; i < len; i++) {
     if (!pools[i].hold(typeof count === 'number' ? count : count[i])) {
-      throw new Error('[poolsHold] Unexpected behavior')
+      throw new Error('[poolsHold] hold failed after canHold succeeded')
     }
   }
   return true
@@ -295,6 +295,6 @@ export async function poolsWaitHold({
 }) {
   await poolsWait({ pools, count, priority, abortSignal, awaitPriority })
   if (!poolsHold(pools, count)) {
-    throw new Error('[poolsWaitHold] Unexpected behavior')
+    throw new Error('[poolsWaitHold] hold failed after wait succeeded')
   }
 }

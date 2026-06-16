@@ -7,15 +7,6 @@ export interface IStackPool<TObject> {
   release(objects: TObject[], start?: null | number, end?: null | number): void
 }
 
-function slice<T>(arr: T[], start: number, end: number): T[] {
-  const size = end - start
-  const result = new Array<T>(size)
-  for (let i = 0; i < size; i++) {
-    result[i] = arr[start + i]
-  }
-  return result
-}
-
 export class StackPool<TObject> implements IStackPool<TObject> {
   private readonly _objects: TObject[] = []
 
@@ -33,7 +24,7 @@ export class StackPool<TObject> implements IStackPool<TObject> {
       count = len
     }
     const start = len - count
-    const objects = slice(this._objects, start, start + count)
+    const objects = this._objects.slice(start, start + count)
     this._objects.length = start
     return objects
   }

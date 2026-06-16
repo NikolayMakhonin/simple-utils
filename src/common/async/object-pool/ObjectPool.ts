@@ -10,7 +10,7 @@ export interface IObjectPool<TObject extends object> {
   readonly pool: IPool
 
   readonly availableObjects: ReadonlyArray<TObject>
-  readonly heldObjects?: null | ReadonlySet<TObject>
+  readonly heldObjects: ReadonlySet<TObject> | null
 
   get(count: number): TObject[]
 
@@ -75,7 +75,7 @@ export class ObjectPool<TObject extends object>
   }: ObjectPoolArgs<TObject>) {
     this._allocatePool = new Pool(pool.heldCountMax)
     this._pool = new Pools(pool, this._allocatePool)
-    this._availableObjects = availableObjects || new StackPool()
+    this._availableObjects = availableObjects ?? new StackPool()
     this._heldObjects =
       heldObjects === true ? new Set<TObject>() : heldObjects || null
     this._create = create
@@ -128,7 +128,7 @@ export class ObjectPool<TObject extends object>
     const tryReleaseCount = end - start
     const releasedCount = await pool.release(tryReleaseCount, true)
 
-    end = Math.min(objects.length, releasedCount)
+    end = Math.min(objects.length, start + releasedCount)
     this._availableObjects.release(objects, start, end)
 
     if (this._heldObjects) {
@@ -175,9 +175,7 @@ export class ObjectPool<TObject extends object>
     awaitPriority?: null | AwaitPriority,
   ): Promise<TResult> {
     if (!this._create) {
-      throw new Error(
-        '[ObjectPool][use] You should specify create function in the constructor',
-      )
+      throw new Error('[ObjectPool][use] create function is not specified')
     }
     let objects = await this.getWait(
       count,
@@ -186,25 +184,19 @@ export class ObjectPool<TObject extends object>
       awaitPriority,
     )
 
-    let start
     if (!objects) {
-      objects = new Array<TObject>(count)
-      start = 0
-    } else {
-      start = objects.length
+      objects = []
     }
 
-    for (let i = start; i < count; i++) {
+    for (let i = objects.length; i < count; i++) {
       const obj = await this._create()
       if (obj == null) {
-        throw new Error(
-          '[ObjectPool][use] create function should return not null object',
-        )
+        throw new Error('[ObjectPool][use] create returned null or undefined')
       }
       if (this._heldObjects) {
         this._heldObjects.add(obj)
       }
-      objects[i] = obj
+      objects.push(obj)
     }
     try {
       const result = await func(objects, abortSignal)
@@ -222,9 +214,7 @@ export class ObjectPool<TObject extends object>
 
   allocate(size?: null | number): Promise<number> | number {
     if (!this._create) {
-      throw new Error(
-        '[ObjectPool][allocate] You should specify create function in the constructor',
-      )
+      throw new Error('[ObjectPool][allocate] create function is not specified')
     }
     const promises: Promise<void>[] = []
     let tryHoldCount =
@@ -234,7 +224,7 @@ export class ObjectPool<TObject extends object>
     }
     if (tryHoldCount < 0) {
       throw new Error(
-        '[ObjectPool][allocate] Unexpected behavior: tryHoldCount < 0',
+        `[ObjectPool][allocate] tryHoldCount (${tryHoldCount}) < 0`,
       )
     }
     const heldCount = this._allocatePool.hold(tryHoldCount) ? tryHoldCount : 0
