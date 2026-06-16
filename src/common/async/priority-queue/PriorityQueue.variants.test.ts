@@ -319,7 +319,7 @@ function calculateOrder(actions: Action[]): number[] {
   }
 }
 
-/** Mirrors priorityCompare: compares from end (highest level) to start (lowest level) */
+/** Mirrors priorityCompare: compares from highest level to lowest level */
 function branchLessThan(a: number[], b: number[]): boolean {
   const lenA = a.length
   const lenB = b.length
@@ -381,6 +381,7 @@ function compareEvents(a: SimEvent, b: SimEvent): number {
       : 0
 }
 
+// Binary search + element shifting instead of splice to avoid O(n) array reallocation
 function insertEvent(
   events: SimEvent[],
   searchFrom: number,
@@ -396,7 +397,11 @@ function insertEvent(
       hi = mid
     }
   }
-  events.splice(lo, 0, event)
+  events.push(event)
+  for (let i = events.length - 1; i > lo; i--) {
+    events[i] = events[i - 1]
+  }
+  events[lo] = event
 }
 
 type TestContext = {
