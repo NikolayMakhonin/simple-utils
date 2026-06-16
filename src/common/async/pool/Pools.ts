@@ -59,10 +59,10 @@ export class Pools implements IPool {
 }
 
 function poolsHeldCountMax(pools: IPool[]) {
-  let min: number = null!
-  for (let i = 0, len = pools.length; i < len; i++) {
+  let min = pools[0].heldCountMax
+  for (let i = 1, len = pools.length; i < len; i++) {
     const value = pools[i].heldCountMax
-    if (i === 0 || value < min) {
+    if (value < min) {
       min = value
     }
   }
@@ -70,10 +70,10 @@ function poolsHeldCountMax(pools: IPool[]) {
 }
 
 function poolsHeldCount(pools: IPool[]) {
-  let max: number = null!
-  for (let i = 0, len = pools.length; i < len; i++) {
+  let max = pools[0].heldCount
+  for (let i = 1, len = pools.length; i < len; i++) {
     const value = pools[i].heldCount
-    if (i === 0 || value > max) {
+    if (value > max) {
       max = value
     }
   }
@@ -81,10 +81,10 @@ function poolsHeldCount(pools: IPool[]) {
 }
 
 function poolsHoldAvailable(pools: IPool[]) {
-  let min: number = null!
-  for (let i = 0, len = pools.length; i < len; i++) {
+  let min = pools[0].holdAvailable
+  for (let i = 1, len = pools.length; i < len; i++) {
     const value = pools[i].holdAvailable
-    if (i === 0 || value < min) {
+    if (value < min) {
       min = value
     }
   }
@@ -92,10 +92,10 @@ function poolsHoldAvailable(pools: IPool[]) {
 }
 
 function poolsReleaseAvailable(pools: IPool[]): number {
-  let min: number = null!
-  for (let i = 0, len = pools.length; i < len; i++) {
+  let min = pools[0].releaseAvailable
+  for (let i = 1, len = pools.length; i < len; i++) {
     const value = pools[i].releaseAvailable
-    if (i === 0 || value < min) {
+    if (value < min) {
       min = value
     }
   }

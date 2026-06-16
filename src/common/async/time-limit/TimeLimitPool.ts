@@ -7,7 +7,7 @@ import { PoolWrapper } from 'src/common/async/pool/PoolWrapper'
 import { type IPool } from 'src/common/async/pool/Pool'
 
 export interface ITimeLimitPool extends IPool {
-  time: number
+  readonly time: number
 }
 
 export type TimeLimitPoolParams = {

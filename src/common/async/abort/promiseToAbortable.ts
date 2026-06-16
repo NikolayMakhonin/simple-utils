@@ -1,6 +1,6 @@
-import {
-  type IAbortSignalFast,
-  type IUnsubscribe,
+import type {
+  IAbortSignalFast,
+  IUnsubscribe,
 } from '@flemist/abort-controller-fast'
 import { rejectAsResolve } from 'src/common/async/promise/rejectAsResolve'
 

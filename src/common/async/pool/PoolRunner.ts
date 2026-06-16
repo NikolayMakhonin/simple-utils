@@ -48,7 +48,8 @@ export class PoolRunner implements IPoolRunner {
       const result = await func(abortSignal)
       return result
     } finally {
-      void this._pool.release(count)
+      // We should not wait for release
+      this._pool.release(count)
     }
   }
 }
