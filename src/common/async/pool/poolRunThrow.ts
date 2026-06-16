@@ -8,10 +8,13 @@ import { promiseLikeToPromise } from 'src/common/async/promise/promiseLikeToProm
 import { PoolHoldError } from './PoolHoldError'
 import type { PoolRunArgs } from './poolRunWait'
 
-export function poolRunThrow<Result>(args: PoolRunArgs<Result>): Result
+export function poolRunThrow<Result>(
+  args: PoolRunArgs<PromiseLike<Result>>,
+): Promise<Result>
 export function poolRunThrow<Result>(
   args: PoolRunArgs<PromiseLikeOrValue<Result>>,
 ): PromiseOrValue<Result>
+export function poolRunThrow<Result>(args: PoolRunArgs<Result>): Result
 export function poolRunThrow<Result>({
   pool,
   count,
@@ -19,8 +22,7 @@ export function poolRunThrow<Result>({
   abortSignal,
 }: PoolRunArgs<PromiseLikeOrValue<Result>>): PromiseOrValue<Result> {
   if (pool == null) {
-    const holdPool = new Pool(count)
-    return promiseLikeToPromise(func(holdPool, abortSignal))
+    return promiseLikeToPromise(func(null, abortSignal))
   }
   return promiseLikeToPromise(
     runWithFinally(

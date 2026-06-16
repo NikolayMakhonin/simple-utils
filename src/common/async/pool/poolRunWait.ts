@@ -11,7 +11,7 @@ export type PoolRunArgs<T> = {
   pool?: null | IPool
   count: number
   /** holdPool is an independent pool with capacity equal to count, scoped to this call */
-  func: (holdPool: IPool, abortSignal?: null | IAbortSignalFast) => T
+  func: (holdPool: IPool | null, abortSignal?: null | IAbortSignalFast) => T
   abortSignal?: null | IAbortSignalFast
 }
 
@@ -29,12 +29,8 @@ export function poolRunWait<T>({
   awaitPriority,
 }: PoolRunWaitArgs<PromiseLikeOrValue<T>>): Promise<T> {
   if (pool == null) {
-    const holdPool = new Pool(count)
-    const result = func(holdPool, abortSignal)
-    if (isPromiseLike(result)) {
-      return promiseLikeToPromise(result)
-    }
-    return Promise.resolve(result)
+    const result = promiseLikeToPromise(func(null, abortSignal))
+    return isPromiseLike(result) ? result : Promise.resolve(result)
   }
   return promiseLikeToPromise(
     runWithFinally(
