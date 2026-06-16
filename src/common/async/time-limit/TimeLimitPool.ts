@@ -30,7 +30,7 @@ export class TimeLimitPool extends PoolWrapper implements ITimeLimitPool {
     return this._time
   }
 
-  async release(count: number, dontThrow?: null | boolean) {
+  async release(count: number, dontThrow?: null | boolean): Promise<number> {
     await delay(this._time, null, this._timeController)
     return this._pool.release(count, dontThrow)
   }

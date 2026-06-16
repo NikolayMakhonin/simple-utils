@@ -41,140 +41,128 @@ describe('time-limits > TimeLimits Old', { timeout: 300000 }, () => {
       maxCount: number
       timeMs: number
     }) => {
-      try {
-        const timeController = new TimeControllerMock()
-        const awaitPriority = withPriorityQueue ? createAwaitPriority() : null
-        const timeLimit = timeLimitsTree
-          ? new PoolRunner(
+      const timeController = new TimeControllerMock()
+      const awaitPriority = withPriorityQueue ? createAwaitPriority() : null
+      const timeLimit = timeLimitsTree
+        ? new PoolRunner(
+            new Pools(
+              new TimeLimitPool({
+                pool: new Pool(maxCount),
+                time: timeMs,
+                timeController,
+              }),
               new Pools(
-                new TimeLimitPool({
-                  pool: new Pool(maxCount),
-                  time: timeMs,
-                  timeController,
-                }),
                 new Pools(
-                  new Pools(
-                    new TimeLimitPool({
-                      pool: new Pool(maxCount),
-                      time: timeMs,
-                      timeController,
-                    }),
-                    new TimeLimitPool({
-                      pool: new Pool(maxCount),
-                      time: timeMs,
-                      timeController,
-                    }),
-                  ),
+                  new TimeLimitPool({
+                    pool: new Pool(maxCount),
+                    time: timeMs,
+                    timeController,
+                  }),
                   new TimeLimitPool({
                     pool: new Pool(maxCount),
                     time: timeMs,
                     timeController,
                   }),
                 ),
+                new TimeLimitPool({
+                  pool: new Pool(maxCount),
+                  time: timeMs,
+                  timeController,
+                }),
               ),
-            )
-          : new PoolRunner(
-              new TimeLimitPool({
-                pool: new Pool(maxCount),
-                time: timeMs,
-                timeController,
-              }),
-            )
-
-        let completedCount = 0
-
-        const run = function run(
-          result: number,
-          delayMs: number,
-          abortSignal?: null | IAbortSignalFast,
-        ) {
-          if (delayMs) {
-            return delay(delayMs, abortSignal, timeController).then(() => {
-              completedCount++
-              return result
-            })
-          }
-          completedCount++
-          return result
-        }
-
-        assert.strictEqual(completedCount, 0)
-        const promises: Promise<void>[] = []
-        const results: number[] = []
-        for (let i = 0, len = maxCount * 3; i < len; i++) {
-          const index = i
-          const order = len - 1 - i
-          const async =
-            mode === 'async' || (mode === 'random' && Math.random() > 0.5)
-          const result = timeLimit.run(
-            1,
-            abortSignal => {
-              return run(index, async ? asyncTime : 0, abortSignal)
-            },
-            priorityCreate(order),
-            null,
-            awaitPriority,
+            ),
           )
-          assert.ok(typeof result.then === 'function')
-          promises.push(
-            result.then(o => {
-              assert.strictEqual(o, index)
-              results.push(order)
+        : new PoolRunner(
+            new TimeLimitPool({
+              pool: new Pool(maxCount),
+              time: timeMs,
+              timeController,
             }),
           )
+
+      let completedCount = 0
+
+      const run = function run(
+        result: number,
+        delayMs: number,
+        abortSignal?: null | IAbortSignalFast,
+      ) {
+        if (delayMs) {
+          return delay(delayMs, abortSignal, timeController).then(() => {
+            completedCount++
+            return result
+          })
         }
+        completedCount++
+        return result
+      }
 
+      assert.strictEqual(completedCount, 0)
+      const promises: Promise<void>[] = []
+      const results: number[] = []
+      for (let i = 0, len = maxCount * 3; i < len; i++) {
+        const index = i
+        const order = len - 1 - i
+        const async =
+          mode === 'async' || (mode === 'random' && Math.random() > 0.5)
+        const result = timeLimit.run(
+          1,
+          abortSignal => {
+            return run(index, async ? asyncTime : 0, abortSignal)
+          },
+          priorityCreate(order),
+          null,
+          awaitPriority,
+        )
+        assert.ok(typeof result.then === 'function')
+        promises.push(
+          result.then(o => {
+            assert.strictEqual(o, index)
+            results.push(order)
+          }),
+        )
+      }
+
+      await awaiter()
+
+      if (mode === 'async' || mode === 'random') {
+        timeController.addTime(asyncTime)
+      }
+      await awaiter()
+      await awaiter()
+      assert.strictEqual(completedCount, maxCount)
+
+      timeController.addTime(timeMs)
+      await awaiter()
+      if (mode === 'async' || mode === 'random') {
+        timeController.addTime(asyncTime)
         await awaiter()
+      }
+      assert.strictEqual(completedCount, maxCount * 2)
 
-        if (mode === 'async' || mode === 'random') {
-          timeController.addTime(asyncTime)
-        }
+      timeController.addTime(timeMs)
+      await awaiter()
+      if (mode === 'async' || mode === 'random') {
+        timeController.addTime(asyncTime)
         await awaiter()
+      }
+      assert.strictEqual(completedCount, maxCount * 3)
+
+      timeController.addTime(timeMs)
+      await awaiter()
+      if (mode === 'async' || mode === 'random') {
+        timeController.addTime(asyncTime)
         await awaiter()
-        assert.strictEqual(completedCount, maxCount)
+      }
+      assert.strictEqual(completedCount, maxCount * 3)
 
-        timeController.addTime(timeMs)
-        await awaiter()
-        if (mode === 'async' || mode === 'random') {
-          timeController.addTime(asyncTime)
-          await awaiter()
-        }
-        assert.strictEqual(completedCount, maxCount * 2)
+      await Promise.all(promises)
 
-        timeController.addTime(timeMs)
-        await awaiter()
-        if (mode === 'async' || mode === 'random') {
-          timeController.addTime(asyncTime)
-          await awaiter()
-        }
-        assert.strictEqual(completedCount, maxCount * 3)
-
-        timeController.addTime(timeMs)
-        await awaiter()
-        if (mode === 'async' || mode === 'random') {
-          timeController.addTime(asyncTime)
-          await awaiter()
-        }
-        assert.strictEqual(completedCount, maxCount * 3)
-
-        await Promise.all(promises)
-
-        if (awaitPriority && (mode !== 'random' || maxCount > 5)) {
-          assert.ok(
-            results.every((o, i) => o === i) === (mode !== 'random'),
-            results.join(', '),
-          )
-        }
-      } catch (err) {
-        // console.log(JSON.stringify({
-        //   maxCount,
-        //   timeMs,
-        //   asyncTime,
-        //   mode,
-        //   withPriorityQueue,
-        //   timeLimitsTree,
-        // }, null, 2))
-        throw err
+      if (awaitPriority && (mode !== 'random' || maxCount > 5)) {
+        assert.ok(
+          results.every((o, i) => o === i) === (mode !== 'random'),
+          results.join(', '),
+        )
       }
     },
   )
@@ -416,10 +404,8 @@ describe('time-limits > TimeLimits', () => {
       const promises: Promise<Result>[] = []
       const values: number[] = []
       const checkPromiseResults: number[] = []
-      // const count = timeLimits.length * countPerTimeLimit
       const count = countPerTimeLimit
 
-      // for (let i = 0; i < timeLimits.length; i++) {
       {
         const i = timeLimits.length - 1
         const timeLimit = timeLimits[i]

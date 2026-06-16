@@ -230,20 +230,19 @@ export class ObjectPool<TObject extends object>
     const heldCount = this._allocatePool.hold(tryHoldCount) ? tryHoldCount : 0
 
     let allocatedCount = 0
-    const _this = this
-    async function releasePromiseObject(objectPromise: Promise<TObject>) {
+    const releasePromiseObject = async (objectPromise: Promise<TObject>) => {
       let obj: TObject
       try {
         obj = await objectPromise
       } catch (err) {
-        await _this._allocatePool.release(1)
+        await this._allocatePool.release(1)
         throw err
       }
-      const count = await _this._release([obj], _this._allocatePool)
+      const count = await this._release([obj], this._allocatePool)
       allocatedCount += count
     }
 
-    async function releasePromise(promise: Promise<number>) {
+    const releasePromise = async (promise: Promise<number>) => {
       const count = await promise
       allocatedCount += count
     }

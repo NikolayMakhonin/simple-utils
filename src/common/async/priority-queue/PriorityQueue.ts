@@ -84,8 +84,8 @@ export class PriorityQueue implements IPriorityQueue, IPriorityQueueRunTask {
         item.node = null
         promise.reject(abortSignal.reason)
         return taskMode
-          ? ({ result: promise, setReadyToRun: EMPTY_FUNC } as any)
-          : promise
+          ? ({ result: promise.promise, setReadyToRun: EMPTY_FUNC } as any)
+          : promise.promise
       }
       abortSignal.subscribe(reason => {
         if (item.node != null) {
@@ -97,15 +97,13 @@ export class PriorityQueue implements IPriorityQueue, IPriorityQueueRunTask {
     }
 
     if (taskMode) {
-      const _this = this
-
       return {
         result: promise.promise,
-        setReadyToRun(readyToRun: boolean) {
+        setReadyToRun: (readyToRun: boolean) => {
           item.readyToRun = readyToRun
-          if (readyToRun && !_this.#inProcess) {
-            _this.#inProcess = true
-            void _this._process()
+          if (readyToRun && !this.#inProcess) {
+            this.#inProcess = true
+            void this._process()
           }
         },
       }
@@ -122,15 +120,12 @@ export class PriorityQueue implements IPriorityQueue, IPriorityQueueRunTask {
   private async _process() {
     const queue = this.#queue
 
-    // чтобы сначала сформировалась очередь, а потом началось выполнение в порядке приоритета
-    // тесты показывают что только такая длинная конструкция прерывает выполнение программы и дает синхронному коду заполнить очередь перед началом выполнения
+    // Yield to let synchronous code fill the queue before processing starts in priority order;
+    // tests show that only this construct reliably interrupts execution
     await Promise.resolve().then(EMPTY_FUNC)
 
     while (true) {
       await 0
-      // await Promise.resolve()
-
-      // void Promise.resolve().then(EMPTY_FUNC).then(next)
 
       let item = queue.getMin()
 

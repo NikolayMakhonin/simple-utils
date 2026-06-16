@@ -35,16 +35,6 @@ describe('object-pool > ObjectPool', () => {
       async: boolean
       maxSize: number
     }) => {
-      // console.log({
-      //   countObjects,
-      //   usePools,
-      //   heldObjects,
-      //   preAllocateSize,
-      //   abort,
-      //   async,
-      //   maxSize,
-      // })
-
       iteration++
 
       const timeController = new TimeControllerMock()
@@ -256,7 +246,6 @@ describe('object-pool > ObjectPool', () => {
 
       const results = await Promise.race([
         Promise.all(promises),
-        // waitTimeControllerMock(timeController, null, {timeout: 1000, awaitsPerIteration: 100})
         waitTimeControllerMock(timeController, null, {
           timeout: totalCount + countObjects,
           awaitsPerIteration: 34,
@@ -265,8 +254,6 @@ describe('object-pool > ObjectPool', () => {
         }),
       ])
 
-      // waitTimeControllerMock(timeController, null, {timeout: 1000, awaitsPerIteration: 100})
-
       assert.strictEqual(activeObjects.size, 0)
       assert.strictEqual(objectPool.pool.heldCountMax, maxSize)
       assert.strictEqual(objectPool.pool.holdAvailable, maxSize)
@@ -274,13 +261,6 @@ describe('object-pool > ObjectPool', () => {
       for (let i = 0; i < totalCount; i++) {
         assert.strictEqual(results[i], i + 10000 * iteration)
       }
-
-      // if (abort && preAllocateSize != null) {
-      //   assert.strictEqual(objectPool.availableObjects.length, Math.min(maxSize, preAllocateSize ?? 0))
-      // }
-      // else {
-      //   assert.strictEqual(objectPool.availableObjects.length, maxSize - (objectsCount && maxSize % objectsCount))
-      // }
     },
   )
 

@@ -28,11 +28,11 @@ export class PoolWrapper implements IPool {
     return this._pool.canHold(count)
   }
 
-  hold(count: number) {
+  hold(count: number): boolean {
     return this._pool.hold(count)
   }
 
-  release(count: number, dontThrow?: null | boolean) {
+  release(count: number, dontThrow?: null | boolean): Promise<number> | number {
     return this._pool.release(count, dontThrow)
   }
 
