@@ -27,7 +27,7 @@ export function promiseToAbortable<T>(
     }
 
     let rejected: boolean = false
-    function onReject(value: T) {
+    function onReject(reason: any) {
       if (rejected) {
         return
       }
@@ -38,10 +38,10 @@ export function promiseToAbortable<T>(
         unsubscribe()
       }
 
-      rejectAsResolve(resolve, value)
+      rejectAsResolve(resolve, reason)
     }
 
-    promise.then(onResolve).catch(onReject)
+    promise.then(onResolve, onReject)
 
     unsubscribe = abortSignal.subscribe(onReject)
   })

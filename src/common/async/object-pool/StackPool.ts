@@ -24,7 +24,7 @@ export class StackPool<TObject> implements IStackPool<TObject> {
       count = len
     }
     const start = len - count
-    const objects = this._objects.slice(start, start + count)
+    const objects = this._objects.slice(start)
     this._objects.length = start
     return objects
   }
