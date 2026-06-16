@@ -141,25 +141,6 @@ function generateContext(options: GenerateContextOptions): TestContext {
   }
 }
 
-function checkAbortSignal(
-  actual: IAbortSignalFast | null | undefined,
-  expected: IAbortSignalFast | null | undefined,
-) {
-  if ((actual == null) !== (expected == null)) {
-    throw new Error(
-      `[test] Abort signal presence mismatch, (actual == null)(${actual == null}) !== (expected == null)(${expected == null})`,
-    )
-  }
-  if (actual == null || expected == null) {
-    return
-  }
-  if (actual.aborted !== expected.aborted) {
-    throw new Error(
-      `[test] Abort signal aborted state mismatch, actual.aborted: ${actual.aborted} !== expected.aborted: ${expected.aborted}`,
-    )
-  }
-}
-
 class TestError extends Error {}
 
 function generateActions(options: GenerateContextOptions): Action[] {
@@ -345,6 +326,25 @@ async function runAction(context: TestContext, action: Action): Promise<void> {
   checkActionResult(action, timeController, runResult, runError, timeStart)
 }
 
+function checkAbortSignal(
+  actual: IAbortSignalFast | null | undefined,
+  expected: IAbortSignalFast | null | undefined,
+) {
+  if ((actual == null) !== (expected == null)) {
+    throw new Error(
+      `[test] Abort signal presence mismatch, (actual == null)(${actual == null}) !== (expected == null)(${expected == null})`,
+    )
+  }
+  if (actual == null || expected == null) {
+    return
+  }
+  if (actual.aborted !== expected.aborted) {
+    throw new Error(
+      `[test] Abort signal aborted state mismatch, actual.aborted: ${actual.aborted} !== expected.aborted: ${expected.aborted}`,
+    )
+  }
+}
+
 function checkActionResult(
   action: Action,
   timeController: TimeControllerMock,
@@ -383,9 +383,7 @@ function checkActionResult(
   } else if (action.throwError) {
     if (runError == null) {
       throw new Error(
-        `[test] Action should throw error but did not: ${formatObject({
-          action,
-        })}`,
+        `[test] Action should throw error but did not: ${formatObject(action)}`,
       )
     }
     if (runError.message !== `TEST_ERROR: ${action.id}`) {
@@ -465,9 +463,9 @@ async function test(options: TestOptions): Promise<void> {
     () => {
       hasResult = true
     },
-    o => {
+    reason => {
       hasError = true
-      error = o
+      error = reason
     },
   )
 
