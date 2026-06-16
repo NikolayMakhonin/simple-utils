@@ -30,7 +30,7 @@
  * [test][action-1] added; priority: null; addTime: 2
  * [test][action-1] started async; time: 2; duration: 3
  */
-import { describe, it } from 'vitest'
+import { describe, it, assert } from 'vitest'
 import { PriorityQueue } from './PriorityQueue'
 import { priorityCreate } from 'src/common/async/priority/Priority'
 import { createTestVariants } from '@flemist/test-variants'
@@ -295,6 +295,8 @@ async function runAction(context: TestContext, action: Action): Promise<void> {
 
   const runFunc = action.duration === 0 ? runFuncSync : runFuncAsync
 
+  const timeAdd: number = timeController.now()
+
   let runResult: number | null = null
   let runError: TestError | AbortError | null = null
   try {
@@ -323,7 +325,9 @@ async function runAction(context: TestContext, action: Action): Promise<void> {
     }
   }
 
-  checkActionResult(action, timeController, runResult, runError, timeStart)
+  const timeEnd = timeController.now()
+
+  checkActionResult(action, runResult, runError, timeAdd, timeStart, timeEnd)
 }
 
 function checkAbortSignal(
@@ -347,16 +351,33 @@ function checkAbortSignal(
 
 function checkActionResult(
   action: Action,
-  timeController: TimeControllerMock,
   runResult: number | null,
   runError: TestError | AbortError | null,
+  timeAdd: number,
   timeStart: number | null,
+  timeEnd: number,
 ): void {
+  const timeStartFromAdd = timeStart != null ? timeStart - timeAdd : null
+
+  if (
+    timeStartFromAdd != null &&
+    timeStartFromAdd < (action.readyToRunTime ?? 0)
+  ) {
+    throw new Error(
+      `[test] Action started before readyToRunTime, action: ${formatObject(
+        action,
+      )}, timeAdd: ${timeAdd}, timeStart: ${timeStart}, timeStartFromAdd: ${timeStartFromAdd}`,
+    )
+  }
+
+  // null - unknown if should abort or not
   const shouldAbort =
-    action.abortTime != null &&
-    action.abortTime <= (action.readyToRunTime ?? 0) + action.duration
+    timeStartFromAdd == null ||
+    (action.abortTime != null &&
+      action.abortTime <= timeStartFromAdd + action.duration)
   const shouldAbortBeforeStart =
-    action.abortTime != null && action.abortTime <= (action.readyToRunTime ?? 0)
+    timeStartFromAdd == null ||
+    (action.abortTime != null && action.abortTime <= timeStartFromAdd)
 
   if (shouldAbort) {
     if (runError == null) {
@@ -432,16 +453,13 @@ function checkActionResult(
       `[test] Action run func did not start: ${formatObject(action)}`,
     )
   } else {
-    const durationActual = timeController.now() - timeStart
+    const durationActual = timeEnd - timeStart
     const durationExpected =
       action.abortTime == null
         ? action.duration
         : Math.max(
             0,
-            Math.min(
-              action.duration,
-              action.abortTime - (action.readyToRunTime ?? 0),
-            ),
+            Math.min(action.duration, action.abortTime - timeStartFromAdd!),
           )
     if (durationActual !== durationExpected) {
       throw new Error(
@@ -487,8 +505,10 @@ async function test(options: TestOptions): Promise<void> {
     )
   }
   if (!deepEqualJsonLike(orderActual, orderExpected)) {
-    throw new Error(
-      `[test] Order actual !== expected:\n${formatObject({ actions, orderActual, orderExpected })}`,
+    assert.deepStrictEqual(
+      orderActual,
+      orderExpected,
+      `Order actual !== expected:\n${formatObject({ actions, orderActual, orderExpected })}`,
     )
   }
 
@@ -514,7 +534,7 @@ describe('PriorityQueue', { timeout: 7 * 60 * 60 * 1000 }, () => {
       getSeed: () => getRandomSeed(),
       timeout: 1000,
       findBestError: {
-        limitArgOnError: true,
+        limitArgOnError: false,
       },
       iterationModes: [
         {
