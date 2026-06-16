@@ -8,14 +8,6 @@ import {
 import { isPromiseLike } from 'src/common/async/promise/isPromiseLike'
 import { type IPool } from './Pool'
 
-// export interface IPools {
-//   canHold(count: number | number[]): boolean
-//   hold(count: number | number[]): boolean
-//   release(count: number, dontThrow?: null | boolean): Promise<number> | number
-//   release(count: number[], dontThrow?: null | boolean): Promise<number[]> | number[]
-//   release(count: number | number[], dontThrow?: null | boolean): Promise<number | number[]> | number | number[]
-// }
-
 export class Pools implements IPool {
   private readonly _pools: IPool[]
 

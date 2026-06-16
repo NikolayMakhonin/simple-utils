@@ -25,13 +25,10 @@ export interface IPool {
   tick(abortSignal?: null | IAbortSignalFast): Promise<void> | void
 }
 
-// export interface IPoolSync extends IPool {
-//   release(count: number): number
-// }
-
 export class Pool implements IPool {
   private readonly _heldCountMax: number = 0
   private _heldCount: number = 0
+  private _tickPromise: ManualPromise | null = null
 
   constructor(heldCountMax: number) {
     if (!Number.isInteger(heldCountMax) || heldCountMax < 0) {
@@ -94,7 +91,6 @@ export class Pool implements IPool {
     return count
   }
 
-  private _tickPromise: ManualPromise | null = null
   tick(abortSignal?: null | IAbortSignalFast): Promise<void> | void {
     if (this._heldCount === 0) {
       return

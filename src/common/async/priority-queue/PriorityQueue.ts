@@ -64,7 +64,6 @@ export class PriorityQueue implements IPriorityQueue, IPriorityQueueRunTask {
     priority?: null | Priority,
     abortSignal?: null | IAbortSignalFast,
   ): PriorityQueueTask<T> | Promise<T> {
-    // const promise = new CustomPromise<T>(abortSignal)
     const promise = new ManualPromise<T>()
 
     const item: QueueItem<T> = {
