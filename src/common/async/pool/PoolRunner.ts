@@ -1,4 +1,5 @@
 import { type IAbortSignalFast } from '@flemist/abort-controller-fast'
+import type { PromiseOrValue } from 'src/common/types/common'
 import { type AwaitPriority } from 'src/common/async/priority-queue/helpers'
 import { type Priority } from 'src/common/async/priority/Priority'
 import { type IPool, poolWait } from './Pool'
@@ -8,7 +9,7 @@ export interface IPoolRunner {
   pool: IPool
   run<T>(
     count: number,
-    func: (abortSignal?: null | IAbortSignalFast) => Promise<T> | T,
+    func: (abortSignal?: null | IAbortSignalFast) => PromiseOrValue<T>,
     priority?: null | Priority,
     abortSignal?: null | IAbortSignalFast,
     awaitPriority?: null | AwaitPriority,
@@ -29,7 +30,7 @@ export class PoolRunner implements IPoolRunner {
 
   async run<T>(
     count: number,
-    func: (abortSignal?: null | IAbortSignalFast) => Promise<T> | T,
+    func: (abortSignal?: null | IAbortSignalFast) => PromiseOrValue<T>,
     priority?: null | Priority,
     abortSignal?: null | IAbortSignalFast,
     awaitPriority?: null | AwaitPriority,

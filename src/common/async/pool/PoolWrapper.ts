@@ -1,4 +1,5 @@
 import { type IAbortSignalFast } from '@flemist/abort-controller-fast'
+import type { PromiseOrValue } from 'src/common/types/common'
 import { type IPool } from './Pool'
 
 export class PoolWrapper implements IPool {
@@ -32,11 +33,11 @@ export class PoolWrapper implements IPool {
     return this._pool.hold(count)
   }
 
-  release(count: number, dontThrow?: null | boolean): Promise<number> | number {
+  release(count: number, dontThrow?: null | boolean): PromiseOrValue<number> {
     return this._pool.release(count, dontThrow)
   }
 
-  tick(abortSignal?: null | IAbortSignalFast): Promise<void> | void {
+  tick(abortSignal?: null | IAbortSignalFast): PromiseOrValue<void> {
     return this._pool.tick(abortSignal)
   }
 }

@@ -1,4 +1,5 @@
 import { type IAbortSignalFast } from '@flemist/abort-controller-fast'
+import type { PromiseOrValue } from 'src/common/types/common'
 import { type Priority } from 'src/common/async/priority/Priority'
 import { type AwaitPriority } from 'src/common/async/priority-queue/helpers'
 import { type IPool } from 'src/common/async/pool/Pool'
@@ -25,7 +26,7 @@ export class ObjectPoolWrapper<TObject extends object>
     return this._objectPool.pool
   }
 
-  allocate(size?: null | number): Promise<number> | number {
+  allocate(size?: null | number): PromiseOrValue<number> {
     return this._objectPool.allocate(size)
   }
 
@@ -46,11 +47,11 @@ export class ObjectPoolWrapper<TObject extends object>
     objects: TObject[],
     start?: null | number,
     end?: null | number,
-  ): Promise<number> | number {
+  ): PromiseOrValue<number> {
     return this._objectPool.release(objects, start, end)
   }
 
-  tick(abortSignal?: null | IAbortSignalFast): Promise<void> | void {
+  tick(abortSignal?: null | IAbortSignalFast): PromiseOrValue<void> {
     return this._objectPool.tick(abortSignal)
   }
 
@@ -59,7 +60,7 @@ export class ObjectPoolWrapper<TObject extends object>
     func: (
       objects: ReadonlyArray<TObject>,
       abortSignal?: null | IAbortSignalFast,
-    ) => Promise<TResult> | TResult,
+    ) => PromiseOrValue<TResult>,
     priority?: null | Priority,
     abortSignal?: null | IAbortSignalFast,
     awaitPriority?: null | AwaitPriority,

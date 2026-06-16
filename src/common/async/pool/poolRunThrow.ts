@@ -1,4 +1,4 @@
-import { type IPool } from './Pool'
+import { Pool } from './Pool'
 import type {
   PromiseLikeOrValue,
   PromiseOrValue,
@@ -6,31 +6,33 @@ import type {
 import { runWithFinally } from 'src/common/async/runWithFinally'
 import { promiseLikeToPromise } from 'src/common/async/promise/promiseLikeToPromise'
 import { PoolHoldError } from './PoolHoldError'
+import type { PoolRunArgs } from './poolRunWait'
 
+export function poolRunThrow<Result>(args: PoolRunArgs<Result>): Result
 export function poolRunThrow<Result>(
-  pool: IPool,
-  count: number,
-  func: (() => Result) | null | undefined,
-): Result
-export function poolRunThrow<Result>(
-  pool: IPool,
-  count: number,
-  func: (() => PromiseLikeOrValue<Result>) | null | undefined,
+  args: PoolRunArgs<PromiseLikeOrValue<Result>>,
 ): PromiseOrValue<Result>
-export function poolRunThrow<Result>(
-  pool: IPool,
-  count: number,
-  func: (() => PromiseLikeOrValue<Result>) | null | undefined,
-): PromiseOrValue<Result> {
+export function poolRunThrow<Result>({
+  pool,
+  count,
+  func,
+  abortSignal,
+}: PoolRunArgs<PromiseLikeOrValue<Result>>): PromiseOrValue<Result> {
+  if (pool == null) {
+    const holdPool = new Pool(count)
+    return promiseLikeToPromise(func(holdPool, abortSignal))
+  }
   return promiseLikeToPromise(
     runWithFinally(
       () => {
-        const hold = pool.hold(count)
-        if (!hold) {
+        if (!pool.hold(count)) {
           throw new PoolHoldError(count)
         }
       },
-      func!,
+      () => {
+        const holdPool = new Pool(count)
+        return func(holdPool, abortSignal)
+      },
       () => {
         void pool.release(count)
       },

@@ -1,4 +1,5 @@
 import { type IAbortSignalFast } from '@flemist/abort-controller-fast'
+import type { PromiseOrValue } from 'src/common/types/common'
 import { type IStackPool, StackPool } from './StackPool'
 import { type IPool, Pool, poolWait } from 'src/common/async/pool/Pool'
 import { Pools } from 'src/common/async/pool/Pools'
@@ -19,10 +20,10 @@ export interface IObjectPool<TObject extends object> {
     objects: TObject[],
     start?: null | number,
     end?: null | number,
-  ): Promise<number> | number
+  ): PromiseOrValue<number>
 
   /** Resolves when pool releases at least one held slot */
-  tick(abortSignal?: null | IAbortSignalFast): Promise<void> | void
+  tick(abortSignal?: null | IAbortSignalFast): PromiseOrValue<void>
 
   /** Waits until pool can hold the requested count, then gets objects */
   getWait(
@@ -37,13 +38,13 @@ export interface IObjectPool<TObject extends object> {
     func: (
       objects: ReadonlyArray<TObject>,
       abortSignal?: null | IAbortSignalFast,
-    ) => Promise<TResult> | TResult,
+    ) => PromiseOrValue<TResult>,
     priority?: null | Priority,
     abortSignal?: null | IAbortSignalFast,
     awaitPriority?: null | AwaitPriority,
   ): Promise<TResult>
 
-  allocate(size?: null | number): Promise<number> | number
+  allocate(size?: null | number): PromiseOrValue<number>
 }
 
 export type ObjectPoolArgs<TObject extends object> = {
@@ -52,8 +53,8 @@ export type ObjectPoolArgs<TObject extends object> = {
   availableObjects?: null | IStackPool<TObject>
   /** Enables tracking of objects currently held and not yet released */
   heldObjects?: null | boolean | Set<TObject>
-  create: () => Promise<TObject> | TObject
-  destroy?: null | ((obj: TObject) => Promise<void> | void)
+  create: () => PromiseOrValue<TObject>
+  destroy?: null | ((obj: TObject) => PromiseOrValue<void>)
 }
 
 export class ObjectPool<TObject extends object>
@@ -63,8 +64,8 @@ export class ObjectPool<TObject extends object>
   private readonly _allocatePool: IPool
   private readonly _availableObjects: IStackPool<TObject>
   private readonly _heldObjects: Set<TObject> | null
-  private readonly _create?: null | (() => Promise<TObject> | TObject)
-  private readonly _destroy?: null | ((obj: TObject) => Promise<void> | void)
+  private readonly _create?: null | (() => PromiseOrValue<TObject>)
+  private readonly _destroy?: null | ((obj: TObject) => PromiseOrValue<void>)
 
   constructor({
     pool,
@@ -109,16 +110,16 @@ export class ObjectPool<TObject extends object>
     objects: TObject[],
     start?: null | number,
     end?: null | number,
-  ): Promise<number> {
+  ): PromiseOrValue<number> {
     return this._release(objects, this._pool, start, end)
   }
 
-  private async _release(
+  private _release(
     objects: TObject[],
     pool: IPool,
     start?: null | number,
     end?: null | number,
-  ): Promise<number> {
+  ): PromiseOrValue<number> {
     if (start == null) {
       start = 0
     }
@@ -126,9 +127,21 @@ export class ObjectPool<TObject extends object>
       end = objects.length
     }
     const tryReleaseCount = end - start
-    const releasedCount = await pool.release(tryReleaseCount, true)
+    const released = pool.release(tryReleaseCount, true)
+    if (isPromiseLike(released)) {
+      return released.then(releasedCount => {
+        return this._releaseObjects(objects, start, releasedCount)
+      })
+    }
+    return this._releaseObjects(objects, start, released)
+  }
 
-    end = Math.min(objects.length, start + releasedCount)
+  private _releaseObjects(
+    objects: TObject[],
+    start: number,
+    releasedCount: number,
+  ): number {
+    const end = Math.min(objects.length, start + releasedCount)
     this._availableObjects.release(objects, start, end)
 
     if (this._heldObjects) {
@@ -143,7 +156,7 @@ export class ObjectPool<TObject extends object>
     return releasedCount
   }
 
-  tick(abortSignal?: null | IAbortSignalFast): Promise<void> | void {
+  tick(abortSignal?: null | IAbortSignalFast): PromiseOrValue<void> {
     return this._pool.tick(abortSignal)
   }
 
@@ -169,7 +182,7 @@ export class ObjectPool<TObject extends object>
     func: (
       objects: ReadonlyArray<TObject>,
       abortSignal?: null | IAbortSignalFast,
-    ) => Promise<TResult> | TResult,
+    ) => PromiseOrValue<TResult>,
     priority?: null | Priority,
     abortSignal?: null | IAbortSignalFast,
     awaitPriority?: null | AwaitPriority,
@@ -212,7 +225,7 @@ export class ObjectPool<TObject extends object>
     }
   }
 
-  allocate(size?: null | number): Promise<number> | number {
+  allocate(size?: null | number): PromiseOrValue<number> {
     if (!this._create) {
       throw new Error('[ObjectPool][allocate] create function is not specified')
     }
@@ -230,21 +243,21 @@ export class ObjectPool<TObject extends object>
     const heldCount = this._allocatePool.hold(tryHoldCount) ? tryHoldCount : 0
 
     let allocatedCount = 0
-    const releasePromiseObject = async (objectPromise: Promise<TObject>) => {
+    const releasePromiseObject = async (
+      objectPromise: PromiseLike<TObject>,
+    ) => {
       let obj: TObject
       try {
         obj = await objectPromise
       } catch (err) {
-        await this._allocatePool.release(1)
+        this._allocatePool.release(1)
         throw err
       }
-      const count = await this._release([obj], this._allocatePool)
-      allocatedCount += count
+      allocatedCount += await this._release([obj], this._allocatePool)
     }
 
-    const releasePromise = async (promise: Promise<number>) => {
-      const count = await promise
-      allocatedCount += count
+    const releasePromise = async (promise: PromiseLike<number>) => {
+      allocatedCount += await promise
     }
 
     for (let i = 0; i < heldCount; i++) {
@@ -252,9 +265,14 @@ export class ObjectPool<TObject extends object>
       if (isPromiseLike(objectOrPromise)) {
         promises.push(releasePromiseObject(objectOrPromise))
       } else {
-        const promise = this._release([objectOrPromise], this._allocatePool)
-        if (isPromiseLike(promise)) {
-          promises.push(releasePromise(promise))
+        const countOrPromise = this._release(
+          [objectOrPromise],
+          this._allocatePool,
+        )
+        if (isPromiseLike(countOrPromise)) {
+          promises.push(releasePromise(countOrPromise))
+        } else {
+          allocatedCount += countOrPromise
         }
       }
     }

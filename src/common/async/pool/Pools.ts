@@ -1,4 +1,5 @@
 import { type IAbortSignalFast } from '@flemist/abort-controller-fast'
+import type { PromiseOrValue } from 'src/common/types/common'
 import { type Priority } from 'src/common/async/priority/Priority'
 import {
   type AwaitPriority,
@@ -43,19 +44,16 @@ export class Pools implements IPool {
     return poolsHold(this._pools, count)
   }
 
-  release(count: number, dontThrow?: null | boolean): Promise<number> | number
-  release(
-    count: number[],
-    dontThrow?: null | boolean,
-  ): Promise<number[]> | number[]
+  release(count: number, dontThrow?: null | boolean): PromiseOrValue<number>
+  release(count: number[], dontThrow?: null | boolean): PromiseOrValue<number[]>
   release(
     count: number | number[],
     dontThrow?: null | boolean,
-  ): Promise<number | number[]> | number | number[] {
+  ): PromiseOrValue<number | number[]> {
     return poolsRelease(this._pools, count, dontThrow)
   }
 
-  tick(abortSignal?: null | IAbortSignalFast): Promise<void> | void {
+  tick(abortSignal?: null | IAbortSignalFast): PromiseOrValue<void> {
     return poolsTick(this._pools, abortSignal)
   }
 }
@@ -139,22 +137,22 @@ export function poolsRelease(
   pools: IPool[],
   count: number,
   dontThrow?: null | boolean,
-): Promise<number> | number
+): PromiseOrValue<number>
 export function poolsRelease(
   pools: IPool[],
   count: number[],
   dontThrow?: null | boolean,
-): Promise<number[]> | number[]
+): PromiseOrValue<number[]>
 export function poolsRelease(
   pools: IPool[],
   count: number | number[],
   dontThrow?: null | boolean,
-): Promise<number | number[]> | number | number[]
+): PromiseOrValue<number | number[]>
 export function poolsRelease(
   pools: IPool[],
   count: number | number[],
   dontThrow?: null | boolean,
-): Promise<number | number[]> | number | number[] {
+): PromiseOrValue<number | number[]> {
   if (typeof count === 'number') {
     const releaseAvailable = poolsReleaseAvailable(pools)
     if (count > releaseAvailable) {
@@ -225,7 +223,7 @@ export function poolsRelease(
 export function poolsTick(
   pools: IPool[],
   abortSignal?: null | IAbortSignalFast,
-): Promise<void> | void {
+): PromiseOrValue<void> {
   let promises: Promise<void>[] | null = null
   for (let i = 0, len = pools.length; i < len; i++) {
     const promise = pools[i].tick(abortSignal)

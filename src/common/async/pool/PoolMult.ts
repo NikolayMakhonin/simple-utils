@@ -1,4 +1,5 @@
 import { type IAbortSignalFast } from '@flemist/abort-controller-fast'
+import type { PromiseOrValue } from 'src/common/types/common'
 import { isPromiseLike } from 'src/common/async/promise/isPromiseLike'
 import { type IPool } from './Pool'
 
@@ -41,7 +42,7 @@ export class PoolMult implements IPool {
     return this._pool.hold(count * this._multiplier)
   }
 
-  release(count: number, dontThrow?: null | boolean): Promise<number> | number {
+  release(count: number, dontThrow?: null | boolean): PromiseOrValue<number> {
     const releaseAvailable = this.releaseAvailable
     if (count > releaseAvailable) {
       if (dontThrow) {
@@ -62,7 +63,7 @@ export class PoolMult implements IPool {
     return count
   }
 
-  tick(abortSignal?: null | IAbortSignalFast): Promise<void> | void {
+  tick(abortSignal?: null | IAbortSignalFast): PromiseOrValue<void> {
     return this._pool.tick(abortSignal)
   }
 }

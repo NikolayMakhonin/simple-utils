@@ -5,14 +5,18 @@ import { type Priority } from 'src/common/async/priority/Priority'
 import type { PromiseLikeOrValue } from 'src/common/types/common'
 import { runWithFinally } from 'src/common/async/runWithFinally'
 import { promiseLikeToPromise } from 'src/common/async/promise/promiseLikeToPromise'
+import { isPromiseLike } from 'src/common/async/promise/isPromiseLike'
 
-export type PoolRunWaitArgs<T> = {
-  pool: IPool
+export type PoolRunArgs<T> = {
+  pool?: null | IPool
   count: number
   /** @param holdPool - pool with `count` capacity for nested checks via poolRunThrow */
   func: (holdPool: IPool, abortSignal?: null | IAbortSignalFast) => T
-  priority?: null | Priority
   abortSignal?: null | IAbortSignalFast
+}
+
+export type PoolRunWaitArgs<T> = PoolRunArgs<T> & {
+  priority?: null | Priority
   awaitPriority?: null | AwaitPriority
 }
 
@@ -24,6 +28,14 @@ export function poolRunWait<T>({
   abortSignal,
   awaitPriority,
 }: PoolRunWaitArgs<PromiseLikeOrValue<T>>): Promise<T> {
+  if (pool == null) {
+    const holdPool = new Pool(count)
+    const result = func(holdPool, abortSignal)
+    if (isPromiseLike(result)) {
+      return promiseLikeToPromise(result)
+    }
+    return Promise.resolve(result)
+  }
   return promiseLikeToPromise(
     runWithFinally(
       () => {

@@ -1,20 +1,13 @@
 import { type IAbortSignalFast } from '@flemist/abort-controller-fast'
+import type { PromiseOrValue } from 'src/common/types/common'
 import { type IPool } from './Pool'
 import { PoolWrapper } from './PoolWrapper'
 
 /**
- * Pool whose availability includes held counts of dependency pools.
- * Holds are placed exclusively on its own pool, so dependency pools remain unblocked.
- *
- * For example, there are 2 pools for loading data,
- * one loads data in the background, and the other for urgent loading on demand.
- * To add a new background task, you need to make sure
- * that the total number of tasks in all pools does not exceed the limit.
- * But if you need to add an urgent task, you need to make sure
- * that only the urgent pool has space.
- * In the worst case, both pools will be busy, but not for long,
- * since background tasks will be completed, and new background tasks
- * will not be added until space is freed up.
+ * Pool where heldCount is the sum of own pool and all dependency pools,
+ * but hold/release operate exclusively on own pool.
+ * This allows a low-priority pool to yield capacity to high-priority pools
+ * without blocking them
  */
 export class DependentPool extends PoolWrapper {
   private readonly _pools: IPool[]
@@ -48,7 +41,7 @@ export class DependentPool extends PoolWrapper {
     return this._pool.hold(count)
   }
 
-  tick(abortSignal?: null | IAbortSignalFast): Promise<void> | void {
+  tick(abortSignal?: null | IAbortSignalFast): PromiseOrValue<void> {
     let promises: Promise<void>[] | null = null
     const promise = this._pool.tick(abortSignal)
     if (promise) {

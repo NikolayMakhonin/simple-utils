@@ -4,9 +4,8 @@ import { type IWeakOrMap, WeakOrMap } from './WeakOrMap'
 type HeldKey<K> = K | WeakRef<K & object>
 
 /**
- * Key-value map accepting keys of any type
- * Additionally, if a value is an object, the entry will be removed
- * when the value is garbage collected
+ * Key-value map accepting keys of any type.
+ * Object values are weakly held and entries are auto-removed when the value is garbage collected
  */
 export class WeakOrMapFull<K, V> implements IWeakOrMap<K, V> {
   private readonly _entries: IWeakOrMap<K, V | WeakRef<V & object>>

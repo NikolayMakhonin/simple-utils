@@ -7,6 +7,7 @@ import {
   getPriorityQueueGlobal,
 } from 'src/common/async/priority-queue/helpers'
 import { type Priority } from 'src/common/async/priority/Priority'
+import type { PromiseOrValue } from 'src/common/types/common'
 
 /**
  * Counting semaphore for limiting concurrent access to a shared resource.
@@ -21,9 +22,9 @@ export interface IPool {
 
   canHold(count: number): boolean
   hold(count: number): boolean
-  release(count: number, dontThrow?: null | boolean): Promise<number> | number
+  release(count: number, dontThrow?: null | boolean): PromiseOrValue<number>
 
-  tick(abortSignal?: null | IAbortSignalFast): Promise<void> | void
+  tick(abortSignal?: null | IAbortSignalFast): PromiseOrValue<void>
 }
 
 export class Pool implements IPool {
@@ -92,7 +93,7 @@ export class Pool implements IPool {
     return count
   }
 
-  tick(abortSignal?: null | IAbortSignalFast): Promise<void> | void {
+  tick(abortSignal?: null | IAbortSignalFast): PromiseOrValue<void> {
     if (this._heldCount === 0) {
       return
     }
