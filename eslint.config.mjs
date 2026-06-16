@@ -49,6 +49,7 @@ export default ts.config([
       'prefer-const': 'warn',
       'no-control-regex': 'warn',
       'no-useless-escape': 'warn',
+      'no-useless-catch': 'warn',
       'no-empty-pattern': 'off',
       'no-constant-binary-expression': 'off',
       'no-unused-private-class-members': 'off',
