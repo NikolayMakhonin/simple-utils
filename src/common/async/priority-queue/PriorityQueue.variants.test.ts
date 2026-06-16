@@ -380,6 +380,12 @@ function checkActionResult(
         )}, error: ${formatObject(runError)}`,
       )
     }
+  } else if (runError instanceof AbortError) {
+    throw new Error(
+      `[test] Action was not expected to be aborted but was aborted: ${formatObject(
+        action,
+      )}, error: ${formatObject(runError)}`,
+    )
   } else if (action.throwError) {
     if (runError == null) {
       throw new Error(
@@ -494,7 +500,13 @@ async function test(options: TestOptions): Promise<void> {
 describe('PriorityQueue', { timeout: 7 * 60 * 60 * 1000 }, () => {
   it('variants', async () => {
     await testVariants({
-      // TODO
+      actionsCount: Array.from({ length: 100 }, (_, i) => i + 1),
+      readyToRunTimeMax: [null, ...Array.from({ length: 50 }, (_, i) => i)],
+      abortTimeMax: [null, ...Array.from({ length: 50 }, (_, i) => i)],
+      throwError: [false, true],
+      priorityMax: [null, ...Array.from({ length: 10 }, (_, i) => i)],
+      addTimeMax: Array.from({ length: 50 }, (_, i) => i),
+      durationMax: Array.from({ length: 50 }, (_, i) => i),
     })({
       limitTime: 60 * 1000,
       parallel: 1,
