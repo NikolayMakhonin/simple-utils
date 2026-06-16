@@ -190,10 +190,9 @@ function randomIntWithNull(rnd: Random, max: number | null): number | null {
   return randomInt(rnd, 0, max + 1)
 }
 
-// Simulation event phases control processing order within the same time tick.
-// PHASE_EARLY events (completions, aborts, adds, non-zero readyToRunTime) are processed before pickAndRun.
-// PHASE_LATE events (readyToRunTime === 0) are processed after the first pickAndRun,
-// modeling that readyToRun set synchronously at addTime takes effect after the queue processes.
+// Simulation phases within the same time tick.
+// PHASE_EARLY: completions, aborts, adds, non-zero readyToRunTime.
+// PHASE_LATE: readyToRunTime === 0 (synchronous readyToRun takes effect after pickAndRun).
 const PHASE_EARLY = 0
 const PHASE_LATE = 1
 
@@ -209,12 +208,18 @@ type SimEvent = {
   type: number
 }
 
+/**
+ * Reference implementation of PriorityQueue execution order.
+ * Simulates the queue's event-driven scheduling to predict which actions
+ * run and in what order.
+ */
 function calculateOrder(actions: Action[]): number[] {
   const actionsLen = actions.length
   const order: number[] = []
   let busy = false
   let nextOrder = 1
 
+  // Mirrors Priority.branch: [insertionOrder, priority] or [insertionOrder] when priority is null
   const branches: (number[] | null)[] = new Array(actionsLen).fill(null)
   const isReady = new Uint8Array(actionsLen)
   const isActive = new Uint8Array(actionsLen)
@@ -226,7 +231,6 @@ function calculateOrder(actions: Action[]): number[] {
   while (eventIndex < events.length) {
     const time = events[eventIndex].time
 
-    // Phase 1: apply early events, then pick and run
     while (
       eventIndex < events.length &&
       events[eventIndex].time === time &&
@@ -236,7 +240,6 @@ function calculateOrder(actions: Action[]): number[] {
     }
     pickAndRun(time)
 
-    // Phase 2: apply late events, then pick and run again
     while (eventIndex < events.length && events[eventIndex].time === time) {
       applyEvent(events[eventIndex++])
     }
@@ -283,7 +286,7 @@ function calculateOrder(actions: Action[]): number[] {
         if (
           isActive[i] &&
           isReady[i] &&
-          (best === -1 || compareBranches(i, best))
+          (best === -1 || branchLessThan(branches[i]!, branches[best]!))
         ) {
           best = i
         }
@@ -314,23 +317,21 @@ function calculateOrder(actions: Action[]): number[] {
       }
     }
   }
+}
 
-  // Mirrors priorityCompare: compares branch arrays from end (highest level) to start (lowest level)
-  function compareBranches(a: number, b: number): boolean {
-    const branchA = branches[a]!
-    const branchB = branches[b]!
-    const lenA = branchA.length
-    const lenB = branchB.length
-    const len = lenA > lenB ? lenA : lenB
-    for (let i = 0; i < len; i++) {
-      const valueA = i >= lenA ? 0 : branchA[lenA - 1 - i]
-      const valueB = i >= lenB ? 0 : branchB[lenB - 1 - i]
-      if (valueA !== valueB) {
-        return valueA < valueB
-      }
+/** Mirrors priorityCompare: compares from end (highest level) to start (lowest level) */
+function branchLessThan(a: number[], b: number[]): boolean {
+  const lenA = a.length
+  const lenB = b.length
+  const len = lenA > lenB ? lenA : lenB
+  for (let i = 0; i < len; i++) {
+    const valueA = i >= lenA ? 0 : a[lenA - 1 - i]
+    const valueB = i >= lenB ? 0 : b[lenB - 1 - i]
+    if (valueA !== valueB) {
+      return valueA < valueB
     }
-    return false
   }
+  return false
 }
 
 function buildEvents(actions: Action[]): SimEvent[] {
