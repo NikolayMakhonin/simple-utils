@@ -94,7 +94,7 @@ export class Pool implements IPool {
     return count
   }
 
-  private _tickPromise: ManualPromise | null = new ManualPromise()
+  private _tickPromise: ManualPromise | null = null
   tick(abortSignal?: null | IAbortSignalFast): Promise<void> | void {
     if (this._heldCount === 0) {
       return

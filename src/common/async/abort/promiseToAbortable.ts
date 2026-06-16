@@ -13,12 +13,12 @@ export function promiseToAbortable<T>(
   }
 
   return new Promise<T>(function executor(resolve) {
-    if (abortSignal && abortSignal.aborted) {
+    if (abortSignal.aborted) {
       rejectAsResolve(resolve, abortSignal.reason)
       return
     }
 
-    let unsubscribe: IUnsubscribe
+    let unsubscribe: IUnsubscribe | null = null
     function onResolve(value: T) {
       if (unsubscribe) {
         unsubscribe()
@@ -43,8 +43,6 @@ export function promiseToAbortable<T>(
 
     promise.then(onResolve).catch(onReject)
 
-    if (abortSignal) {
-      unsubscribe = abortSignal.subscribe(onReject)
-    }
+    unsubscribe = abortSignal.subscribe(onReject)
   })
 }

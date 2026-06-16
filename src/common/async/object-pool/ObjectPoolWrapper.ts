@@ -41,9 +41,9 @@ export class ObjectPoolWrapper<TObject extends object>
   release(
     objects: TObject[],
     start?: null | number,
-    count?: null | number,
+    end?: null | number,
   ): Promise<number> | number {
-    return this._objectPool.release(objects, start, count)
+    return this._objectPool.release(objects, start, end)
   }
 
   tick(abortSignal?: null | IAbortSignalFast): Promise<void> | void {

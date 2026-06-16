@@ -3,9 +3,18 @@ import { type IPool } from './Pool'
 import { PoolWrapper } from './PoolWrapper'
 
 /**
- * К текущему size прибавляется size всех зависимостей.
- * Таким образом, этому пулу нужно будет ждать все зависимые пулы, но при этом не блокировать их.
- * Пример использования: есть 2 пула на загрузку данных, один загружает данные фоново, а второй для срочной загрузки по требованию. Чтобы добавить новую фоновую задачу, нужно убедиться что общее количество задач во всех пулах не превышает лимит. Но если нужно добавить срочную задачу, то нужно убедиться что только в срочном пуле есть место. В худшем случае будут заняты оба пула, но ненадолго, т.к. фоновые задачи будут завершаться, а новые фоновые задачи не будут добавляться, пока не освободится место.
+ * Pool whose availability includes held counts of dependency pools.
+ * Holds are placed exclusively on its own pool, so dependency pools remain unblocked.
+ *
+ * For example, there are 2 pools for loading data,
+ * one loads data in the background, and the other for urgent loading on demand.
+ * To add a new background task, you need to make sure
+ * that the total number of tasks in all pools does not exceed the limit.
+ * But if you need to add an urgent task, you need to make sure
+ * that only the urgent pool has space.
+ * In the worst case, both pools will be busy, but not for long,
+ * since background tasks will be completed, and new background tasks
+ * will not be added until space is freed up.
  */
 export class DependentPool extends PoolWrapper {
   private readonly _pools: IPool[]

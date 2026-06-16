@@ -14,17 +14,17 @@ export interface IObjectPool<TObject extends object> {
 
   get(count: number): TObject[]
 
-  /** it returns false if the obj cannot be pushed into the object pool (if size >= maxSize) */
+  /** Returns the number of released objects; may release fewer than requested when pool capacity is exceeded */
   release(
     objects: TObject[],
     start?: null | number,
-    count?: null | number,
+    end?: null | number,
   ): Promise<number> | number
 
-  /** it will resolve when size > 0 */
+  /** Resolves when pool releases at least one held slot */
   tick(abortSignal?: null | IAbortSignalFast): Promise<void> | void
 
-  /** wait available > 0 and get, use this for concurrency get */
+  /** Waits until pool can hold the requested count, then gets objects */
   getWait(
     count: number,
     priority?: null | Priority,
@@ -48,9 +48,9 @@ export interface IObjectPool<TObject extends object> {
 
 export type ObjectPoolArgs<TObject extends object> = {
   pool: IPool
-  /** custom availableObjects */
+  /** Custom storage for available objects */
   availableObjects?: null | IStackPool<TObject>
-  /** use heldObjects so that you can know which objects are taken and not released to the pool */
+  /** Enables tracking of objects currently held and not yet released */
   heldObjects?: null | boolean | Set<TObject>
   create: () => Promise<TObject> | TObject
   destroy?: null | ((obj: TObject) => Promise<void> | void)
@@ -90,7 +90,7 @@ export class ObjectPool<TObject extends object>
     return this._availableObjects.objects
   }
 
-  /** which objects are taken and not released to the pool */
+  /** Objects currently held and not yet released */
   get heldObjects(): ReadonlySet<TObject> | null {
     return this._heldObjects
   }
@@ -135,9 +135,7 @@ export class ObjectPool<TObject extends object>
       for (let i = start; i < end; i++) {
         const obj = objects[i]
         if (obj != null) {
-          if (this._heldObjects) {
-            this._heldObjects.delete(obj)
-          }
+          this._heldObjects.delete(obj)
         }
       }
     }
@@ -176,17 +174,17 @@ export class ObjectPool<TObject extends object>
     abortSignal?: null | IAbortSignalFast,
     awaitPriority?: null | AwaitPriority,
   ): Promise<TResult> {
+    if (!this._create) {
+      throw new Error(
+        '[ObjectPool][use] You should specify create function in the constructor',
+      )
+    }
     let objects = await this.getWait(
       count,
       priority,
       abortSignal,
       awaitPriority,
     )
-    if (!this._create) {
-      throw new Error(
-        '[ObjectPool][use] You should specify create function in the constructor',
-      )
-    }
 
     let start
     if (!objects) {
@@ -272,7 +270,7 @@ export class ObjectPool<TObject extends object>
       }
     }
     if (promises.length) {
-      return Promise.all(promises).then(o => allocatedCount)
+      return Promise.all(promises).then(() => allocatedCount)
     }
 
     return allocatedCount

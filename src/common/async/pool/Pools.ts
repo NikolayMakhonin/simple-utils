@@ -267,7 +267,7 @@ export function poolsWait({
   const len = pools.length
   if (typeof count !== 'number' && count.length !== len) {
     throw new Error(
-      `[poolsHoldWait] count.length (${count.length}) !== pools.length (${len})`,
+      `[poolsWait] count.length (${count.length}) !== pools.length (${len})`,
     )
   }
 
@@ -279,9 +279,7 @@ export function poolsWait({
     async abortSignal => {
       while (!poolsCanHold(pools, count)) {
         await poolsTick(pools, abortSignal)
-        if (awaitPriority) {
-          await awaitPriority(priority, abortSignal)
-        }
+        await awaitPriority(priority, abortSignal)
       }
     },
     priority,
@@ -304,6 +302,6 @@ export async function poolsWaitHold({
 }) {
   await poolsWait({ pools, count, priority, abortSignal, awaitPriority })
   if (!poolsHold(pools, count)) {
-    throw new Error('[poolsHoldWait] Unexpected behavior')
+    throw new Error('[poolsWaitHold] Unexpected behavior')
   }
 }

@@ -9,7 +9,7 @@ import { promiseLikeToPromise } from 'src/common/async/promise/promiseLikeToProm
 export type PoolRunWaitArgs<T> = {
   pool: IPool
   count: number
-  /** @param holdPool - pool with `count` size, you can use it for nested checks using poolRunThrow */
+  /** @param holdPool - pool with `count` capacity for nested checks via poolRunThrow */
   func: (holdPool: IPool, abortSignal?: null | IAbortSignalFast) => T
   priority?: null | Priority
   abortSignal?: null | IAbortSignalFast

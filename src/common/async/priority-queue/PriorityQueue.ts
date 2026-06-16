@@ -13,6 +13,7 @@ import {
 } from 'src/common/async/priority/Priority'
 import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
 import { EMPTY_FUNC } from 'src/common/constants'
+import { ManualPromise } from 'src/common/async/promise'
 
 type QueueItem<T> = {
   func: ((abortSignal?: null | IAbortSignalFast) => PromiseOrValue<T>) | null
@@ -64,19 +65,14 @@ export class PriorityQueue implements IPriorityQueue, IPriorityQueueRunTask {
     abortSignal?: null | IAbortSignalFast,
   ): PriorityQueueTask<T> | Promise<T> {
     // const promise = new CustomPromise<T>(abortSignal)
-    let resolve: (value: T) => void = null!
-    let reject: (error: any) => void = null!
-    const promise = new Promise<T>((res, rej) => {
-      resolve = res
-      reject = rej
-    })
+    const promise = new ManualPromise<T>()
 
     const item: QueueItem<T> = {
       priority: priorityCreate(this.#nextOrder++, priority),
       func: func ?? null,
       abortSignal: abortSignal ?? null,
-      resolve,
-      reject,
+      resolve: promise.resolve,
+      reject: promise.reject,
       readyToRun: !taskMode,
       node: null,
     }
@@ -87,7 +83,7 @@ export class PriorityQueue implements IPriorityQueue, IPriorityQueueRunTask {
       if (abortSignal.aborted) {
         this.#queue.delete(item.node)
         item.node = null
-        reject(abortSignal.reason)
+        promise.reject(abortSignal.reason)
         return taskMode
           ? ({ result: promise, setReadyToRun: EMPTY_FUNC } as any)
           : promise
@@ -105,7 +101,7 @@ export class PriorityQueue implements IPriorityQueue, IPriorityQueueRunTask {
       const _this = this
 
       return {
-        result: promise,
+        result: promise.promise,
         setReadyToRun(readyToRun: boolean) {
           item.readyToRun = readyToRun
           if (readyToRun && !_this.#inProcess) {
@@ -120,7 +116,7 @@ export class PriorityQueue implements IPriorityQueue, IPriorityQueueRunTask {
       this.#inProcess = true
       void this._process()
     }
-    return promise
+    return promise.promise
   }
 
   #inProcess: boolean = false
