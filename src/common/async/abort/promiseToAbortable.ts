@@ -26,7 +26,7 @@ export function promiseToAbortable<T>(
       resolve(value)
     }
 
-    let rejected: boolean
+    let rejected: boolean = false
     function onReject(value: T) {
       if (rejected) {
         return

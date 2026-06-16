@@ -3,9 +3,10 @@ import { type Priority } from 'src/common/async/priority/Priority'
 import {
   type AwaitPriority,
   awaitPriorityDefault,
+  getPriorityQueueGlobal,
 } from 'src/common/async/priority-queue/helpers'
 import { isPromiseLike } from 'src/common/async/promise/isPromiseLike'
-import { type IPool, poolPriorityQueue } from './Pool'
+import { type IPool } from './Pool'
 
 // export interface IPools {
 //   canHold(count: number | number[]): boolean
@@ -275,7 +276,7 @@ export function poolsWait({
     awaitPriority = awaitPriorityDefault
   }
 
-  return poolPriorityQueue.run(
+  return getPriorityQueueGlobal().run(
     async abortSignal => {
       while (!poolsCanHold(pools, count)) {
         await poolsTick(pools, abortSignal)

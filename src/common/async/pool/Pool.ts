@@ -4,9 +4,9 @@ import { promiseToAbortable } from 'src/common/async/abort/promiseToAbortable'
 import {
   type AwaitPriority,
   awaitPriorityDefault,
+  getPriorityQueueGlobal,
 } from 'src/common/async/priority-queue/helpers'
 import { type Priority } from 'src/common/async/priority/Priority'
-import { PriorityQueue } from 'src/common/async/priority-queue/PriorityQueue'
 
 /**
  * Hold of any count always succeeds on an empty pool;
@@ -106,8 +106,6 @@ export class Pool implements IPool {
   }
 }
 
-export const poolPriorityQueue = new PriorityQueue()
-
 export function poolWait({
   pool,
   count,
@@ -127,7 +125,7 @@ export function poolWait({
     awaitPriority = awaitPriorityDefault
   }
 
-  return poolPriorityQueue.run(
+  return getPriorityQueueGlobal().run(
     async abortSignal => {
       while (!pool.canHold(count)) {
         await pool.tick(abortSignal)

@@ -17,6 +17,14 @@ export function createAwaitPriority(): AwaitPriority {
   }
 }
 
+let _priorityQueueGlobal: PriorityQueue | null = null
+export function getPriorityQueueGlobal(): PriorityQueue {
+  if (!_priorityQueueGlobal) {
+    _priorityQueueGlobal = new PriorityQueue()
+  }
+  return _priorityQueueGlobal
+}
+
 let _awaitPriorityDefault: AwaitPriority | null = null
 export function awaitPriorityDefault(
   priority?: null | Priority,
