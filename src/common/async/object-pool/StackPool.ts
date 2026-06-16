@@ -1,3 +1,4 @@
+/** LIFO storage (Last-In, First-Out) for pooled objects */
 export interface IStackPool<TObject> {
   readonly objects: ReadonlyArray<TObject>
   readonly size: number

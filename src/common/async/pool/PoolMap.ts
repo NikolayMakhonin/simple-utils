@@ -5,7 +5,7 @@ import { PoolMult } from './PoolMult'
 import { Pools } from './Pools'
 
 /**
- * A map of pools, where each key has its own pool
+ * Map of pools where each key has its own pool.
  * Inherited IPool methods operate in bulk: hold(1) holds all keys at once
  */
 export interface IPoolMap<Key> extends IPool {

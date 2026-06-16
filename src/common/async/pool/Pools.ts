@@ -8,6 +8,7 @@ import {
 import { isPromiseLike } from 'src/common/async/promise/isPromiseLike'
 import { type IPool } from './Pool'
 
+/** Composite pool that delegates operations to multiple underlying pools */
 export class Pools implements IPool {
   private readonly _pools: IPool[]
 

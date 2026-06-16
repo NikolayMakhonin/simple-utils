@@ -9,6 +9,7 @@ import {
 import { type Priority } from 'src/common/async/priority/Priority'
 
 /**
+ * Counting semaphore for limiting concurrent access to a shared resource.
  * Hold of any count always succeeds on an empty pool;
  * heldCountMax restricts hold exclusively when the pool is non-empty
  */
@@ -102,6 +103,7 @@ export class Pool implements IPool {
   }
 }
 
+/** Waits until the pool can hold the requested count, optionally holding it */
 export function poolWait({
   pool,
   count,

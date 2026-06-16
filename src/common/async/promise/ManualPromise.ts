@@ -1,3 +1,4 @@
+/** Promise with externally accessible resolve and reject */
 export class ManualPromise<T = void> {
   readonly promise: Promise<T>
   readonly resolve: (value: T | PromiseLike<T>) => void
