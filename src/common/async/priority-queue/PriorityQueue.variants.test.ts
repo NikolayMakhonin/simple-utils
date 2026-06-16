@@ -1,3 +1,27 @@
+/**
+ * Logging: disabled by default, enabled only on error (test re-runs with log: true)
+ *
+ * General format:
+ * - Log entries: bracket-path style with [test] prefix
+ *
+ * Entity naming:
+ * - action-N - Nth action (0-indexed), where N is the action id
+ *
+ * Actions:
+ * - Actions - generated action list with all parameters
+ *
+ * Parameters:
+ * - id - action identifier
+ * - priority - priority value or null
+ * - addTime - time offset when action is added to queue
+ * - readyToRunTime - time offset from addTime when task becomes ready to run, null for immediate
+ * - abortTime - time offset from addTime when abort fires, null for no abort
+ * - duration - execution duration
+ * - throwError - whether the action throws TestError
+ *
+ * Example trace:
+ * [test] Actions: [{id: 0, priority: 1, addTime: 0, readyToRunTime: null, abortTime: null, duration: 0, throwError: false}, ...]
+ */
 import { describe, it } from 'vitest'
 import { PriorityQueue } from './PriorityQueue'
 import { priorityCreate } from 'src/common/async/priority/Priority'
@@ -24,13 +48,13 @@ import type { PriorityQueueRunFunc } from './contracts'
 
 function formatObject(obj: any, options?: null | FormatAnyOptions): string {
   return formatAny(obj, {
-    maxDepth: 5,
-    maxItems: 10,
+    maxDepth: 10,
+    maxItems: 50,
     ...options,
   })
 }
 
-type TestVariantsArgs = {
+export type TestVariantsArgs = {
   seed: number
 
   actionsCount: number
