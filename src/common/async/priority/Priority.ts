@@ -22,9 +22,21 @@ export class Priority {
 }
 
 export function priorityCreate(
+  order: number,
+  parent?: null | Priority,
+): Priority
+export function priorityCreate(
+  order: number | null | undefined,
+  parent: Priority,
+): Priority
+export function priorityCreate(
   order: number | null | undefined,
   parent?: null | Priority,
-) {
+): Priority | null
+export function priorityCreate(
+  order: number | null | undefined,
+  parent?: null | Priority,
+): Priority | null {
   if (order == null) {
     if (parent == null) {
       return null
