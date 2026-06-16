@@ -190,69 +190,133 @@ function randomIntWithNull(rnd: Random, max: number | null): number | null {
   return randomInt(rnd, 0, max + 1)
 }
 
+const PHASE_IMMEDIATE = 0
+const PHASE_ADD = 1
+const PHASE_DEFERRED_READY = 2
+
+const TYPE_COMPLETE = 0
+const TYPE_ABORT = 1
+const TYPE_READY = 2
+const TYPE_ADD = 3
+
+type SimEvent = {
+  time: number
+  phase: number
+  actionIndex: number
+  type: number
+}
+
 function calculateOrder(actions: Action[]): number[] {
-  const PHASE_IMMEDIATE = 0
-  const PHASE_ADD = 1
-  const PHASE_DEFERRED_READY = 2
-
-  type Event = {
-    time: number
-    phase: number
-    actionIndex: number
-    apply: (entry: QueueEntry | null) => void
-  }
-
-  type QueueEntry = {
-    actionIndex: number
-    branch: number[]
-    readyToRun: boolean
-  }
-
-  const events: Event[] = []
-  const queue: QueueEntry[] = []
-  let nextInsertionOrder = 1
+  const actionsLen = actions.length
   const order: number[] = []
   let processorBusy = false
+  let nextInsertionOrder = 1
 
-  function eventCompare(a: Event, b: Event): number {
-    if (a.time !== b.time) {
-      return a.time > b.time ? 1 : -1
+  // Queue state indexed by action index
+  const branches: (number[] | null)[] = new Array(actionsLen).fill(null)
+  const isReady = new Uint8Array(actionsLen)
+  const isActive = new Uint8Array(actionsLen)
+
+  const events: SimEvent[] = buildEvents(actions)
+  events.sort(eventCompare)
+
+  let eventIndex = 0
+  while (eventIndex < events.length) {
+    const currentTime = events[eventIndex].time
+
+    while (
+      eventIndex < events.length &&
+      events[eventIndex].time === currentTime &&
+      events[eventIndex].phase < PHASE_DEFERRED_READY
+    ) {
+      applyEvent(events[eventIndex++])
     }
-    if (a.phase !== b.phase) {
-      return a.phase > b.phase ? 1 : -1
+
+    pickAndRun(currentTime)
+
+    while (
+      eventIndex < events.length &&
+      events[eventIndex].time === currentTime
+    ) {
+      applyEvent(events[eventIndex++])
     }
-    return a.actionIndex > b.actionIndex
-      ? 1
-      : a.actionIndex < b.actionIndex
-        ? -1
-        : 0
+
+    pickAndRun(currentTime)
   }
 
-  function insertEvent(event: Event): void {
-    let lo = 0
-    let hi = events.length
-    while (lo < hi) {
-      const mid = (lo + hi) >>> 1
-      if (eventCompare(events[mid], event) <= 0) {
-        lo = mid + 1
-      } else {
-        hi = mid
+  return order
+
+  function applyEvent(event: SimEvent): void {
+    const idx = event.actionIndex
+    switch (event.type) {
+      case TYPE_COMPLETE:
+        processorBusy = false
+        break
+      case TYPE_ABORT:
+        isActive[idx] = 0
+        break
+      case TYPE_READY:
+        if (isActive[idx]) {
+          isReady[idx] = 1
+        }
+        break
+      case TYPE_ADD: {
+        const action = actions[idx]
+        const insertionOrder = nextInsertionOrder++
+        if (action.abortTime === 0) {
+          break
+        }
+        branches[idx] =
+          action.priority != null
+            ? [insertionOrder, action.priority]
+            : [insertionOrder]
+        isReady[idx] = action.readyToRunTime == null ? 1 : 0
+        isActive[idx] = 1
+        break
       }
     }
-    events.splice(lo, 0, event)
   }
 
-  function makeBranch(
-    priorityValue: number | null,
-    insertionOrder: number,
-  ): number[] {
-    if (priorityValue != null) {
-      return [insertionOrder, priorityValue]
+  function pickAndRun(time: number): void {
+    while (!processorBusy) {
+      let best = -1
+      for (let i = 0; i < actionsLen; i++) {
+        if (isActive[i] && isReady[i]) {
+          if (best === -1 || entryLessThan(i, best)) {
+            best = i
+          }
+        }
+      }
+      if (best === -1) {
+        break
+      }
+
+      isActive[best] = 0
+      order.push(actions[best].id)
+
+      const action = actions[best]
+      if (action.duration > 0) {
+        let completeTime = time + action.duration
+        if (action.abortTime != null) {
+          const abortFireTime = action.addTime + action.abortTime
+          if (abortFireTime > time && abortFireTime <= completeTime) {
+            completeTime = abortFireTime
+          }
+        }
+        processorBusy = true
+        insertSorted(events, eventIndex, {
+          time: completeTime,
+          phase: PHASE_IMMEDIATE,
+          actionIndex: best,
+          type: TYPE_COMPLETE,
+        })
+      }
     }
-    return [insertionOrder]
   }
 
-  function branchLessThan(b1: number[], b2: number[]): boolean {
+  function entryLessThan(i1: number, i2: number): boolean {
+    const b1 = branches[i1]!
+    const b2 = branches[i2]!
     const len1 = b1.length
     const len2 = b2.length
     const len = len1 > len2 ? len1 : len2
@@ -265,137 +329,72 @@ function calculateOrder(actions: Action[]): number[] {
     }
     return false
   }
+}
 
-  function findEntry(actionIndex: number): QueueEntry | null {
-    for (let i = 0, len = queue.length; i < len; i++) {
-      if (queue[i].actionIndex === actionIndex) {
-        return queue[i]
-      }
-    }
-    return null
-  }
-
-  function tryProcess(time: number): void {
-    while (!processorBusy) {
-      let best: QueueEntry | null = null
-      for (let i = 0, len = queue.length; i < len; i++) {
-        const entry = queue[i]
-        if (entry.readyToRun) {
-          if (best == null || branchLessThan(entry.branch, best.branch)) {
-            best = entry
-          }
-        }
-      }
-
-      if (best == null) {
-        break
-      }
-
-      queue.splice(queue.indexOf(best), 1)
-
-      const action = actions[best.actionIndex]
-      order.push(action.id)
-
-      if (action.duration > 0) {
-        let completeTime = time + action.duration
-        if (action.abortTime != null) {
-          const abortFireTime = action.addTime + action.abortTime
-          if (abortFireTime > time && abortFireTime <= completeTime) {
-            completeTime = abortFireTime
-          }
-        }
-        processorBusy = true
-        insertEvent({
-          time: completeTime,
-          phase: PHASE_IMMEDIATE,
-          actionIndex: best.actionIndex,
-          apply() {
-            processorBusy = false
-          },
-        })
-      }
-    }
-  }
-
+function buildEvents(actions: Action[]): SimEvent[] {
+  const events: SimEvent[] = []
   for (let i = 0, len = actions.length; i < len; i++) {
     const action = actions[i]
-    insertEvent({
+
+    events.push({
       time: action.addTime,
       phase: PHASE_ADD,
       actionIndex: i,
-      apply() {
-        const insertionOrder = nextInsertionOrder++
-        if (action.abortTime === 0) {
-          return
-        }
-
-        const entry: QueueEntry = {
-          actionIndex: i,
-          branch: makeBranch(action.priority, insertionOrder),
-          readyToRun: action.readyToRunTime == null,
-        }
-        queue.push(entry)
-
-        if (action.abortTime != null) {
-          insertEvent({
-            time: action.addTime + action.abortTime,
-            phase: PHASE_IMMEDIATE,
-            actionIndex: i,
-            apply() {
-              const found = findEntry(i)
-              if (found != null) {
-                queue.splice(queue.indexOf(found), 1)
-              }
-            },
-          })
-        }
-        if (action.readyToRunTime != null) {
-          const readyPhase =
-            action.readyToRunTime === 0 ? PHASE_DEFERRED_READY : PHASE_IMMEDIATE
-          insertEvent({
-            time: action.addTime + action.readyToRunTime,
-            phase: readyPhase,
-            actionIndex: i,
-            apply(found) {
-              if (found != null) {
-                found.readyToRun = true
-              }
-            },
-          })
-        }
-      },
+      type: TYPE_ADD,
     })
-  }
 
-  let eventIndex = 0
-  while (eventIndex < events.length) {
-    const currentTime = events[eventIndex].time
-
-    while (
-      eventIndex < events.length &&
-      events[eventIndex].time === currentTime &&
-      events[eventIndex].phase < PHASE_DEFERRED_READY
-    ) {
-      const event = events[eventIndex]
-      eventIndex++
-      event.apply(findEntry(event.actionIndex))
+    if (action.abortTime != null && action.abortTime !== 0) {
+      events.push({
+        time: action.addTime + action.abortTime,
+        phase: PHASE_IMMEDIATE,
+        actionIndex: i,
+        type: TYPE_ABORT,
+      })
     }
 
-    tryProcess(currentTime)
-
-    while (
-      eventIndex < events.length &&
-      events[eventIndex].time === currentTime
-    ) {
-      const event = events[eventIndex]
-      eventIndex++
-      event.apply(findEntry(event.actionIndex))
+    if (action.readyToRunTime != null) {
+      events.push({
+        time: action.addTime + action.readyToRunTime,
+        phase:
+          action.readyToRunTime === 0 ? PHASE_DEFERRED_READY : PHASE_IMMEDIATE,
+        actionIndex: i,
+        type: TYPE_READY,
+      })
     }
-
-    tryProcess(currentTime)
   }
+  return events
+}
 
-  return order
+function eventCompare(a: SimEvent, b: SimEvent): number {
+  if (a.time !== b.time) {
+    return a.time > b.time ? 1 : -1
+  }
+  if (a.phase !== b.phase) {
+    return a.phase > b.phase ? 1 : -1
+  }
+  return a.actionIndex > b.actionIndex
+    ? 1
+    : a.actionIndex < b.actionIndex
+      ? -1
+      : 0
+}
+
+function insertSorted(
+  events: SimEvent[],
+  searchFrom: number,
+  event: SimEvent,
+): void {
+  let lo = searchFrom
+  let hi = events.length
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1
+    if (eventCompare(events[mid], event) <= 0) {
+      lo = mid + 1
+    } else {
+      hi = mid
+    }
+  }
+  events.splice(lo, 0, event)
 }
 
 type TestContext = {
@@ -757,7 +756,7 @@ describe('PriorityQueue', { timeout: 7 * 60 * 60 * 1000 }, () => {
       saveErrorVariants: {
         dir: 'tmp/test/PriorityQueue/variants',
         attemptsPerVariant: 10,
-        useToFindBestError: false,
+        useToFindBestError: true,
       },
     })
   })
