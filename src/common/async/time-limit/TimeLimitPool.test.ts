@@ -8,8 +8,8 @@ import {
 } from '@flemist/time-controller'
 import { type IAbortSignalFast } from '@flemist/abort-controller-fast'
 import { createTestVariants } from '@flemist/test-variants'
-import { Pool } from 'src/common/async/pool/Pool'
-import { type IPoolRunner, PoolRunner } from 'src/common/async/pool/PoolRunner'
+import { type IPool, Pool } from 'src/common/async/pool/Pool'
+import { poolRunWait } from 'src/common/async/pool/poolRunWait'
 import { Pools } from 'src/common/async/pool/Pools'
 import { TimeLimitPool } from './TimeLimitPool'
 import { waitTimeControllerMock } from 'src/common/async/wait/waitTimeControllerMock'
@@ -43,42 +43,38 @@ describe('time-limits > TimeLimits Old', { timeout: 300000 }, () => {
     }) => {
       const timeController = new TimeControllerMock()
       const awaitPriority = withPriorityQueue ? createAwaitPriority() : null
-      const timeLimit = timeLimitsTree
-        ? new PoolRunner(
+      const timeLimitPool = timeLimitsTree
+        ? new Pools(
+            new TimeLimitPool({
+              pool: new Pool(maxCount),
+              time: timeMs,
+              timeController,
+            }),
             new Pools(
-              new TimeLimitPool({
-                pool: new Pool(maxCount),
-                time: timeMs,
-                timeController,
-              }),
               new Pools(
-                new Pools(
-                  new TimeLimitPool({
-                    pool: new Pool(maxCount),
-                    time: timeMs,
-                    timeController,
-                  }),
-                  new TimeLimitPool({
-                    pool: new Pool(maxCount),
-                    time: timeMs,
-                    timeController,
-                  }),
-                ),
+                new TimeLimitPool({
+                  pool: new Pool(maxCount),
+                  time: timeMs,
+                  timeController,
+                }),
                 new TimeLimitPool({
                   pool: new Pool(maxCount),
                   time: timeMs,
                   timeController,
                 }),
               ),
+              new TimeLimitPool({
+                pool: new Pool(maxCount),
+                time: timeMs,
+                timeController,
+              }),
             ),
           )
-        : new PoolRunner(
-            new TimeLimitPool({
-              pool: new Pool(maxCount),
-              time: timeMs,
-              timeController,
-            }),
-          )
+        : new TimeLimitPool({
+            pool: new Pool(maxCount),
+            time: timeMs,
+            timeController,
+          })
 
       let completedCount = 0
 
@@ -105,15 +101,15 @@ describe('time-limits > TimeLimits Old', { timeout: 300000 }, () => {
         const order = len - 1 - i
         const async =
           mode === 'async' || (mode === 'random' && Math.random() > 0.5)
-        const result = timeLimit.run(
-          1,
-          abortSignal => {
+        const result = poolRunWait({
+          pool: timeLimitPool,
+          count: 1,
+          func: (_holdPool, abortSignal) => {
             return run(index, async ? asyncTime : 0, abortSignal)
           },
-          priorityCreate(order),
-          null,
+          priority: priorityCreate(order),
           awaitPriority,
-        )
+        })
         assert.ok(typeof result.then === 'function')
         promises.push(
           result.then(o => {
@@ -312,7 +308,7 @@ describe('time-limits > TimeLimits', () => {
       const abortSignal: IAbortSignalFast | null = null
 
       const timeLimits: {
-        instance: IPoolRunner
+        pool: IPool
         limits: Limit[]
       }[] = []
 
@@ -323,15 +319,13 @@ describe('time-limits > TimeLimits', () => {
         timeMs: number
         maxCount: number
       }) {
-        const instance = new PoolRunner(
-          new TimeLimitPool({
-            pool: new Pool(maxCount),
-            time: timeMs,
-            timeController,
-          }),
-        )
+        const pool = new TimeLimitPool({
+          pool: new Pool(maxCount),
+          time: timeMs,
+          timeController,
+        })
         timeLimits.push({
-          instance,
+          pool,
           limits: [
             {
               maxCount,
@@ -366,31 +360,25 @@ describe('time-limits > TimeLimits', () => {
 
       if (timeLimits.length === 1) {
         timeLimits.push({
-          instance: new PoolRunner(new Pools(timeLimits[0].instance.pool)),
+          pool: new Pools(timeLimits[0].pool),
           limits: timeLimits[0].limits,
         })
       } else if (timeLimits.length === 2) {
         timeLimits.push({
-          instance: new PoolRunner(
-            new Pools(timeLimits[0].instance.pool, timeLimits[1].instance.pool),
-          ),
+          pool: new Pools(timeLimits[0].pool, timeLimits[1].pool),
           limits: [timeLimits[0].limits[0], timeLimits[1].limits[0]],
         })
       } else if (timeLimits.length === 3) {
         timeLimits.push({
-          instance: new PoolRunner(new Pools(timeLimits[0].instance.pool)),
+          pool: new Pools(timeLimits[0].pool),
           limits: timeLimits[0].limits,
         })
         timeLimits.push({
-          instance: new PoolRunner(
-            new Pools(timeLimits[1].instance.pool, timeLimits[2].instance.pool),
-          ),
+          pool: new Pools(timeLimits[1].pool, timeLimits[2].pool),
           limits: [timeLimits[1].limits[0], timeLimits[2].limits[0]],
         })
         timeLimits.push({
-          instance: new PoolRunner(
-            new Pools(timeLimits[3].instance.pool, timeLimits[4].instance.pool),
-          ),
+          pool: new Pools(timeLimits[3].pool, timeLimits[4].pool),
           limits: [
             timeLimits[0].limits[0],
             timeLimits[1].limits[0],
@@ -432,7 +420,7 @@ describe('time-limits > TimeLimits', () => {
                   }
                   return order
                 }
-              : abortSignal => {
+              : () => {
                   values.push(order)
                   return order
                 },
@@ -445,25 +433,27 @@ describe('time-limits > TimeLimits', () => {
             timeController.setTimeout(() => {
               checkPromiseResults.push(order)
               promises.push(
-                timeLimit.instance.run(
-                  1,
-                  func,
-                  priorityCreate(order),
+                poolRunWait({
+                  pool: timeLimit.pool,
+                  count: 1,
+                  func: (_holdPool, abortSignal) => func(abortSignal),
+                  priority: priorityCreate(order),
                   abortSignal,
                   awaitPriority,
-                ),
+                }),
               )
             }, startTime)
           } else {
             checkPromiseResults.push(order)
             promises.push(
-              timeLimit.instance.run(
-                1,
-                func,
-                priorityCreate(order),
+              poolRunWait({
+                pool: timeLimit.pool,
+                count: 1,
+                func: (_holdPool, abortSignal) => func(abortSignal),
+                priority: priorityCreate(order),
                 abortSignal,
                 awaitPriority,
-              ),
+              }),
             )
           }
         }

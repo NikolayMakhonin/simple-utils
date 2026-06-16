@@ -1,7 +1,7 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import { globToRelative } from './globToRelative'
-import { poolRunWait } from '@flemist/time-limits'
+import { poolRunWait } from 'src/common/async/pool/poolRunWait'
 import { globGitIgnoreToPicomatch } from './globGitIgnoreToPicomatch'
 import { poolFs } from 'src/node/fs/pools'
 

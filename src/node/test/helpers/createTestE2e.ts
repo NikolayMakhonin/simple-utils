@@ -3,8 +3,9 @@ import {
   testPage,
   useBrowserContext,
 } from 'src/node/test/e2e/test'
-import { type IPool, poolRunWait } from '@flemist/time-limits'
-import { type Priority } from '@flemist/priority-queue'
+import { type IPool } from 'src/common/async/pool/Pool'
+import { poolRunWait } from 'src/common/async/pool/poolRunWait'
+import { type Priority } from 'src/common/async/priority/Priority'
 import {
   type Browser,
   type BrowserContext,

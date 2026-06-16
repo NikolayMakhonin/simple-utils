@@ -14,18 +14,12 @@ importers:
       '@flemist/pairing-heap':
         specifier: ^1.0.0
         version: 1.0.0
-      '@flemist/priority-queue':
-        specifier: ^1.0.1
-        version: 1.0.1
       '@flemist/test-variants':
-        specifier: ^5.0.14
-        version: 5.0.14
+        specifier: ^5.0.18
+        version: 5.0.18
       '@flemist/time-controller':
         specifier: ^1.0.4
         version: 1.0.4
-      '@flemist/time-limits':
-        specifier: ^2.0.4
-        version: 2.0.4
       fflate:
         specifier: ^0.8.2
         version: 0.8.2
@@ -405,8 +399,8 @@ packages:
     resolution: {integrity: sha512-udyo4DA5bp6D8m3yXace2TI7iDmFNbxz8zJQ0bCtjqhumDLhTHUwW1LTC/tUbb5AToufTQh7VBbu2+Elryd06A==}
     engines: {node: '>=20'}
 
-  '@flemist/test-variants@5.0.14':
-    resolution: {integrity: sha512-RqM/diIS5zF+uVs6oLPrh34x6mkYmoGX4wAHO8c4wUl66iPtKQmWJ5BPtb0S/d8jiT54GhAmdHdIDkBkrvRqTw==}
+  '@flemist/test-variants@5.0.18':
+    resolution: {integrity: sha512-a29P/UMDiB1E54bQ75Jplp0RHJghpszC3UsKaKH9aole7u3EweV/SAJjzj68Pk8B0fCiXsMTEEsaLqZkRNKyAw==}
     engines: {node: '>=20'}
 
   '@flemist/time-controller@1.0.4':
@@ -3137,7 +3131,7 @@ snapshots:
       '@flemist/abort-controller-fast': 1.0.0
       '@flemist/pairing-heap': 1.0.0
       '@flemist/priority-queue': 1.0.1
-      '@flemist/test-variants': 5.0.14
+      '@flemist/test-variants': 5.0.18
       '@flemist/time-controller': 1.0.4
       '@flemist/time-limits': 2.0.4
       fflate: 0.8.2
@@ -3145,7 +3139,7 @@ snapshots:
       setimmediate: 1.0.5
       tslib: 2.8.1
 
-  '@flemist/test-variants@5.0.14':
+  '@flemist/test-variants@5.0.18':
     dependencies:
       '@flemist/abort-controller-fast': 1.0.0
       '@flemist/simple-utils': 2.2.2

@@ -1,4 +1,5 @@
-import { type IPool, poolRunWait } from '@flemist/time-limits'
+import { type IPool } from 'src/common/async/pool/Pool'
+import { poolRunWait } from 'src/common/async/pool/poolRunWait'
 import path from 'path'
 import { poolFs } from 'src/node/fs/pools'
 import fs from 'fs'

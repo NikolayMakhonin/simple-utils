@@ -129,10 +129,8 @@
   "dependencies": {
     "@flemist/abort-controller-fast": "^1.0.0",
     "@flemist/pairing-heap": "^1.0.0",
-    "@flemist/priority-queue": "^1.0.1",
-    "@flemist/test-variants": "^5.0.14",
+    "@flemist/test-variants": "^5.0.18",
     "@flemist/time-controller": "^1.0.4",
-    "@flemist/time-limits": "^2.0.4",
     "fflate": "^0.8.2",
     "picomatch": "^4.0.4",
     "setimmediate": "^1.0.5",

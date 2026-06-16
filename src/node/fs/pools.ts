@@ -1,4 +1,4 @@
-import { IPool, Pool } from '@flemist/time-limits'
+import { type IPool, Pool } from 'src/common/async/pool/Pool'
 import os from 'node:os'
 
 // TODO: write doc comments

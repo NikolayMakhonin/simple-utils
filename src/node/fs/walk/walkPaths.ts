@@ -1,6 +1,10 @@
-import { IPool, poolRunWait } from '@flemist/time-limits'
-import { Priority, priorityCreate } from '@flemist/priority-queue'
-import { IAbortSignalFast } from '@flemist/abort-controller-fast'
+import { type IPool } from 'src/common/async/pool/Pool'
+import { poolRunWait } from 'src/common/async/pool/poolRunWait'
+import {
+  type Priority,
+  priorityCreate,
+} from 'src/common/async/priority/Priority'
+import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
 import * as fs from 'fs'
 import { combineAbortSignals } from 'src/common/async/abort/combineAbortSignals'
 import { useAbortController } from 'src/common/async/abort/useAbortController'
@@ -183,7 +187,7 @@ function _walkPaths(options: WalkPathPrivate): Promise<WalkPathStat> {
       itemPath: string,
       stat: fs.Stats,
       itemStat: WalkPathStat,
-      priority: Priority,
+      priority: Priority | null,
     ): Promise<boolean> {
       if (!handlePath) {
         return true

@@ -4,22 +4,20 @@ import { TimeControllerMock } from '@flemist/time-controller'
 import { createAwaitPriority } from 'src/common/async/priority-queue/helpers'
 import { TimeLimitPool } from './TimeLimitPool'
 import { Pool } from 'src/common/async/pool/Pool'
-import { PoolRunner } from 'src/common/async/pool/PoolRunner'
+import { poolRunWait } from 'src/common/async/pool/poolRunWait'
 import { Pools } from 'src/common/async/pool/Pools'
 
 describe('time-limits > TimeLimits perf', { timeout: 600000 }, () => {
   it('base', async () => {
-    const emptyFunc = o => o
+    const emptyFunc = () => {}
     const awaitPriority = createAwaitPriority()
     const timeController = new TimeControllerMock()
-    const timeLimit = new PoolRunner(
-      new TimeLimitPool({
-        pool: new Pool(1),
-        time: 1,
-        timeController,
-      }),
-    )
-    const timeLimits = new PoolRunner(new Pools(timeLimit.pool))
+    const timeLimitPool = new TimeLimitPool({
+      pool: new Pool(1),
+      time: 1,
+      timeController,
+    })
+    const timeLimitsPool = new Pools(timeLimitPool)
 
     const count = 100
 
@@ -30,7 +28,12 @@ describe('time-limits > TimeLimits perf', { timeout: 600000 }, () => {
           const promises: Promise<any>[] = []
           for (let i = 0; i < count; i++) {
             promises.push(
-              timeLimits.run(1, emptyFunc, null, null, awaitPriority),
+              poolRunWait({
+                pool: timeLimitsPool,
+                count: 1,
+                func: emptyFunc,
+                awaitPriority,
+              }),
             )
           }
           for (let i = 0; i < count; i++) {

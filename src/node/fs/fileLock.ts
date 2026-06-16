@@ -1,4 +1,4 @@
-import { poolRunWait } from '@flemist/time-limits'
+import { poolRunWait } from 'src/common/async/pool/poolRunWait'
 import { LockerWithId } from 'src/common/async/Locker'
 import { poolFs } from './pools'
 import { pathNormalize } from './pathNormalize'
