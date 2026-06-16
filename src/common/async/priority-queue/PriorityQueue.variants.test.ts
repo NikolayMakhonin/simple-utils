@@ -191,7 +191,200 @@ function randomIntWithNull(rnd: Random, max: number | null): number | null {
 }
 
 function calculateOrder(actions: Action[]): number[] {
-  // TODO
+  const PHASE_IMMEDIATE = 0
+  const PHASE_ADD = 1
+  const PHASE_DEFERRED_READY = 2
+
+  type Event = {
+    time: number
+    phase: number
+    actionIndex: number
+    apply: (entry: QueueEntry | null) => void
+  }
+
+  type QueueEntry = {
+    actionIndex: number
+    branch: number[]
+    readyToRun: boolean
+  }
+
+  const events: Event[] = []
+  const queue: QueueEntry[] = []
+  let nextInsertionOrder = 1
+  const order: number[] = []
+  let processorBusy = false
+
+  function eventCompare(a: Event, b: Event): number {
+    if (a.time !== b.time) {
+      return a.time > b.time ? 1 : -1
+    }
+    if (a.phase !== b.phase) {
+      return a.phase > b.phase ? 1 : -1
+    }
+    return a.actionIndex > b.actionIndex
+      ? 1
+      : a.actionIndex < b.actionIndex
+        ? -1
+        : 0
+  }
+
+  function insertEvent(event: Event): void {
+    let lo = 0
+    let hi = events.length
+    while (lo < hi) {
+      const mid = (lo + hi) >>> 1
+      if (eventCompare(events[mid], event) <= 0) {
+        lo = mid + 1
+      } else {
+        hi = mid
+      }
+    }
+    events.splice(lo, 0, event)
+  }
+
+  function makeBranch(
+    priorityValue: number | null,
+    insertionOrder: number,
+  ): number[] {
+    if (priorityValue != null) {
+      return [insertionOrder, priorityValue]
+    }
+    return [insertionOrder]
+  }
+
+  function branchLessThan(b1: number[], b2: number[]): boolean {
+    const len1 = b1.length
+    const len2 = b2.length
+    const len = len1 > len2 ? len1 : len2
+    for (let i = 0; i < len; i++) {
+      const v1 = i >= len1 ? 0 : b1[len1 - 1 - i]
+      const v2 = i >= len2 ? 0 : b2[len2 - 1 - i]
+      if (v1 !== v2) {
+        return v1 < v2
+      }
+    }
+    return false
+  }
+
+  function findEntry(actionIndex: number): QueueEntry | null {
+    for (let i = 0, len = queue.length; i < len; i++) {
+      if (queue[i].actionIndex === actionIndex) {
+        return queue[i]
+      }
+    }
+    return null
+  }
+
+  function tryProcess(time: number): void {
+    while (!processorBusy) {
+      let best: QueueEntry | null = null
+      for (let i = 0, len = queue.length; i < len; i++) {
+        const entry = queue[i]
+        if (entry.readyToRun) {
+          if (best == null || branchLessThan(entry.branch, best.branch)) {
+            best = entry
+          }
+        }
+      }
+
+      if (best == null) {
+        break
+      }
+
+      queue.splice(queue.indexOf(best), 1)
+
+      const action = actions[best.actionIndex]
+      order.push(action.id)
+
+      if (action.duration > 0) {
+        let completeTime = time + action.duration
+        if (action.abortTime != null) {
+          const abortFireTime = action.addTime + action.abortTime
+          if (abortFireTime > time && abortFireTime <= completeTime) {
+            completeTime = abortFireTime
+          }
+        }
+        processorBusy = true
+        insertEvent({
+          time: completeTime,
+          phase: PHASE_IMMEDIATE,
+          actionIndex: best.actionIndex,
+          apply() {
+            processorBusy = false
+          },
+        })
+      }
+    }
+  }
+
+  for (let i = 0, len = actions.length; i < len; i++) {
+    const action = actions[i]
+    insertEvent({
+      time: action.addTime,
+      phase: PHASE_ADD,
+      actionIndex: i,
+      apply() {
+        if (action.abortTime === 0) {
+          return
+        }
+
+        const entry: QueueEntry = {
+          actionIndex: i,
+          branch: makeBranch(action.priority, nextInsertionOrder++),
+          readyToRun: action.readyToRunTime == null,
+        }
+        queue.push(entry)
+
+        if (action.abortTime != null) {
+          insertEvent({
+            time: action.addTime + action.abortTime,
+            phase: PHASE_IMMEDIATE,
+            actionIndex: i,
+            apply() {
+              const found = findEntry(i)
+              if (found != null) {
+                queue.splice(queue.indexOf(found), 1)
+              }
+            },
+          })
+        }
+        if (action.readyToRunTime != null) {
+          const readyPhase =
+            action.readyToRunTime === 0 ? PHASE_DEFERRED_READY : PHASE_IMMEDIATE
+          insertEvent({
+            time: action.addTime + action.readyToRunTime,
+            phase: readyPhase,
+            actionIndex: i,
+            apply(found) {
+              if (found != null) {
+                found.readyToRun = true
+              }
+            },
+          })
+        }
+      },
+    })
+  }
+
+  let eventIndex = 0
+  while (eventIndex < events.length) {
+    const currentTime = events[eventIndex].time
+    const currentPhase = events[eventIndex].phase
+
+    while (
+      eventIndex < events.length &&
+      events[eventIndex].time === currentTime &&
+      events[eventIndex].phase === currentPhase
+    ) {
+      const event = events[eventIndex]
+      eventIndex++
+      event.apply(findEntry(event.actionIndex))
+    }
+
+    tryProcess(currentTime)
+  }
+
+  return order
 }
 
 type TestContext = {

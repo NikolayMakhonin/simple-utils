@@ -148,21 +148,25 @@ export class PriorityQueue implements IPriorityQueue, IPriorityQueueRunTask {
       if (item.readyToRun) {
         queue.deleteMin()
       } else {
-        let nextNode: PairingNode<QueueItem<any>> | null = null
+        let bestNode: PairingNode<QueueItem<any>> | null = null
         for (const node of queue.nodes()) {
           if (node.item.readyToRun) {
-            nextNode = node
-            break
+            if (
+              bestNode == null ||
+              queueItemLessThan(node.item, bestNode.item)
+            ) {
+              bestNode = node
+            }
           }
         }
 
-        if (nextNode == null) {
+        if (bestNode == null) {
           this.#inProcess = false
           break
         }
 
-        item = nextNode.item
-        queue.delete(nextNode)
+        item = bestNode.item
+        queue.delete(bestNode)
       }
 
       item.node = null
