@@ -324,13 +324,14 @@ function calculateOrder(actions: Action[]): number[] {
       phase: PHASE_ADD,
       actionIndex: i,
       apply() {
+        const insertionOrder = nextInsertionOrder++
         if (action.abortTime === 0) {
           return
         }
 
         const entry: QueueEntry = {
           actionIndex: i,
-          branch: makeBranch(action.priority, nextInsertionOrder++),
+          branch: makeBranch(action.priority, insertionOrder),
           readyToRun: action.readyToRunTime == null,
         }
         queue.push(entry)
@@ -369,12 +370,22 @@ function calculateOrder(actions: Action[]): number[] {
   let eventIndex = 0
   while (eventIndex < events.length) {
     const currentTime = events[eventIndex].time
-    const currentPhase = events[eventIndex].phase
 
     while (
       eventIndex < events.length &&
       events[eventIndex].time === currentTime &&
-      events[eventIndex].phase === currentPhase
+      events[eventIndex].phase < PHASE_DEFERRED_READY
+    ) {
+      const event = events[eventIndex]
+      eventIndex++
+      event.apply(findEntry(event.actionIndex))
+    }
+
+    tryProcess(currentTime)
+
+    while (
+      eventIndex < events.length &&
+      events[eventIndex].time === currentTime
     ) {
       const event = events[eventIndex]
       eventIndex++

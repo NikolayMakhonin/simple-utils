@@ -28,10 +28,9 @@ function queueItemLessThan(o1: QueueItem<any>, o2: QueueItem<any>): boolean {
   return priorityCompare(o1.priority, o2.priority) < 0
 }
 
-let nextOrder: number = 1
-
 export class PriorityQueue implements IPriorityQueue, IPriorityQueueRunTask {
   readonly #queue: PairingHeap<QueueItem<any>>
+  #nextOrder: number = 1
 
   constructor() {
     this.#queue = new PairingHeap<QueueItem<any>>({
@@ -73,7 +72,7 @@ export class PriorityQueue implements IPriorityQueue, IPriorityQueueRunTask {
     })
 
     const item: QueueItem<T> = {
-      priority: priorityCreate(nextOrder++, priority),
+      priority: priorityCreate(this.#nextOrder++, priority),
       func: func ?? null,
       abortSignal: abortSignal ?? null,
       resolve,
