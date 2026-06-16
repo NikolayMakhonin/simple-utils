@@ -9,6 +9,9 @@
  *
  * Actions:
  * - Actions - generated action list with all parameters
+ * - added - action added to queue after addTime delay
+ * - started sync - synchronous action started execution
+ * - started async - asynchronous action started execution
  *
  * Parameters:
  * - id - action identifier
@@ -18,9 +21,14 @@
  * - abortTime - time offset from addTime when abort fires, null for no abort
  * - duration - execution duration
  * - throwError - whether the action throws TestError
+ * - time - mock time when action started
  *
  * Example trace:
- * [test] Actions: [{id: 0, priority: 1, addTime: 0, readyToRunTime: null, abortTime: null, duration: 0, throwError: false}, ...]
+ * [test] Actions: [{id: 0, priority: 1, addTime: 0, ...}, {id: 1, priority: null, addTime: 2, ...}]
+ * [test][action-0] added; priority: 1; addTime: 0
+ * [test][action-0] started sync; time: 0
+ * [test][action-1] added; priority: null; addTime: 2
+ * [test][action-1] started async; time: 2; duration: 3
  */
 import { describe, it } from 'vitest'
 import { PriorityQueue } from './PriorityQueue'
@@ -117,204 +125,16 @@ function generateContext(options: GenerateContextOptions): TestContext {
   const actions = generateActions(options)
   const orderExpected = calculateOrder(actions)
 
-  async function run(action: Action): Promise<void> {
-    const priority =
-      action.priority != null ? priorityCreate(action.priority) : null
-    await delay(action.addTime, null, timeController)
-
-    let abortController: IAbortControllerFast | null = null
-    if (action.abortTime != null) {
-      abortController = new AbortControllerFast()
-      if (action.abortTime === 0) {
-        abortController.abort(new AbortError(`TEST_ABORT: ${action.id}`))
-      } else {
-        timeController.setTimeout(() => {
-          abortController!.abort(new AbortError(`TEST_ABORT: ${action.id}`))
-        }, action.abortTime)
-      }
-    }
-
-    let started = false
-    let timeStart: number | null = null
-
-    const runFuncSync: PriorityQueueRunFunc<number> = abortSignal => {
-      if (started) {
-        onError(
-          new Error(
-            `[test] Action started multiple times: ${formatObject(action)}`,
-          ),
-        )
-      }
-      started = true
-
-      checkAbortSignal(abortSignal, abortController?.signal)
-      timeStart = timeController.now()
-      orderActual.push(action.id)
-
-      if (action.throwError) {
-        throw new TestError(`TEST_ERROR: ${action.id}`)
-      }
-
-      return action.id
-    }
-
-    const runFuncAsync: PriorityQueueRunFunc<number> = async abortSignal => {
-      if (started) {
-        onError(
-          new Error(
-            `[test] Action started multiple times: ${formatObject(action)}`,
-          ),
-        )
-      }
-      started = true
-
-      checkAbortSignal(abortSignal, abortController?.signal)
-      timeStart = timeController.now()
-      orderActual.push(action.id)
-      await delay(action.duration, abortSignal, timeController)
-      checkAbortSignal(abortSignal, abortController?.signal)
-
-      if (action.throwError) {
-        throw new TestError(`TEST_ERROR: ${action.id}`)
-      }
-
-      return action.id
-    }
-
-    const runFunc = action.duration === 0 ? runFuncSync : runFuncAsync
-
-    let runResult: number | null = null
-    let runError: TestError | AbortError | null = null
-    try {
-      if (action.readyToRunTime != null) {
-        const task = priorityQueue.runTask(
-          runFunc,
-          priority,
-          abortController?.signal,
-        )
-        timeController.setTimeout(() => {
-          task.setReadyToRun(true)
-        }, action.readyToRunTime)
-        runResult = await task.result
-      } else {
-        runResult = await priorityQueue.run(
-          runFunc,
-          priority,
-          abortController?.signal,
-        )
-      }
-    } catch (error: any) {
-      if (error instanceof TestError || error instanceof AbortError) {
-        runError = error
-      } else {
-        throw error
-      }
-    }
-
-    const shouldAbort =
-      action.abortTime != null &&
-      action.abortTime <= (action.readyToRunTime ?? 0) + action.duration
-    const shouldAbortBeforeStart =
-      action.abortTime != null &&
-      action.abortTime <= (action.readyToRunTime ?? 0)
-
-    if (shouldAbort) {
-      if (runError == null) {
-        throw new Error(
-          `[test] Action was expected to be aborted but completed successfully: ${formatObject(
-            action,
-          )}`,
-        )
-      }
-      if (!(runError instanceof AbortError)) {
-        throw new Error(
-          `[test] Action was expected to be aborted but threw different error: ${formatObject(
-            action,
-          )}, error: ${formatObject(runError)}`,
-        )
-      }
-      if (runError.message !== `TEST_ABORT: ${action.id}`) {
-        throw new Error(
-          `[test] Action was aborted with unexpected error message: ${formatObject(
-            action,
-          )}, error: ${formatObject(runError)}`,
-        )
-      }
-    } else if (action.throwError) {
-      if (runError == null) {
-        throw new Error(
-          `[test] Action should throw error but did not: ${formatObject({
-            action,
-          })}`,
-        )
-      }
-      if (runError.message !== `TEST_ERROR: ${action.id}`) {
-        throw new Error(
-          `[test] Action threw unexpected error: ${formatObject({
-            action,
-            runError,
-          })}`,
-        )
-      }
-    } else {
-      if (runError != null) {
-        throw new Error(
-          `[test] Action threw error but should not: ${formatObject({
-            action,
-            runError,
-          })}`,
-        )
-      }
-      if (runResult !== action.id) {
-        throw new Error(
-          `[test] Action run result unexpected: ${formatObject({
-            action,
-            runResult,
-          })}`,
-        )
-      }
-    }
-
-    if (shouldAbortBeforeStart) {
-      if (timeStart != null) {
-        throw new Error(
-          `[test] Action was expected to be aborted before start but has start time: ${formatObject(
-            action,
-          )}, timeStart: ${timeStart}`,
-        )
-      }
-    } else if (timeStart == null) {
-      throw new Error(
-        `[test] Action run func did not start: ${formatObject(action)}`,
-      )
-    } else {
-      const durationActual = timeController.now() - timeStart
-      const durationExpected =
-        action.abortTime == null
-          ? action.duration
-          : Math.max(
-              0,
-              Math.min(
-                action.duration,
-                action.abortTime - (action.readyToRunTime ?? 0),
-              ),
-            )
-      if (durationActual !== durationExpected) {
-        throw new Error(
-          `[test] duration actual (${durationActual}) !== expected (${durationExpected}) for action ${formatObject(action)}`,
-        )
-      }
-    }
-  }
-
   return {
+    log: options.log,
     throwIfError() {
       if (hasError) {
         throw firstError
       }
     },
+    onError,
+    priorityQueue,
     timeController,
-    run,
     actions,
     orderActual,
     orderExpected,
@@ -394,15 +214,237 @@ function calculateOrder(actions: Action[]): number[] {
 }
 
 type TestContext = {
+  log: boolean
   throwIfError: () => void
+  onError: (error: any) => void
+  priorityQueue: PriorityQueue
   timeController: TimeControllerMock
-  run: (action: Action) => Promise<void>
   /** Actions to add to the queue, in the order of adding */
   actions: Action[]
   /** Actual order action ids */
   orderActual: number[]
   /** Expected order action ids */
   orderExpected: number[]
+}
+
+async function runAction(context: TestContext, action: Action): Promise<void> {
+  const { log, priorityQueue, timeController, orderActual, onError } = context
+
+  const priority =
+    action.priority != null ? priorityCreate(action.priority) : null
+  await delay(action.addTime, null, timeController)
+
+  if (log) {
+    console.log(
+      `[test][action-${action.id}] added; priority: ${action.priority}; addTime: ${action.addTime}`,
+    )
+  }
+
+  let abortController: IAbortControllerFast | null = null
+  if (action.abortTime != null) {
+    abortController = new AbortControllerFast()
+    if (action.abortTime === 0) {
+      abortController.abort(new AbortError(`TEST_ABORT: ${action.id}`))
+    } else {
+      timeController.setTimeout(() => {
+        abortController!.abort(new AbortError(`TEST_ABORT: ${action.id}`))
+      }, action.abortTime)
+    }
+  }
+
+  let started = false
+  let timeStart: number | null = null
+
+  const runFuncSync: PriorityQueueRunFunc<number> = abortSignal => {
+    if (started) {
+      onError(
+        new Error(
+          `[test] Action started multiple times: ${formatObject(action)}`,
+        ),
+      )
+    }
+    started = true
+
+    checkAbortSignal(abortSignal, abortController?.signal)
+    timeStart = timeController.now()
+    orderActual.push(action.id)
+
+    if (log) {
+      console.log(
+        `[test][action-${action.id}] started sync; time: ${timeStart}`,
+      )
+    }
+
+    if (action.throwError) {
+      throw new TestError(`TEST_ERROR: ${action.id}`)
+    }
+
+    return action.id
+  }
+
+  const runFuncAsync: PriorityQueueRunFunc<number> = async abortSignal => {
+    if (started) {
+      onError(
+        new Error(
+          `[test] Action started multiple times: ${formatObject(action)}`,
+        ),
+      )
+    }
+    started = true
+
+    checkAbortSignal(abortSignal, abortController?.signal)
+    timeStart = timeController.now()
+    orderActual.push(action.id)
+
+    if (log) {
+      console.log(
+        `[test][action-${action.id}] started async; time: ${timeStart}; duration: ${action.duration}`,
+      )
+    }
+
+    await delay(action.duration, abortSignal, timeController)
+    checkAbortSignal(abortSignal, abortController?.signal)
+
+    if (action.throwError) {
+      throw new TestError(`TEST_ERROR: ${action.id}`)
+    }
+
+    return action.id
+  }
+
+  const runFunc = action.duration === 0 ? runFuncSync : runFuncAsync
+
+  let runResult: number | null = null
+  let runError: TestError | AbortError | null = null
+  try {
+    if (action.readyToRunTime != null) {
+      const task = priorityQueue.runTask(
+        runFunc,
+        priority,
+        abortController?.signal,
+      )
+      timeController.setTimeout(() => {
+        task.setReadyToRun(true)
+      }, action.readyToRunTime)
+      runResult = await task.result
+    } else {
+      runResult = await priorityQueue.run(
+        runFunc,
+        priority,
+        abortController?.signal,
+      )
+    }
+  } catch (error: any) {
+    if (error instanceof TestError || error instanceof AbortError) {
+      runError = error
+    } else {
+      throw error
+    }
+  }
+
+  checkActionResult(action, timeController, runResult, runError, timeStart)
+}
+
+function checkActionResult(
+  action: Action,
+  timeController: TimeControllerMock,
+  runResult: number | null,
+  runError: TestError | AbortError | null,
+  timeStart: number | null,
+): void {
+  const shouldAbort =
+    action.abortTime != null &&
+    action.abortTime <= (action.readyToRunTime ?? 0) + action.duration
+  const shouldAbortBeforeStart =
+    action.abortTime != null && action.abortTime <= (action.readyToRunTime ?? 0)
+
+  if (shouldAbort) {
+    if (runError == null) {
+      throw new Error(
+        `[test] Action was expected to be aborted but completed successfully: ${formatObject(
+          action,
+        )}`,
+      )
+    }
+    if (!(runError instanceof AbortError)) {
+      throw new Error(
+        `[test] Action was expected to be aborted but threw different error: ${formatObject(
+          action,
+        )}, error: ${formatObject(runError)}`,
+      )
+    }
+    if (runError.message !== `TEST_ABORT: ${action.id}`) {
+      throw new Error(
+        `[test] Action was aborted with unexpected error message: ${formatObject(
+          action,
+        )}, error: ${formatObject(runError)}`,
+      )
+    }
+  } else if (action.throwError) {
+    if (runError == null) {
+      throw new Error(
+        `[test] Action should throw error but did not: ${formatObject({
+          action,
+        })}`,
+      )
+    }
+    if (runError.message !== `TEST_ERROR: ${action.id}`) {
+      throw new Error(
+        `[test] Action threw unexpected error: ${formatObject({
+          action,
+          runError,
+        })}`,
+      )
+    }
+  } else {
+    if (runError != null) {
+      throw new Error(
+        `[test] Action threw error but should not: ${formatObject({
+          action,
+          runError,
+        })}`,
+      )
+    }
+    if (runResult !== action.id) {
+      throw new Error(
+        `[test] Action run result unexpected: ${formatObject({
+          action,
+          runResult,
+        })}`,
+      )
+    }
+  }
+
+  if (shouldAbortBeforeStart) {
+    if (timeStart != null) {
+      throw new Error(
+        `[test] Action was expected to be aborted before start but has start time: ${formatObject(
+          action,
+        )}, timeStart: ${timeStart}`,
+      )
+    }
+  } else if (timeStart == null) {
+    throw new Error(
+      `[test] Action run func did not start: ${formatObject(action)}`,
+    )
+  } else {
+    const durationActual = timeController.now() - timeStart
+    const durationExpected =
+      action.abortTime == null
+        ? action.duration
+        : Math.max(
+            0,
+            Math.min(
+              action.duration,
+              action.abortTime - (action.readyToRunTime ?? 0),
+            ),
+          )
+    if (durationActual !== durationExpected) {
+      throw new Error(
+        `[test] duration actual (${durationActual}) !== expected (${durationExpected}) for action ${formatObject(action)}`,
+      )
+    }
+  }
 }
 
 type TestOptions = {
@@ -414,7 +456,7 @@ async function test(options: TestOptions): Promise<void> {
   const { throwIfError, timeController, actions, orderActual, orderExpected } =
     context
 
-  const promises = actions.map(action => context.run(action))
+  const promises = actions.map(action => runAction(context, action))
 
   let hasError = false
   let error: any = null
