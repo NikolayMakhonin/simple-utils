@@ -5,13 +5,13 @@ export class ManualPromise<T = void> {
   readonly reject: (reason?: any) => void
 
   constructor() {
-    let resolve: (value: T | PromiseLike<T>) => void
-    let reject: (reason?: any) => void
-    this.promise = new Promise<T>((res, rej) => {
-      resolve = res
-      reject = rej
+    let _resolve: (value: T | PromiseLike<T>) => void
+    let _reject: (reason?: any) => void
+    this.promise = new Promise<T>((resolve, reject) => {
+      _resolve = resolve
+      _reject = reject
     })
-    this.resolve = resolve!
-    this.reject = reject!
+    this.resolve = _resolve!
+    this.reject = _reject!
   }
 }

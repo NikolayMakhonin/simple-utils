@@ -13,7 +13,7 @@ import {
 } from 'src/common/async/priority/Priority'
 import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
 import { EMPTY_FUNC } from 'src/common/constants'
-import { ManualPromise } from 'src/common/async/promise'
+import { ManualPromise } from 'src/common/async/promise/ManualPromise'
 
 type QueueItem<T> = {
   func: ((abortSignal?: null | IAbortSignalFast) => PromiseOrValue<T>) | null

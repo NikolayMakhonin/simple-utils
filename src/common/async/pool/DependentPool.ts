@@ -1,6 +1,7 @@
 import { type IAbortSignalFast } from '@flemist/abort-controller-fast'
 import type { PromiseOrValue } from 'src/common/types/common'
 import { type IPool } from './Pool'
+import { poolsTick } from './Pools'
 import { PoolWrapper } from './PoolWrapper'
 
 /**
@@ -10,16 +11,18 @@ import { PoolWrapper } from './PoolWrapper'
  * without blocking them
  */
 export class DependentPool extends PoolWrapper {
-  private readonly _pools: IPool[]
+  private readonly _dependencies: IPool[]
+  private readonly _allPools: IPool[]
 
   constructor(pool: IPool, ...dependencies: IPool[]) {
     super(pool)
-    this._pools = dependencies
+    this._dependencies = dependencies
+    this._allPools = [pool, ...dependencies]
   }
 
   get heldCount() {
     let heldCount: number = this._pool.heldCount
-    const pools = this._pools
+    const pools = this._dependencies
     for (let i = 0, len = pools.length; i < len; i++) {
       heldCount += pools[i].heldCount
     }
@@ -42,26 +45,6 @@ export class DependentPool extends PoolWrapper {
   }
 
   tick(abortSignal?: null | IAbortSignalFast): PromiseOrValue<void> {
-    let promises: Promise<void>[] | null = null
-    const promise = this._pool.tick(abortSignal)
-    if (promise) {
-      promises = [promise]
-    }
-    for (let i = 0, len = this._pools.length; i < len; i++) {
-      const promise = this._pools[i].tick(abortSignal)
-      if (promise) {
-        if (!promises) {
-          promises = [promise]
-        } else {
-          promises.push(promise)
-        }
-      }
-    }
-
-    if (!promises) {
-      return
-    }
-
-    return Promise.race(promises)
+    return poolsTick(this._allPools, abortSignal)
   }
 }

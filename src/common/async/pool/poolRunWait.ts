@@ -10,7 +10,7 @@ import { isPromiseLike } from 'src/common/async/promise/isPromiseLike'
 export type PoolRunArgs<T> = {
   pool?: null | IPool
   count: number
-  /** @param holdPool - pool with `count` capacity for nested checks via poolRunThrow */
+  /** holdPool is an independent pool with capacity equal to count, scoped to this call */
   func: (holdPool: IPool, abortSignal?: null | IAbortSignalFast) => T
   abortSignal?: null | IAbortSignalFast
 }

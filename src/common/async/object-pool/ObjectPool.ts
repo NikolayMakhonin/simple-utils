@@ -98,7 +98,7 @@ export class ObjectPool<TObject extends object>
 
   get(count: number): TObject[] {
     const objects = this._availableObjects.get(count)
-    if (this._heldObjects && objects) {
+    if (this._heldObjects) {
       for (let i = 0, len = objects.length; i < len; i++) {
         this._heldObjects.add(objects[i])
       }
@@ -190,16 +190,12 @@ export class ObjectPool<TObject extends object>
     if (!this._create) {
       throw new Error('[ObjectPool][use] create function is not specified')
     }
-    let objects = await this.getWait(
+    const objects = await this.getWait(
       count,
       priority,
       abortSignal,
       awaitPriority,
     )
-
-    if (!objects) {
-      objects = []
-    }
 
     for (let i = objects.length; i < count; i++) {
       const obj = await this._create()
