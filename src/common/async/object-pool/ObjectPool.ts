@@ -203,32 +203,42 @@ export class ObjectPool<TObject extends object>
     )
 
     try {
-      for (let i = objects.length; i < count; i++) {
-        const obj = await this._create()
-        if (obj == null) {
-          throw new Error('[ObjectPool][use] create returned null or undefined')
-        }
-        if (this._heldObjects) {
-          this._heldObjects.add(obj)
-        }
-        objects.push(obj)
-      }
-      const result = await func(objects, abortSignal)
-      return result
+      await this._createObjects(objects, count)
+      return await func(objects, abortSignal)
     } finally {
-      void (async () => {
-        const releasedCount = await this.release(objects)
-        const unreleased = count - releasedCount
-        if (unreleased > 0) {
-          await this._pool.release(unreleased, true)
-        }
-        if (this._destroy) {
-          for (let i = releasedCount, len = objects.length; i < len; i++) {
-            const obj = objects[i]
-            await this._destroy(obj)
-          }
-        }
-      })()
+      void this._releaseAndDestroy(objects, count)
+    }
+  }
+
+  private async _createObjects(
+    objects: TObject[],
+    count: number,
+  ): Promise<void> {
+    for (let i = objects.length; i < count; i++) {
+      const obj = await this._create!()
+      if (obj == null) {
+        throw new Error('[ObjectPool][use] create returned null or undefined')
+      }
+      if (this._heldObjects) {
+        this._heldObjects.add(obj)
+      }
+      objects.push(obj)
+    }
+  }
+
+  private async _releaseAndDestroy(
+    objects: TObject[],
+    count: number,
+  ): Promise<void> {
+    const releasedCount = await this.release(objects)
+    const unreleased = count - releasedCount
+    if (unreleased > 0) {
+      await this._pool.release(unreleased, true)
+    }
+    if (this._destroy) {
+      for (let i = releasedCount, len = objects.length; i < len; i++) {
+        await this._destroy(objects[i])
+      }
     }
   }
 
