@@ -1,5 +1,8 @@
 import { type IAbortSignalFast } from '@flemist/abort-controller-fast'
-import type { PromiseOrValue } from 'src/common/types/common'
+import type {
+  PromiseLikeOrValue,
+  PromiseOrValue,
+} from 'src/common/types/common'
 import { type IStackPool, StackPool } from './StackPool'
 import { type IPool, Pool, poolWait } from 'src/common/async/pool/Pool'
 import { Pools } from 'src/common/async/pool/Pools'
@@ -38,7 +41,7 @@ export interface IObjectPool<TObject extends object> {
     func: (
       objects: ReadonlyArray<TObject>,
       abortSignal?: null | IAbortSignalFast,
-    ) => PromiseOrValue<TResult>,
+    ) => PromiseLikeOrValue<TResult>,
     priority?: null | Priority,
     abortSignal?: null | IAbortSignalFast,
     awaitPriority?: null | AwaitPriority,
@@ -53,8 +56,8 @@ export type ObjectPoolArgs<TObject extends object> = {
   availableObjects?: null | IStackPool<TObject>
   /** Enables tracking of objects currently held and not yet released */
   heldObjects?: null | boolean | Set<TObject>
-  create: () => PromiseOrValue<TObject>
-  destroy?: null | ((obj: TObject) => PromiseOrValue<void>)
+  create: () => PromiseLikeOrValue<TObject>
+  destroy?: null | ((obj: TObject) => PromiseLikeOrValue<void>)
 }
 
 export class ObjectPool<TObject extends object>
@@ -64,8 +67,10 @@ export class ObjectPool<TObject extends object>
   private readonly _allocatePool: IPool
   private readonly _availableObjects: IStackPool<TObject>
   private readonly _heldObjects: Set<TObject> | null
-  private readonly _create?: null | (() => PromiseOrValue<TObject>)
-  private readonly _destroy?: null | ((obj: TObject) => PromiseOrValue<void>)
+  private readonly _create?: null | (() => PromiseLikeOrValue<TObject>)
+  private readonly _destroy?:
+    | null
+    | ((obj: TObject) => PromiseLikeOrValue<void>)
 
   constructor({
     pool,
@@ -182,7 +187,7 @@ export class ObjectPool<TObject extends object>
     func: (
       objects: ReadonlyArray<TObject>,
       abortSignal?: null | IAbortSignalFast,
-    ) => PromiseOrValue<TResult>,
+    ) => PromiseLikeOrValue<TResult>,
     priority?: null | Priority,
     abortSignal?: null | IAbortSignalFast,
     awaitPriority?: null | AwaitPriority,

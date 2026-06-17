@@ -7,7 +7,7 @@ import {
   type WorkerEventResponseError,
 } from '../types'
 import { serializeError } from '../helpers'
-import type { Unsubscribe, PromiseOrValue } from 'src/common/types'
+import type { Unsubscribe, PromiseLikeOrValue } from 'src/common/types'
 import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
 
 export function workerRequestHandler<RequestData, ResponseData>(
@@ -15,7 +15,7 @@ export function workerRequestHandler<RequestData, ResponseData>(
   handler: (
     data: WorkerData<RequestData>,
     abortSignal: IAbortSignalFast,
-  ) => PromiseOrValue<WorkerData<ResponseData>>,
+  ) => PromiseLikeOrValue<WorkerData<ResponseData>>,
 ): Unsubscribe {
   async function respond(
     request: WorkerEventRequest<RequestData>,

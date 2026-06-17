@@ -1,6 +1,6 @@
 import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
 import type { Priority } from 'src/common/async/priority/Priority'
-import type { PromiseOrValue } from 'src/common/types/common'
+import type { PromiseLikeOrValue } from 'src/common/types/common'
 
 export type PriorityQueueTask<T> = {
   readonly result: Promise<T>
@@ -9,7 +9,7 @@ export type PriorityQueueTask<T> = {
 
 export type PriorityQueueRunFunc<T> = (
   abortSignal?: null | IAbortSignalFast,
-) => PromiseOrValue<T>
+) => PromiseLikeOrValue<T>
 
 export interface IPriorityQueue {
   run<T>(

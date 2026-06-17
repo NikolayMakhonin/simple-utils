@@ -4,7 +4,7 @@ import type {
   PriorityQueueTask,
   PriorityQueueRunFunc,
 } from './contracts'
-import type { PromiseOrValue } from 'src/common/types/common'
+import type { PromiseLikeOrValue } from 'src/common/types/common'
 import { PairingHeap, PairingNode } from '@flemist/pairing-heap'
 import {
   type Priority,
@@ -16,7 +16,9 @@ import { EMPTY_FUNC } from 'src/common/constants'
 import { ManualPromise } from 'src/common/async/promise/ManualPromise'
 
 type QueueItem<T> = {
-  func: ((abortSignal?: null | IAbortSignalFast) => PromiseOrValue<T>) | null
+  func:
+    | ((abortSignal?: null | IAbortSignalFast) => PromiseLikeOrValue<T>)
+    | null
   abortSignal: IAbortSignalFast | null
   priority: Priority | null
   resolve: (value: T) => void
@@ -58,7 +60,7 @@ export class PriorityQueue implements IPriorityQueue, IPriorityQueueRunTask {
   private _run<T>(
     taskMode: boolean,
     func:
-      | ((abortSignal?: null | IAbortSignalFast) => PromiseOrValue<T>)
+      | ((abortSignal?: null | IAbortSignalFast) => PromiseLikeOrValue<T>)
       | null
       | undefined,
     priority?: null | Priority,

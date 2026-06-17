@@ -1,4 +1,5 @@
 import type { CDPSession, Page } from 'playwright'
+import type { PromiseLikeOrValue } from 'src/common/types/common'
 
 export async function createCDPSession(page: Page): Promise<CDPSession> {
   const cdp = await page.context().newCDPSession(page)
@@ -15,7 +16,7 @@ export async function destroyCDPSession(cdp: CDPSession): Promise<void> {
 
 export async function usingCDPSession<Result>(
   page: Page,
-  func: (cdp: CDPSession) => Promise<Result>,
+  func: (cdp: CDPSession) => PromiseLikeOrValue<Result>,
 ): Promise<Result> {
   const cdp = await createCDPSession(page)
   try {

@@ -8,12 +8,13 @@ import {
   Page,
 } from 'playwright'
 import { IAbortSignalFast } from '@flemist/abort-controller-fast'
+import type { PromiseLikeOrValue } from 'src/common/types/common'
 
 export type TestPageFuncArgs = TestFuncArgs & {
   checkErrors: () => Promise<void>
 }
 
-export type TestPageFunc = (args: TestPageFuncArgs) => Promise<void>
+export type TestPageFunc = (args: TestPageFuncArgs) => PromiseLikeOrValue<void>
 
 export type TestPageArgs = {
   browser: Browser

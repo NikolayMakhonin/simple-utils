@@ -3,10 +3,11 @@ import {
   timeoutAbortController,
   type TimeoutArgs,
 } from './timeoutAbortController'
+import type { PromiseLikeOrValue } from 'src/common/types/common'
 
 // TODO: write doc comments
 export async function withTimeout<T>(
-  func: (abortSignal: IAbortSignalFast | null) => Promise<T>,
+  func: (abortSignal: IAbortSignalFast | null) => PromiseLikeOrValue<T>,
   args: undefined | null | TimeoutArgs,
 ): Promise<T> {
   const abortController = timeoutAbortController(args)

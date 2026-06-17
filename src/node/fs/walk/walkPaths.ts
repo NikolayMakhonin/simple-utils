@@ -8,7 +8,7 @@ import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
 import * as fs from 'fs'
 import { combineAbortSignals } from 'src/common/async/abort/combineAbortSignals'
 import { useAbortController } from 'src/common/async/abort/useAbortController'
-import type { PromiseOrValue } from 'src/common/types/common'
+import type { PromiseLikeOrValue } from 'src/common/types/common'
 import * as path from 'path'
 import { getFileId, pathResolve } from './helpers'
 import { poolFs } from 'src/node'
@@ -39,7 +39,7 @@ export type WalkPathOptions = WalkPathOptionsCommon
 /** @returns true if the error is handled */
 export type WalkPathHandleError = (
   err: any,
-) => PromiseOrValue<boolean | null | undefined | void>
+) => PromiseLikeOrValue<boolean | null | undefined | void>
 
 // TODO: write doc comments
 export type WalkPathStat = {
@@ -67,7 +67,7 @@ export type WalkPathHandlePathArg = {
  */
 export type WalkPathHandlePath = (
   arg: WalkPathHandlePathArg,
-) => PromiseOrValue<boolean>
+) => PromiseLikeOrValue<boolean>
 
 // TODO: write doc comments
 export type WalkPathLogOptions = {
@@ -79,7 +79,7 @@ export type WalkPathLogOptions = {
 }
 
 // TODO: write doc comments
-export type WalkPathLogFunc = (message: string) => PromiseOrValue<void>
+export type WalkPathLogFunc = (message: string) => PromiseLikeOrValue<void>
 
 // TODO: write doc comments
 function addStats(totalStat: WalkPathStat, itemStat: WalkPathStat) {

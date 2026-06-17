@@ -1,8 +1,12 @@
 import type { Expected } from './types'
 import { match } from './match'
 import { filterMatchResult, matchResultToString } from './report'
-import type { PromiseOrValue } from 'src/common/types/common'
+import type {
+  PromiseLikeOrValue,
+  PromiseOrValue,
+} from 'src/common/types/common'
 import { isPromiseLike } from 'src/common/async/promise/isPromiseLike'
+import { promiseLikeToPromise } from 'src/common/async/promise/promiseLikeToPromise'
 
 export class CheckError extends Error {
   constructor(message: string) {
@@ -33,23 +37,23 @@ export function check<T>(actual: T) {
 }
 
 export function checkFunc<T>(
-  func: () => Promise<T>,
+  func: () => PromiseLike<T>,
 ): (expectedValue: Expected<T>, expectedError?: Expected<any>) => Promise<T>
 export function checkFunc<T>(
   func: () => T,
 ): (expectedValue: Expected<T>, expectedError?: Expected<any>) => T
 export function checkFunc<T>(
-  func: () => PromiseOrValue<T>,
+  func: () => PromiseLikeOrValue<T>,
 ): (
   expectedValue: Expected<T>,
   expectedError?: Expected<any>,
 ) => PromiseOrValue<T>
-export function checkFunc<T>(func: () => PromiseOrValue<T>) {
+export function checkFunc<T>(func: () => PromiseLikeOrValue<T>) {
   return function _check(
     expectedValue: Expected<T>,
     expectedError?: Expected<any>,
   ): PromiseOrValue<T> {
-    let actual: PromiseOrValue<T>
+    let actual: PromiseLikeOrValue<T>
     try {
       actual = func()
     } catch (error) {
@@ -60,7 +64,7 @@ export function checkFunc<T>(func: () => PromiseOrValue<T>) {
       check(actual)(expectedValue)
       return actual
     }
-    return actual
+    return promiseLikeToPromise(actual)
       .then<T>(actualValue => {
         check(actualValue)(expectedValue)
         return actualValue

@@ -4,7 +4,7 @@ import type {
   TaskRepeatStrategyDelay,
   TaskStatusBase,
 } from './types'
-import type { PromiseOrValue } from 'src/common/types/common'
+import type { PromiseLikeOrValue } from 'src/common/types/common'
 import { isPromiseLike } from 'src/common/async'
 
 /**
@@ -77,7 +77,7 @@ function mergeDelays<
   }
 
   return async function mergedDelay(status, delayAbortSignal) {
-    const promises: PromiseOrValue<
+    const promises: PromiseLikeOrValue<
       void | undefined | null | number | TaskRepeatStrategyAfter
     >[] = []
 

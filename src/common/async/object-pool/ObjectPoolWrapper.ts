@@ -1,5 +1,8 @@
 import { type IAbortSignalFast } from '@flemist/abort-controller-fast'
-import type { PromiseOrValue } from 'src/common/types/common'
+import type {
+  PromiseLikeOrValue,
+  PromiseOrValue,
+} from 'src/common/types/common'
 import { type Priority } from 'src/common/async/priority/Priority'
 import { type AwaitPriority } from 'src/common/async/priority-queue/helpers'
 import { type IPool } from 'src/common/async/pool/Pool'
@@ -60,7 +63,7 @@ export class ObjectPoolWrapper<TObject extends object>
     func: (
       objects: ReadonlyArray<TObject>,
       abortSignal?: null | IAbortSignalFast,
-    ) => PromiseOrValue<TResult>,
+    ) => PromiseLikeOrValue<TResult>,
     priority?: null | Priority,
     abortSignal?: null | IAbortSignalFast,
     awaitPriority?: null | AwaitPriority,

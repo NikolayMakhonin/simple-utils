@@ -213,7 +213,9 @@ export type TaskRepeatStrategyDelay<
 > = (
   status: Status,
   delayAbortSignal: IAbortSignalFast,
-) => PromiseOrValue<void | undefined | null | number | TaskRepeatStrategyAfter>
+) => PromiseLikeOrValue<
+  void | undefined | null | number | TaskRepeatStrategyAfter
+>
 
 /**
  * Actions after execution for a single iteration of a repeated task

@@ -1,10 +1,14 @@
-import type { PromiseOrValue, Unsubscribe } from 'src/common/types/common'
+import type {
+  PromiseLikeOrValue,
+  PromiseOrValue,
+  Unsubscribe,
+} from 'src/common/types/common'
 import type { ValueState } from 'src/common/async/value-state/ValueState'
 
 /** Called when the observable value becomes stale */
 export type Invalidate = () => void
 
-export type Listener<T = void> = (event: T) => PromiseOrValue<void>
+export type Listener<T = void> = (event: T) => PromiseLikeOrValue<void>
 
 export interface IObservable<T = void> {
   subscribe(listener: Listener<T>, invalidate?: null | Invalidate): Unsubscribe

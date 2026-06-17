@@ -1,5 +1,6 @@
 import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
 import type { IWorkerEventBus, WorkerData, WorkerEvent } from '../types'
+import type { PromiseLikeOrValue } from 'src/common/types/common'
 
 // region WorkerFunctionClient
 
@@ -86,7 +87,7 @@ export type WorkerFunctionServer<
   EventOutput extends WorkerEvent<any> = never,
 > = (
   options: WorkerFunctionServerOptions<Input, EventInput, EventOutput>,
-) => Promise<WorkerData<Output>>
+) => PromiseLikeOrValue<WorkerData<Output>>
 
 // endregion
 

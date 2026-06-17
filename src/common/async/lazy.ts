@@ -78,7 +78,7 @@ export interface ILazyWithId<Id, Result = void> {
 
 // TODO: write doc comments
 export type LazyWithIdOptions<Id, Result> = {
-  func: (id: Id) => PromiseOrValue<Result>
+  func: (id: Id) => PromiseLikeOrValue<Result>
   persist?: null | boolean
 }
 
@@ -120,9 +120,10 @@ export class LazyWithId<Id, Result = void> implements ILazyWithId<Id, Result> {
       }
     }
 
-    this.#promiseOrValues.set(id, promiseOrValue)
+    const result = promiseLikeToPromise(promiseOrValue)
+    this.#promiseOrValues.set(id, result)
 
-    return promiseOrValue
+    return result
   }
 
   set(id: Id, value: PromiseOrValue<Result>): void {

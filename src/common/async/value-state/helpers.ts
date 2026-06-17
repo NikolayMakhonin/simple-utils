@@ -6,7 +6,7 @@ import type {
   StateOrValue,
   ValueStateUpdater,
 } from './contracts'
-import type { PromiseOrValue } from 'src/common/types/common'
+import type { PromiseLikeOrValue } from 'src/common/types/common'
 import { isPromiseLike } from 'src/common/async/promise/isPromiseLike'
 
 export function createValueState<TValue>(
@@ -102,7 +102,7 @@ export async function asyncToValueState<TValue>(
       return state
     })
 
-    const valuePromise: PromiseOrValue<StateOrValue<TValue>> =
+    const valuePromise: PromiseLikeOrValue<StateOrValue<TValue>> =
       typeof valueAsync === 'function' ? (valueAsync as any)() : valueAsync
 
     let value: StateOrValue<TValue>

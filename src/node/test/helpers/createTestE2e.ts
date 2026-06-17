@@ -25,6 +25,7 @@ import {
 } from '@flemist/test-variants'
 import { setPlaywrightPriorityLow } from 'src/node/test/e2e/setPlaywrightPriorityLow'
 import { Obj } from 'src/common/types'
+import type { PromiseLikeOrValue } from 'src/common/types/common'
 
 export type TestE2eArgs = {
   browser: Browser
@@ -57,7 +58,7 @@ export type TestE2ePageArgs<Args extends Obj> = {
 }
 export type TestE2ePageFunc<Args extends Obj = never> = (
   args: TestE2ePageArgs<Args>,
-) => Promise<void>
+) => PromiseLikeOrValue<void>
 
 const abortControllerGlobal = new AbortControllerFast()
 

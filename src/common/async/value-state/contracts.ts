@@ -1,4 +1,4 @@
-import type { PromiseOrValue } from 'src/common/types/common'
+import type { PromiseLikeOrValue } from 'src/common/types/common'
 
 export interface IValueState<TValue> {
   value?: TValue | null
@@ -12,7 +12,7 @@ export type ValueStateOrValue<T> = IValueState<T> | T
 export type FuncOrValue<TValue> = (() => TValue) | TValue
 export type StateOrValue<TValue> = IValueState<TValue> | TValue
 export type AsyncOrValue<TValue> = FuncOrValue<
-  PromiseOrValue<StateOrValue<TValue>>
+  PromiseLikeOrValue<StateOrValue<TValue>>
 >
 export type OfValueStateOrValue<T> =
   T extends ValueStateOrValue<infer U> ? U : never

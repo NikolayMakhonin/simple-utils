@@ -1,5 +1,6 @@
 import { Browser, BrowserContext, BrowserContextOptions } from 'playwright'
 import { contextClose, contextCloseOnError, contextCreate } from './context'
+import type { PromiseLikeOrValue } from 'src/common/types/common'
 
 /**
  * @see contextCreate
@@ -14,7 +15,7 @@ export function useBrowserContext<T = void>({
   options?: null | BrowserContextOptions
 }) {
   return async function _useBrowserContext(
-    func: (context: BrowserContext) => Promise<T>,
+    func: (context: BrowserContext) => PromiseLikeOrValue<T>,
   ): Promise<T> {
     const context = await contextCreate(browser, options)
     try {
