@@ -1404,11 +1404,13 @@ type TestStorages = {
   stat: MemoryStorageDb<string, CacheStat>
 }
 
-function createTestOptions(options?: {
-  totalSize?: null | NumberRange
-  isExpired?: null | ((stat: CacheStat) => boolean)
-  timeController?: null | TimeControllerMock
-}): {
+function createTestOptions(
+  options?: null | {
+    totalSize?: null | NumberRange
+    isExpired?: null | ((stat: CacheStat) => boolean)
+    timeController?: null | TimeControllerMock
+  },
+): {
   options: CacheOptions<
     string,
     string,

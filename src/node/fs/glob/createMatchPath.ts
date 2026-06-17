@@ -26,7 +26,7 @@ export type CreateMatchPathOptions = {
    * result = include && !exclude
    */
   globs: string[]
-  rootDir?: string | null
+  rootDir?: null | string
   noCase?: null | boolean
 }
 

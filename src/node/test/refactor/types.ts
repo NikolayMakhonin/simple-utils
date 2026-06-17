@@ -18,23 +18,23 @@ export type TElement = {
 }
 
 export type TGetAllElementsFilters = {
-  excludeAttrs?: string[]
+  excludeAttrs?: null | string[]
   /** Fix attribute values by replacing matching patterns; useful for removing generated hashes */
-  fixAttrs?: TFixPattern[]
+  fixAttrs?: null | TFixPattern[]
   /** Fix style values by replacing matching patterns in CSS property values */
-  fixStyles?: TFixPattern[]
+  fixStyles?: null | TFixPattern[]
   /** Exclude matching classes from the `classes` array */
-  excludeClasses?: RegExp
+  excludeClasses?: null | RegExp
   /** Exclude matching id from comparison data */
-  excludeIds?: RegExp
+  excludeIds?: null | RegExp
   /** Exclude matching classes from displayed `selector` in diffs */
-  excludeSelectorClasses?: RegExp
+  excludeSelectorClasses?: null | RegExp
   /** Exclude matching id  from displayed `selector` in diffs */
-  excludeSelectorIds?: RegExp
+  excludeSelectorIds?: null | RegExp
   /** Fix tag values by replacing matching patterns */
-  fixTags?: TReplacePattern[]
-  excludeStyles?: string[]
-  excludeSelectors?: string[]
+  fixTags?: null | TReplacePattern[]
+  excludeStyles?: null | string[]
+  excludeSelectors?: null | string[]
 }
 
 export type TPseudoStateConfig = {
@@ -57,7 +57,7 @@ export type PagesElementsChangesHandlePage = (args: {
   testId: string
   url: URL
   stateId: string
-  filters?: TGetAllElementsFilters
+  filters?: null | TGetAllElementsFilters
 }) => Promise<void>
 
 export type PagesElementsChangesTest = {

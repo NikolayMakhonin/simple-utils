@@ -13,13 +13,13 @@ import { combineAbortSignals } from 'src/common/async/abort/combineAbortSignals'
 import path from 'path'
 
 export type Filters = {
-  js?: {
+  js?: null | {
     filter?: null | ((args: { url: URL; error: string }) => boolean)
-  } | null
-  http?: {
-    urlFilters?: RegExpRule[] | null
-    errorFilter?: ((args: UrlWithError) => boolean) | null
-  } | null
+  }
+  http?: null | {
+    urlFilters?: null | RegExpRule[]
+    errorFilter?: null | ((args: UrlWithError) => boolean)
+  }
 }
 
 export async function initPage(args: {

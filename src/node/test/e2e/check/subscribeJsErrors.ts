@@ -8,7 +8,7 @@ export async function subscribeJsErrors({
   onError,
 }: {
   page: Page
-  filter?: ((args: { url: URL; error: string }) => boolean) | null
+  filter?: null | ((args: { url: URL; error: string }) => boolean)
   onError: OnError
 }) {
   const callbackName = 'callback_191b355ea6f64499a6607ad571da5d4d'

@@ -1,11 +1,11 @@
 import type { PromiseLikeOrValue } from 'src/common/types/common'
 
 export interface IValueState<TValue> {
-  value?: TValue | null
-  loading?: boolean | null
-  hasValue?: boolean | null
+  value?: TValue
+  loading?: null | boolean
+  hasValue?: null | boolean
   error?: any
-  hasError?: boolean | null
+  hasError?: null | boolean
 }
 
 export type ValueStateOrValue<T> = IValueState<T> | T

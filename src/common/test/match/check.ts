@@ -17,7 +17,7 @@ export class CheckError extends Error {
 export function check<T>(actual: T) {
   return function _check(
     expected: Expected<T>,
-    onError?: (error: Error) => void,
+    onError?: null | ((error: Error) => void),
   ) {
     const matchResult = match(actual, expected)
     if (matchResult.error) {

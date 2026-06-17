@@ -5,7 +5,7 @@ import { MAX_REPORT_ITEMS_DEFAULT } from './constants'
 
 export type MatchArrayItemArgs<T> = MatcherArgs<T[]> & {
   expected: Expected<T>
-  maxReportItems?: number
+  maxReportItems?: null | number
 }
 
 export class MatcherArrayItem<T> extends Matcher<T[], MatchArrayItemArgs<T>> {

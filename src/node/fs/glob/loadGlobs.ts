@@ -23,8 +23,8 @@ export type Glob = {
 // TODO: write doc comments
 export type LoadGlobsOptions = {
   /** default: cwd */
-  rootDir?: string | null
-  globs?: Glob[] | null
+  rootDir?: null | string
+  globs?: null | Glob[]
 }
 
 // TODO: write doc comments

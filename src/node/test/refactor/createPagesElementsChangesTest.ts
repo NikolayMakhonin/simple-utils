@@ -114,8 +114,8 @@ export function createPagesElementsChangesTest({
 }: {
   actualResultFile: string
   expectedResultFile: string
-  diffResultFile?: string
-  filters?: TGetAllElementsFilters
+  diffResultFile?: null | string
+  filters?: null | TGetAllElementsFilters
   transform?: null | ObjectTransform
   pseudoStates?: null | TPseudoStateConfig[]
 }): PagesElementsChangesTest {
@@ -155,7 +155,7 @@ export function createPagesElementsChangesTest({
       testId: string
       url: URL
       stateId: string
-      _filters?: TGetAllElementsFilters
+      _filters?: null | TGetAllElementsFilters
     }) {
       let tests = pages[testId]
       if (!tests) {

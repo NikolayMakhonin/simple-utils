@@ -3,14 +3,14 @@ import { Matcher, type MatcherArgs } from '../Matcher'
 import { argsToString } from '../helpers'
 
 export type MatchNumberArgsRange = MatcherArgs<number> & {
-  min?: number | null
-  max?: number | null
-  allowInfinity?: boolean | null
-  allowNaN?: boolean | null
+  min?: null | number
+  max?: null | number
+  allowInfinity?: null | boolean
+  allowNaN?: null | boolean
 }
 
 export type MatchNumberArgs = MatchNumberArgsRange & {
-  float?: boolean | null
+  float?: null | boolean
 }
 
 export class MatcherNumber extends Matcher<

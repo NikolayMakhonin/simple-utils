@@ -3,7 +3,7 @@ import { convertTimeZone } from 'src/common/time/timeZone'
 /**
  * Default timeZone is Local
  */
-export function formatDate(date: Date, timeZone?: string | null): string {
+export function formatDate(date: Date, timeZone?: null | string): string {
   date = convertTimeZone(date, 'UTC', timeZone)
 
   const year = date.getUTCFullYear().toString().padStart(4, '0')

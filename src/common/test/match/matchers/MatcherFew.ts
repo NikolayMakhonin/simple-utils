@@ -7,7 +7,7 @@ export type MatchFewArgs<T> = MatcherArgs<T> & {
   expecteds: Array<Expected<T>>
   /** If true, then it will not check remains unnecessary expecteds.
    * So there will be less information in logs especially if you use 'Not' operator */
-  pipe?: boolean | null
+  pipe?: null | boolean
 }
 
 export class MatcherFew<T> extends Matcher<T, MatchFewArgs<T>> {

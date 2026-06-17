@@ -124,17 +124,17 @@ export function ceilPrecision(value: number, digits: number) {
 }
 
 /** @deprecated (work with number string instead of calc) Safe rounding to N decimal places; prevents "messy" float tails in toString(). */
-export function roundFraction(value: number, fractionDigits?: number) {
+export function roundFraction(value: number, fractionDigits?: null | number) {
   return _round(value, fractionDigits || 0, FRACTION, ROUND)
 }
 
 /** @deprecated (work with number string instead of calc) Safe floor to N decimal places; prevents "messy" float tails in toString(). */
-export function floorFraction(value: number, fractionDigits?: number) {
+export function floorFraction(value: number, fractionDigits?: null | number) {
   return _round(value, fractionDigits || 0, FRACTION, FLOOR)
 }
 
 /** @deprecated (work with number string instead of calc) Safe ceil to N decimal places; prevents "messy" float tails in toString(). */
-export function ceilFraction(value: number, fractionDigits?: number) {
+export function ceilFraction(value: number, fractionDigits?: null | number) {
   return _round(value, fractionDigits || 0, FRACTION, CEIL)
 }
 

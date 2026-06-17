@@ -152,7 +152,7 @@ async function test(options: TestOptions): Promise<void> {
   const callRecords: {
     index: number
     threw: boolean
-    result?: number
+    result: null | number
     time: number
   }[] = []
   let callIndex = 0
@@ -195,7 +195,7 @@ async function test(options: TestOptions): Promise<void> {
       const record = {
         index: i,
         threw: shouldThrow,
-        result: shouldThrow ? undefined : i,
+        result: shouldThrow ? null : i,
         time: timeController.now(),
       }
       callRecords.push(record)
@@ -276,7 +276,7 @@ function checkResult(
   callRecords: {
     index: number
     threw: boolean
-    result?: number
+    result: null | number
     time: number
   }[],
   resolved: boolean,
@@ -339,7 +339,7 @@ function checkCallCount(
   callRecords: {
     index: number
     threw: boolean
-    result?: number
+    result: null | number
     time: number
   }[],
 ): void {
@@ -393,7 +393,7 @@ function checkDelayTiming(
   callRecords: {
     index: number
     threw: boolean
-    result?: number
+    result: null | number
     time: number
   }[],
 ): void {

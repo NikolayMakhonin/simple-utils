@@ -221,7 +221,7 @@ function _walkPaths(options: WalkPathPrivate): Promise<WalkPathStat> {
       index: number,
       matchResult: boolean | null | undefined,
       /** Original item path before resolving symbolic links */
-      originalItemPath?: string | null,
+      originalItemPath?: null | string,
     ): Promise<WalkPathStat | null> {
       if (!originalItemPath) {
         originalItemPath = resolvedItemPath

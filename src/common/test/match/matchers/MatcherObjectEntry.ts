@@ -7,8 +7,8 @@ import { MAX_REPORT_ITEMS_DEFAULT } from './constants'
 export type MatchObjectEntry<T> = Expected<[keyof T, T[keyof T]]>
 
 export type MatcherObjectEntryArgs<T> = MatcherArgs<T> & {
-  expected?: MatchObjectEntry<T> | null
-  maxReportItems?: number
+  expected?: null | MatchObjectEntry<T>
+  maxReportItems?: null | number
 }
 
 export class MatcherObjectEntry<T> extends Matcher<

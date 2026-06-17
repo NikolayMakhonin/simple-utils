@@ -8,9 +8,9 @@ export type MatchObject<T> = {
   [K in keyof T]: Expected<T[K]>
 }
 export type MatcherObjectArgs<T> = MatcherArgs<T> & {
-  expected?: MatchObject<T> | null
-  ignoreExtraKeys?: boolean
-  maxReportItems?: number
+  expected?: null | MatchObject<T>
+  ignoreExtraKeys?: null | boolean
+  maxReportItems?: null | number
 }
 
 export class MatcherObject<T> extends Matcher<

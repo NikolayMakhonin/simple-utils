@@ -5,7 +5,7 @@ import { convertTimeZone } from 'src/common/time/timeZone'
  */
 export function formatDateFileName(
   date: Date,
-  timeZone?: string | null,
+  timeZone?: null | string,
 ): string {
   date = convertTimeZone(date, 'UTC', timeZone)
 

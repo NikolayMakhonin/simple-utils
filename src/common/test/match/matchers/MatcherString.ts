@@ -4,7 +4,7 @@ import { Matcher, type MatcherArgs } from '../Matcher'
 export type MatchStringPattern = RegExp | ((actual: string) => MatchResult3)
 
 export type MatchStringArgs = MatcherArgs<string> & {
-  pattern?: MatchStringPattern | null
+  pattern?: null | MatchStringPattern
 }
 
 export class MatcherString extends Matcher<

@@ -16,7 +16,7 @@ export type GetPageHttpErrorsTimeouts = {
 
 export type GetPageHttpErrorsArgs = {
   page: Page
-  urlFilters?: RegExpRule[] | null
+  urlFilters?: null | RegExpRule[]
   timeouts?: null | GetPageHttpErrorsTimeouts
 }
 
@@ -45,8 +45,8 @@ export async function getPageHttpErrors({
           urlFilters,
           timeouts,
         }: {
-          urlFilters?: RegExpRule[] | null
-          timeouts: GetPageHttpErrorsTimeouts | null
+          urlFilters?: null | RegExpRule[]
+          timeouts: null | GetPageHttpErrorsTimeouts
         }) => {
           function createRegExpFilter(rules: RegExpRule[]) {
             return function regExpFilter(value: string) {
@@ -200,8 +200,8 @@ export async function checkPageHttpErrors({
   errorFilter,
 }: {
   page: Page
-  urlFilters?: RegExpRule[] | null
-  errorFilter?: ((args: UrlWithError) => boolean) | null
+  urlFilters?: null | RegExpRule[]
+  errorFilter?: null | ((args: UrlWithError) => boolean)
 }) {
   let pageErrors = await getPageHttpErrors({
     page,

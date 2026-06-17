@@ -8,9 +8,9 @@ class CustomError extends Error {
     message: string,
     prop1: string,
     prop2: number,
-    options?: ErrorOptions,
+    options?: null | ErrorOptions,
   ) {
-    super(message, options)
+    super(message, options ?? undefined)
     this.prop1 = prop1
     this.prop2 = prop2
   }

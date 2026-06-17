@@ -9,11 +9,11 @@ export class ValueState<TValue> implements IValueState<TValue> {
     this.hasError = props.hasError || false
   }
 
-  value?: TValue | null
-  loading?: boolean | null
-  hasValue?: boolean | null
+  value?: TValue
+  loading?: null | boolean
+  hasValue?: null | boolean
   error?: any
-  hasError?: boolean | null
+  hasError?: null | boolean
 
   get [Symbol.toStringTag]() {
     return 'ValueState' as const

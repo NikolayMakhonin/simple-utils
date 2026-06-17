@@ -12,10 +12,10 @@ type Options = {
 }
 
 type PackageJson = {
-  dependencies?: Record<string, string>
-  devDependencies?: Record<string, string>
-  peerDependencies?: Record<string, string>
-  optionalDependencies?: Record<string, string>
+  dependencies?: null | Record<string, string>
+  devDependencies?: null | Record<string, string>
+  peerDependencies?: null | Record<string, string>
+  optionalDependencies?: null | Record<string, string>
   [key: string]: unknown
 }
 

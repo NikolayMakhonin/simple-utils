@@ -17,8 +17,8 @@ export type MatchResult<T> = {
 
 export interface MatchResult2 {
   result: boolean
-  cause?: string | null
-  nested?: MatchResultNested[] | null
+  cause?: null | string
+  nested?: null | MatchResultNested[]
 }
 
 export type MatchResult3 = boolean | string | MatchResult2

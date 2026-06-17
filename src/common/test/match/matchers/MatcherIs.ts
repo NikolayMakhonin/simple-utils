@@ -6,7 +6,7 @@ import { expectedToString } from '../helpers'
 
 export type MatchIsArgs<T> = MatcherArgs<T> & {
   expected: T
-  nonStrict?: boolean | null
+  nonStrict?: null | boolean
 }
 
 export class MatcherIs<T> extends Matcher<T, MatchIsArgs<T>> {

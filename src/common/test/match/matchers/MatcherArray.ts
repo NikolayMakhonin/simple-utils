@@ -6,9 +6,9 @@ import { MAX_REPORT_ITEMS_DEFAULT } from './constants'
 
 export type MatchArray<T extends any[]> = Array<Expected<T[number]>>
 export type MatcherArrayArgs<T extends any[]> = MatcherArgs<T> & {
-  expected?: MatchArray<T> | null
-  matchType?: 'equals' | 'includes'
-  maxReportItems?: number
+  expected?: null | MatchArray<T>
+  matchType?: null | 'equals' | 'includes'
+  maxReportItems?: null | number
 }
 
 export class MatcherArray<T extends any[]> extends Matcher<

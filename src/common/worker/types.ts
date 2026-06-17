@@ -66,7 +66,10 @@ export interface IMessagePort {
     listener: (event: IMessagePortEventMap[Type]) => void,
   ): void
 
-  postMessage(value: any, transferList?: readonly TransferableAny[]): void
+  postMessage(
+    value: any,
+    transferList?: null | readonly TransferableAny[],
+  ): void
 
   start(): void
 
@@ -87,8 +90,8 @@ export enum WorkerErrorType {
 export class WorkerError extends Error {
   readonly type: WorkerErrorType
 
-  constructor(type: WorkerErrorType, message?: string) {
-    super(message)
+  constructor(type: WorkerErrorType, message?: null | string) {
+    super(message ?? undefined)
     // see: https://github.com/Microsoft/TypeScript/wiki/Breaking-Changes#extending-built-ins-like-error-array-and-map-may-no-longer-work
     Object.setPrototypeOf(this, WorkerError.prototype)
     this.name = 'WorkerError'

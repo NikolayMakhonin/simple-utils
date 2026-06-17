@@ -537,7 +537,7 @@ function test(options: TestOptions): void {
     }
   }
 
-  function doActions(count: number, funcAsyncOnly?: boolean): void {
+  function doActions(count: number, funcAsyncOnly?: null | boolean): void {
     const availableActions = funcAsyncOnly ? actionsFuncAsync : actions
     if (availableActions.length === 0) {
       return

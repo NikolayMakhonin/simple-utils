@@ -24,7 +24,7 @@ import { ValueState } from 'src/common/async/value-state/ValueState'
 import { MatcherObjectEntry } from './MatcherObjectEntry'
 import { MatcherRef } from './MatcherRef'
 
-export function matchArray<T extends any[]>(expected?: MatchArray<T> | null) {
+export function matchArray<T extends any[]>(expected?: null | MatchArray<T>) {
   return new MatcherArray<T>({ expected })
 }
 
@@ -40,7 +40,7 @@ export function matchRef<T>() {
   return new MatcherRef<T>()
 }
 
-export function matchNever(name?: MatcherArgsName<any> | null) {
+export function matchNever(name?: null | MatcherArgsName<any>) {
   return new MatcherNever({ name })
 }
 
@@ -79,13 +79,13 @@ export function matchIs<T>(expected: T) {
   return new MatcherIs<T>({ expected, nonStrict: false })
 }
 
-export function matchNumber(args?: MatchNumberArgs | null) {
+export function matchNumber(args?: null | MatchNumberArgs) {
   return new MatcherNumber(args)
 }
 
 export type MatchIntArgs = MatchNumberArgsRange
 
-export function matchInt(args?: MatchIntArgs | null) {
+export function matchInt(args?: null | MatchIntArgs) {
   return matchNumber({
     ...args,
     float: false,
@@ -94,20 +94,22 @@ export function matchInt(args?: MatchIntArgs | null) {
 
 export type MatchFloatArgs = MatchNumberArgsRange
 
-export function matchFloat(args?: MatchFloatArgs | null) {
+export function matchFloat(args?: null | MatchFloatArgs) {
   return matchNumber({
     ...args,
     float: true,
   })
 }
 
-export function matchObject<T>(expected?: MatchObject<T> | null) {
+export function matchObject<T>(expected?: null | MatchObject<T>) {
   return new MatcherObject<T>({ expected })
 }
 
 export function matchDeep<T>(
-  expected?: Expected<T> | null,
-  toExpected?: <T>(value: T, key: string | number | null) => Expected<T> | null,
+  expected?: null | Expected<T>,
+  toExpected?:
+    | null
+    | (<T>(value: T, key: string | number | null) => Expected<T> | null),
   key: string | number | null = null,
 ) {
   if (expected instanceof Matcher) {
@@ -145,7 +147,7 @@ export function matchDeep<T>(
 }
 
 export function matchObjectPartial<T>(
-  expected?: MatchObject<Partial<T>> | null,
+  expected?: null | MatchObject<Partial<T>>,
 ) {
   return matchObject<T>(expected as any).set({
     ignoreExtraKeys: true,
@@ -153,7 +155,7 @@ export function matchObjectPartial<T>(
 }
 
 export function matchString(
-  pattern?: MatchStringPattern | null,
+  pattern?: null | MatchStringPattern,
 ): MatcherString {
   return new MatcherString({
     pattern,
@@ -236,7 +238,7 @@ export function matchOptional<T>(
 }
 
 export function matchArrayLength(
-  args?: MatchIntArgs | Expected<number> | null | undefined,
+  args?: null | MatchIntArgs | Expected<number>,
 ) {
   const expected =
     typeof args === 'number' || isMatcher(args)
@@ -249,7 +251,7 @@ export function matchArrayLength(
 }
 
 export function matchStringLength(
-  args?: MatchIntArgs | Expected<number> | null | undefined,
+  args?: null | MatchIntArgs | Expected<number>,
 ) {
   const expected =
     typeof args === 'number' || isMatcher(args)
@@ -361,10 +363,10 @@ export function matchCustom<T>(
 }
 
 export type MatchRangeValueOptions = {
-  min?: number | null
-  max?: number | null
-  optional?: boolean | null
-  float?: boolean | null
+  min?: null | number
+  max?: null | number
+  optional?: null | boolean
+  float?: null | boolean
 }
 
 export type MatchRangeOptions = {
@@ -375,7 +377,7 @@ export type MatchRangeOptions = {
 
 const DATE_MIN = Math.ceil(Date.now() - 10 * 365.25 * 24 * 60 * 60 * 1000)
 const DATE_MAX = Math.ceil(Date.now() + 10 * 365.25 * 24 * 60 * 60 * 1000)
-export function matchIntDate(options?: MatchIntArgs): Matcher<number> {
+export function matchIntDate(options?: null | MatchIntArgs): Matcher<number> {
   return matchInt({
     ...options,
     min: options?.min ?? DATE_MIN,
@@ -383,7 +385,7 @@ export function matchIntDate(options?: MatchIntArgs): Matcher<number> {
   }).name('int date')
 }
 
-export function matchRange(options?: MatchRangeOptions | null) {
+export function matchRange(options?: null | MatchRangeOptions) {
   const fromOptions = {
     min: options?.from?.min ?? options?.common?.min,
     max: options?.from?.max ?? options?.common?.max,
@@ -410,7 +412,7 @@ export function matchRange(options?: MatchRangeOptions | null) {
   ).name('range')
 }
 
-export function matchRangeDate(args?: MatchRangeOptions | null) {
+export function matchRangeDate(args?: null | MatchRangeOptions) {
   return matchRange({
     ...args,
     common: {
@@ -447,11 +449,11 @@ export function matchArrayBuffer<
   },
 >(
   expected?:
+    | null
     | {
         readonly byteLength: number
       }
-    | string
-    | null,
+    | string,
 ): Matcher<T> {
   if (expected != null && typeof expected === 'string') {
     expected = new TextEncoder().encode(expected).buffer

@@ -3,7 +3,7 @@ import type { MatchResult3 } from './types'
 export type MatcherArgsName<T> = string | ((actual?: T) => string) | null
 
 export type MatcherArgs<T> = {
-  name?: MatcherArgsName<T>
+  name?: null | MatcherArgsName<T>
 }
 
 export abstract class Matcher<

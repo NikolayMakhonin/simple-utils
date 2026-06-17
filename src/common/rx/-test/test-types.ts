@@ -13,7 +13,7 @@ import { isObservable } from '../helpers'
 export function derivedOrValues<S extends Stores, T>(
   sources: S,
   func: DerivedOrValuesFunc<S, T>,
-  initialValue?: T | undefined,
+  initialValue?: T,
 ) {
   return new Derived(
     sources,
@@ -43,7 +43,7 @@ export function derivedOrValue<Value, T>(
 export function derived<S extends Stores, T>(
   sources: S,
   func: DerivedFunc<S, T>,
-  initialValue?: T | undefined,
+  initialValue?: T,
 ) {
   return new Derived(sources, func, {
     last: initialValue,

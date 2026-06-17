@@ -34,9 +34,9 @@ export type TestE2eArgs = {
   name: string
   url: string
   /** error filters */
-  filters?: Filters
+  filters?: null | Filters
   pool: IPool
-  priority?: Priority
+  priority?: null | Priority
 }
 export type TestE2eFunc<Args = never> = (
   args: TestE2eArgs & Args,
