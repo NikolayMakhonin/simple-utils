@@ -216,17 +216,19 @@ export class ObjectPool<TObject extends object>
       const result = await func(objects, abortSignal)
       return result
     } finally {
-      const releasedCount = await this.release(objects)
-      const unreleased = count - releasedCount
-      if (unreleased > 0) {
-        await this._pool.release(unreleased, true)
-      }
-      if (this._destroy) {
-        for (let i = releasedCount, len = objects.length; i < len; i++) {
-          const obj = objects[i]
-          await this._destroy(obj)
+      void (async () => {
+        const releasedCount = await this.release(objects)
+        const unreleased = count - releasedCount
+        if (unreleased > 0) {
+          await this._pool.release(unreleased, true)
         }
-      }
+        if (this._destroy) {
+          for (let i = releasedCount, len = objects.length; i < len; i++) {
+            const obj = objects[i]
+            await this._destroy(obj)
+          }
+        }
+      })()
     }
   }
 
