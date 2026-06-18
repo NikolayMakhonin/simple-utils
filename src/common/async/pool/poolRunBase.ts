@@ -21,15 +21,12 @@ export type PoolRunArgs<T> = {
   abortSignal?: null | IAbortSignalFast
 }
 
-export type PoolRunBaseArgs<
-  FuncResult,
-  InitResult extends PromiseLikeOrValue<number>,
-> = {
+export type PoolRunBaseArgs<Result> = {
   pool?: null | IPool
-  func: (args: PoolRunFuncArgs) => FuncResult
+  func: (args: PoolRunFuncArgs) => PromiseLikeOrValue<Result>
   abortSignal?: null | IAbortSignalFast
   /** Acquires pool slots; returns the held count used for holdPool capacity and release tracking */
-  init: () => InitResult
+  init: () => PromiseLikeOrValue<number>
 }
 
 export function poolRunBase<Result>({
@@ -37,10 +34,7 @@ export function poolRunBase<Result>({
   func,
   abortSignal,
   init,
-}: PoolRunBaseArgs<
-  PromiseLikeOrValue<Result>,
-  PromiseLikeOrValue<number>
->): PromiseOrValue<Result> {
+}: PoolRunBaseArgs<Result>): PromiseOrValue<Result> {
   if (pool == null) {
     return promiseLikeToPromise(
       func({
