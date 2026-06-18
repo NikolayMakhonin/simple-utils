@@ -52,7 +52,7 @@ export function poolRunBase<Result>({
   }
 
   let releasePool: Pool | null = null
-  const release = (releaseCount: number, dontThrow?: null | boolean) => {
+  const release: IPool['release'] = (releaseCount, dontThrow) => {
     const releasedCount = releasePool!.release(releaseCount, dontThrow)
     return pool.release(releasedCount, dontThrow)
   }
