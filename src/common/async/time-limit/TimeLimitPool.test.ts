@@ -104,7 +104,7 @@ describe('time-limits > TimeLimits Old', { timeout: 300000 }, () => {
         const result = poolRunWait({
           pool: timeLimitPool,
           count: 1,
-          func: (_holdPool, abortSignal) => {
+          func: ({ abortSignal }) => {
             return run(index, async ? asyncTime : 0, abortSignal)
           },
           priority: priorityCreate(order),
@@ -445,7 +445,7 @@ describe('time-limits > TimeLimits', () => {
                 poolRunWait({
                   pool: timeLimit.pool,
                   count: 1,
-                  func: (_holdPool, abortSignal) => func(abortSignal),
+                  func: ({ abortSignal }) => func(abortSignal),
                   priority: priorityCreate(order),
                   abortSignal,
                   awaitPriority,
@@ -458,7 +458,7 @@ describe('time-limits > TimeLimits', () => {
               poolRunWait({
                 pool: timeLimit.pool,
                 count: 1,
-                func: (_holdPool, abortSignal) => func(abortSignal),
+                func: ({ abortSignal }) => func(abortSignal),
                 priority: priorityCreate(order),
                 abortSignal,
                 awaitPriority,

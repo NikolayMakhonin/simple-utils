@@ -1,6 +1,10 @@
 import { promiseFinally } from './promise/promiseFinally'
-import type { PromiseLikeOrValue } from 'src/common/types/common'
+import type {
+  PromiseLikeOrValue,
+  PromiseOrValue,
+} from 'src/common/types/common'
 import { isPromiseLike } from './promise/isPromiseLike'
+import { promiseLikeToPromise } from './promise/promiseLikeToPromise'
 
 /** Optimized try finally with sync and async support:
 const context = await init()
@@ -12,6 +16,27 @@ try {
 */
 export function runWithFinally<Context, Result>(
   /** init executes outside of try-catch block without onFinally and returns context that will be passed to func */
+  init: (() => PromiseLikeOrValue<Context>) | null | undefined,
+  /** func executes in try-catch block and onFinally executes in finally block */
+  func: (context: Context) => PromiseLike<Result>,
+  onFinally: (() => PromiseLikeOrValue<void>) | null | undefined,
+): Promise<Result>
+export function runWithFinally<Context, Result>(
+  /** init executes outside of try-catch block without onFinally and returns context that will be passed to func */
+  init: () => PromiseLike<Context>,
+  /** func executes in try-catch block and onFinally executes in finally block */
+  func: (context: Context) => PromiseLikeOrValue<Result>,
+  onFinally: (() => PromiseLikeOrValue<void>) | null | undefined,
+): Promise<Result>
+export function runWithFinally<Context, Result>(
+  /** init executes outside of try-catch block without onFinally and returns context that will be passed to func */
+  init: (() => PromiseLikeOrValue<Context>) | null | undefined,
+  /** func executes in try-catch block and onFinally executes in finally block */
+  func: (context: Context) => PromiseLikeOrValue<Result>,
+  onFinally: (() => PromiseLikeOrValue<void>) | null | undefined,
+): PromiseOrValue<Result>
+export function runWithFinally<Context, Result>(
+  /** init executes outside of try-catch block without onFinally and returns context that will be passed to func */
   init: (() => Context) | null | undefined,
   /** func executes in try-catch block and onFinally executes in finally block */
   func: (context: Context) => Result,
@@ -21,30 +46,9 @@ export function runWithFinally<Context, Result>(
   /** init executes outside of try-catch block without onFinally and returns context that will be passed to func */
   init: (() => PromiseLikeOrValue<Context>) | null | undefined,
   /** func executes in try-catch block and onFinally executes in finally block */
-  func: (context: Context) => PromiseLike<Result>,
-  onFinally: (() => PromiseLikeOrValue<void>) | null | undefined,
-): PromiseLike<Result>
-export function runWithFinally<Context, Result>(
-  /** init executes outside of try-catch block without onFinally and returns context that will be passed to func */
-  init: () => PromiseLike<Context>,
-  /** func executes in try-catch block and onFinally executes in finally block */
   func: (context: Context) => PromiseLikeOrValue<Result>,
   onFinally: (() => PromiseLikeOrValue<void>) | null | undefined,
-): PromiseLike<Result>
-export function runWithFinally<Context, Result>(
-  /** init executes outside of try-catch block without onFinally and returns context that will be passed to func */
-  init: (() => PromiseLikeOrValue<Context>) | null | undefined,
-  /** func executes in try-catch block and onFinally executes in finally block */
-  func: (context: Context) => PromiseLikeOrValue<Result>,
-  onFinally: (() => PromiseLikeOrValue<void>) | null | undefined,
-): PromiseLikeOrValue<Result>
-export function runWithFinally<Context, Result>(
-  /** init executes outside of try-catch block without onFinally and returns context that will be passed to func */
-  init: (() => PromiseLikeOrValue<Context>) | null | undefined,
-  /** func executes in try-catch block and onFinally executes in finally block */
-  func: (context: Context) => PromiseLikeOrValue<Result>,
-  onFinally: (() => PromiseLikeOrValue<void>) | null | undefined,
-): PromiseLikeOrValue<Result> {
+): PromiseOrValue<Result> {
   function _run(context: Context) {
     if (!onFinally) {
       return func(context)
@@ -73,7 +77,7 @@ export function runWithFinally<Context, Result>(
 
   const contextOrPromise = init ? init() : (void 0 as unknown as Context)
   if (!isPromiseLike(contextOrPromise)) {
-    return _run(contextOrPromise)
+    return promiseLikeToPromise(_run(contextOrPromise))
   }
-  return contextOrPromise.then(_run)
+  return promiseLikeToPromise(contextOrPromise.then(_run))
 }

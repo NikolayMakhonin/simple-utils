@@ -90,7 +90,7 @@ export function createTestE2e<Args extends Obj>(
         count: 1,
         priority: priority,
         abortSignal: abortSignalCombined,
-        func: async (_, abortSignal) => {
+        func: async ({ abortSignal }) => {
           abortSignal!.throwIfAborted()
 
           await useBrowserContext({
