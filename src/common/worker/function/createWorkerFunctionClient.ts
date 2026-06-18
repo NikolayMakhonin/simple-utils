@@ -114,6 +114,14 @@ export class WorkerFunctionCall<
     this.#endPromise.catch(EMPTY_FUNC)
   }
 
+  get status(): WorkerClientStatus {
+    return this.#client.status
+  }
+
+  close(): Promise<void> {
+    return this.#client.close()
+  }
+
   get abortSignal(): IAbortSignalFast {
     return this.#abortController.signal
   }

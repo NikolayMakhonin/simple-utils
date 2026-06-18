@@ -1,5 +1,10 @@
 import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
-import type { IWorkerEventBus, WorkerData, WorkerEvent } from '../types'
+import {
+  type IWorkerEventBus,
+  WorkerClientStatus,
+  type WorkerData,
+  type WorkerEvent,
+} from '../types'
 import type { PromiseLikeOrValue } from 'src/common/types/common'
 
 // region WorkerFunctionClient
@@ -12,6 +17,9 @@ export interface IWorkerFunctionCall<
   EventInput extends WorkerEvent<any> = never,
   EventOutput extends WorkerEvent<any> = never,
 > extends IWorkerEventBus<EventInput, EventOutput> {
+  readonly status: WorkerClientStatus
+  /** Close the connection forever and dispose worker resources */
+  close(): Promise<void>
   /**
    * Connects to the worker and starts the function.
    * The function executes all synchronous operations until the first await.
