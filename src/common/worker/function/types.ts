@@ -17,9 +17,6 @@ export interface IWorkerFunctionCall<
   EventInput extends WorkerEvent<any> = never,
   EventOutput extends WorkerEvent<any> = never,
 > extends IWorkerEventBus<EventInput, EventOutput> {
-  readonly status: WorkerClientStatus
-  /** Close the connection forever and dispose worker resources */
-  close(): Promise<void>
   /**
    * Connects to the worker and starts the function.
    * The function executes all synchronous operations until the first await.
