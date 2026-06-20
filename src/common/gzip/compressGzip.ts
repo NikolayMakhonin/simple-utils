@@ -1,4 +1,4 @@
-import { gzip } from 'fflate'
+import { gzipSync } from 'fflate'
 
 /**
  * The level of compression to use, ranging from 0-9.
@@ -36,17 +36,9 @@ export type CompressGzipOptions = {
  * - become 400 kB with level 1 in 10ms
  * - become 320 kB with level 9 in 100ms
  */
-export async function compressGzip(
+export function compressGzip(
   buffer: Uint8Array,
   options: CompressGzipOptions,
-): Promise<Uint8Array> {
-  return new Promise((resolve, reject) => {
-    gzip(buffer, { level: options.level }, (error, compressed) => {
-      if (error) {
-        reject(error)
-      } else {
-        resolve(compressed)
-      }
-    })
-  })
+): Uint8Array {
+  return gzipSync(buffer, { level: options.level })
 }
