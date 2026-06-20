@@ -267,16 +267,22 @@ export function poolsWait({
     awaitPriority = awaitPriorityDefault
   }
 
-  return getPriorityQueueGlobal().run(
-    async abortSignal => {
-      while (!poolsCanHold(pools, count)) {
-        await poolsTick(pools, abortSignal)
-        await awaitPriority(priority, abortSignal)
-      }
-    },
-    priority,
-    abortSignal,
-  )
+  return getPriorityQueueGlobal()
+    .run(
+      abortSignal => {
+        return [
+          (async () => {
+            while (!poolsCanHold(pools, count)) {
+              await poolsTick(pools, abortSignal)
+              await awaitPriority(priority, abortSignal)
+            }
+          })(),
+        ]
+      },
+      priority,
+      abortSignal,
+    )
+    .then(([promise]) => promise)
 }
 
 export async function poolsWaitHold({

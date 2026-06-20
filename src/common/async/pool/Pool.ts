@@ -124,20 +124,29 @@ export function poolWait({
     awaitPriority = awaitPriorityDefault
   }
 
-  return getPriorityQueueGlobal().run(
-    async abortSignal => {
-      while (!pool.canHold(count)) {
-        await pool.tick(abortSignal)
-        await awaitPriority(priority, abortSignal)
-      }
-      if (hold != null && hold !== false) {
-        const holdCount = typeof hold === 'number' ? hold : count
-        if (!pool.hold(holdCount)) {
-          throw new Error('[poolWait] hold failed after canHold succeeded')
-        }
-      }
-    },
-    priority,
-    abortSignal,
-  )
+  return getPriorityQueueGlobal()
+    .run(
+      abortSignal => {
+        return [
+          (async () => {
+            await awaitPriority(priority, abortSignal)
+            while (!pool.canHold(count)) {
+              await pool.tick(abortSignal)
+              await awaitPriority(priority, abortSignal)
+            }
+            if (hold != null && hold !== false) {
+              const holdCount = typeof hold === 'number' ? hold : count
+              if (!pool.hold(holdCount)) {
+                throw new Error(
+                  '[poolWait] hold failed after canHold succeeded',
+                )
+              }
+            }
+          })(),
+        ]
+      },
+      priority,
+      abortSignal,
+    )
+    .then(([promise]) => promise)
 }
