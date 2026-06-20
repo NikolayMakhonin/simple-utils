@@ -4,7 +4,6 @@ import type {
   PromiseOrValue,
 } from 'src/common/types/common'
 import { type Priority } from 'src/common/async/priority/Priority'
-import { type AwaitPriority } from 'src/common/async/priority-queue/helpers'
 import { type IPool } from 'src/common/async/pool/Pool'
 import { type IObjectPool } from './ObjectPool'
 
@@ -41,9 +40,8 @@ export class ObjectPoolWrapper<TObject extends object>
     count: number,
     priority?: null | Priority,
     abortSignal?: null | IAbortSignalFast,
-    awaitPriority?: null | AwaitPriority,
   ): Promise<TObject[]> {
-    return this._objectPool.getWait(count, priority, abortSignal, awaitPriority)
+    return this._objectPool.getWait(count, priority, abortSignal)
   }
 
   release(
@@ -66,14 +64,7 @@ export class ObjectPoolWrapper<TObject extends object>
     ) => PromiseLikeOrValue<TResult>,
     priority?: null | Priority,
     abortSignal?: null | IAbortSignalFast,
-    awaitPriority?: null | AwaitPriority,
   ): Promise<TResult> {
-    return this._objectPool.use(
-      count,
-      func,
-      priority,
-      abortSignal,
-      awaitPriority,
-    )
+    return this._objectPool.use(count, func, priority, abortSignal)
   }
 }

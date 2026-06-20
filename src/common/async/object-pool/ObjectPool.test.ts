@@ -10,14 +10,12 @@ import { Pool } from 'src/common/async/pool/Pool'
 import { Pools } from 'src/common/async/pool/Pools'
 import { TimeControllerMock } from '@flemist/time-controller'
 import { waitTimeControllerMock } from 'src/common/async/wait/waitTimeControllerMock'
-import { createAwaitPriority } from 'src/common/async/priority-queue/helpers'
 
 describe('object-pool > ObjectPool', () => {
   let iteration = 0
 
   const testVariants = createTestVariants(
     async ({
-      withPriorityQueue,
       countObjects,
       usePools,
       heldObjects,
@@ -26,7 +24,6 @@ describe('object-pool > ObjectPool', () => {
       async,
       maxSize,
     }: {
-      withPriorityQueue?: null | boolean
       countObjects: number
       usePools: boolean
       heldObjects: boolean
@@ -38,7 +35,6 @@ describe('object-pool > ObjectPool', () => {
       iteration++
 
       const timeController = new TimeControllerMock()
-      const awaitPriority = withPriorityQueue ? createAwaitPriority() : null
 
       const promises: Promise<number>[] = []
 
@@ -233,7 +229,6 @@ describe('object-pool > ObjectPool', () => {
           func,
           null,
           abortController?.signal,
-          awaitPriority,
         )
         if (abort) {
           promise = promise.catch(o => o)
@@ -266,7 +261,6 @@ describe('object-pool > ObjectPool', () => {
 
   it('variants', { timeout: 600000 }, async () => {
     await testVariants({
-      withPriorityQueue: typeof window !== 'undefined' ? [true] : [true, false],
       countObjects: [1, 2, 3, 5],
       usePools: [false, true],
       heldObjects: [false, true],

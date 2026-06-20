@@ -1,7 +1,6 @@
 import { describe, it, assert } from 'vitest'
 import { delay } from 'src/common/async/wait/delay'
 import { priorityCreate } from 'src/common/async/priority/Priority'
-import { createAwaitPriority } from 'src/common/async/priority-queue/helpers'
 import {
   type ITimeController,
   TimeControllerMock,
@@ -27,14 +26,12 @@ describe('time-limits > TimeLimits Old', { timeout: 300000 }, () => {
 
   const testVariants = createTestVariants(
     async ({
-      withPriorityQueue,
       timeLimitsTree,
       mode,
       asyncTime,
       maxCount,
       timeMs,
     }: {
-      withPriorityQueue?: null | boolean
       timeLimitsTree?: null | boolean
       mode: Mode
       asyncTime: number
@@ -42,7 +39,6 @@ describe('time-limits > TimeLimits Old', { timeout: 300000 }, () => {
       timeMs: number
     }) => {
       const timeController = new TimeControllerMock()
-      const awaitPriority = withPriorityQueue ? createAwaitPriority() : null
       const timeLimitPool = timeLimitsTree
         ? new Pools(
             new TimeLimitPool({
@@ -108,7 +104,6 @@ describe('time-limits > TimeLimits Old', { timeout: 300000 }, () => {
             return run(index, async ? asyncTime : 0, abortSignal)
           },
           priority: priorityCreate(order),
-          awaitPriority,
         })
         assert.ok(typeof result.then === 'function')
         promises.push(
@@ -163,7 +158,7 @@ describe('time-limits > TimeLimits Old', { timeout: 300000 }, () => {
         await Promise.all(promises)
       }
 
-      if (awaitPriority && (mode !== 'random' || maxCount > 5)) {
+      if (mode !== 'random' || maxCount > 5) {
         assert.ok(
           results.every((o, i) => o === i) === (mode !== 'random'),
           results.join(', '),
@@ -174,7 +169,6 @@ describe('time-limits > TimeLimits Old', { timeout: 300000 }, () => {
 
   it.skip('custom', async () => {
     await testVariants({
-      withPriorityQueue: [true],
       mode: ['async'],
       maxCount: [1],
       timeLimitsTree: [false],
@@ -185,7 +179,6 @@ describe('time-limits > TimeLimits Old', { timeout: 300000 }, () => {
 
   it('variants', async () => {
     await testVariants({
-      withPriorityQueue: [false, true],
       timeLimitsTree: [false, true],
       mode: ['sync', 'async', 'random'],
       asyncTime: ({ mode }) => {
@@ -292,8 +285,6 @@ describe('time-limits > TimeLimits', () => {
 
   const testVariants = createTestVariants(
     ({
-      withPriorityQueue,
-
       timeLimit1,
       timeLimit2,
       timeLimit3,
@@ -302,8 +293,6 @@ describe('time-limits > TimeLimits', () => {
       maxCount2,
       maxCount3,
     }: {
-      withPriorityQueue: boolean
-
       timeLimit1: number
       timeLimit2: number
       timeLimit3: number
@@ -312,7 +301,6 @@ describe('time-limits > TimeLimits', () => {
       maxCount2: number
       maxCount3: number
     }) => {
-      const awaitPriority = withPriorityQueue ? createAwaitPriority() : null
       const timeController = new TimeControllerMock()
       const abortSignal: IAbortSignalFast | null = null
 
@@ -448,7 +436,6 @@ describe('time-limits > TimeLimits', () => {
                   func: ({ abortSignal }) => func(abortSignal),
                   priority: priorityCreate(order),
                   abortSignal,
-                  awaitPriority,
                 }),
               )
             }, startTime)
@@ -461,7 +448,6 @@ describe('time-limits > TimeLimits', () => {
                 func: ({ abortSignal }) => func(abortSignal),
                 priority: priorityCreate(order),
                 abortSignal,
-                awaitPriority,
               }),
             )
           }
@@ -486,18 +472,16 @@ describe('time-limits > TimeLimits', () => {
 
         assert.strictEqual(values.length, count)
 
-        if (withPriorityQueue) {
-          let prevValue: number = values[0]
-          for (let i = 1; i < count; i++) {
-            const value = values[i]
-            if (value <= prevValue) {
-              assert.deepStrictEqual(
-                values,
-                values.slice().sort((o1, o2) => (o1 > o2 ? 1 : -1)),
-              )
-            }
-            prevValue = value
+        let prevValue: number = values[0]
+        for (let i = 1; i < count; i++) {
+          const value = values[i]
+          if (value <= prevValue) {
+            assert.deepStrictEqual(
+              values,
+              values.slice().sort((o1, o2) => (o1 > o2 ? 1 : -1)),
+            )
           }
+          prevValue = value
         }
       }
 
@@ -507,8 +491,6 @@ describe('time-limits > TimeLimits', () => {
 
   it('variants', { timeout: 600000 }, async () => {
     await testVariants({
-      withPriorityQueue: typeof window !== 'undefined' ? [true] : [false, true],
-
       timeLimit1: [1, 2, 5, 10],
       timeLimit2: [1, 2, 5, 10],
       timeLimit3: [1, 2, 5, 10],

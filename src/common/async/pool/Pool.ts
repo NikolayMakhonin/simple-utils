@@ -1,13 +1,12 @@
 import { type IAbortSignalFast } from '@flemist/abort-controller-fast'
 import { ManualPromise } from 'src/common/async/promise/ManualPromise'
 import { promiseToAbortable } from 'src/common/async/abort/promiseToAbortable'
-import {
-  type AwaitPriority,
-  awaitPriorityDefault,
-  getPriorityQueueGlobal,
-} from 'src/common/async/priority-queue/helpers'
 import { type Priority } from 'src/common/async/priority/Priority'
 import type { PromiseOrValue } from 'src/common/types/common'
+import {
+  type IPriorityQueue,
+  PriorityQueue,
+} from 'src/common/async/priority-queue'
 
 /**
  * Counting semaphore for limiting concurrent access to a shared resource.
@@ -15,6 +14,7 @@ import type { PromiseOrValue } from 'src/common/types/common'
  * heldCountMax restricts hold exclusively when the pool is non-empty
  */
 export interface IPool {
+  readonly priorityQueue: IPriorityQueue
   readonly heldCountMax: number
   readonly heldCount: number
   readonly holdAvailable: number
@@ -28,6 +28,7 @@ export interface IPool {
 }
 
 export class Pool implements IPool {
+  private readonly _priorityQueue: IPriorityQueue
   private readonly _heldCountMax: number = 0
   private _heldCount: number = 0
   private _tickPromise: ManualPromise | null = null
@@ -38,7 +39,12 @@ export class Pool implements IPool {
         `[Pool][constructor] heldCountMax (${heldCountMax}) should be an integer >= 0`,
       )
     }
+    this._priorityQueue = new PriorityQueue()
     this._heldCountMax = heldCountMax
+  }
+
+  get priorityQueue(): IPriorityQueue {
+    return this._priorityQueue
   }
 
   get heldCountMax() {
@@ -111,42 +117,26 @@ export function poolWait({
   hold,
   priority,
   abortSignal,
-  awaitPriority,
 }: {
   pool: IPool
   count: number
   hold?: null | boolean | number
   priority?: null | Priority
   abortSignal?: null | IAbortSignalFast
-  awaitPriority?: null | AwaitPriority
 }): Promise<void> {
-  if (!awaitPriority) {
-    awaitPriority = awaitPriorityDefault
-  }
-
-  return getPriorityQueueGlobal()
-    .run(
-      abortSignal => {
-        return [
-          (async () => {
-            await awaitPriority(priority, abortSignal)
-            while (!pool.canHold(count)) {
-              await pool.tick(abortSignal)
-              await awaitPriority(priority, abortSignal)
-            }
-            if (hold != null && hold !== false) {
-              const holdCount = typeof hold === 'number' ? hold : count
-              if (!pool.hold(holdCount)) {
-                throw new Error(
-                  '[poolWait] hold failed after canHold succeeded',
-                )
-              }
-            }
-          })(),
-        ]
-      },
-      priority,
-      abortSignal,
-    )
-    .then(([promise]) => promise)
+  return pool.priorityQueue.run(
+    async abortSignal => {
+      while (!pool.canHold(count)) {
+        await pool.tick(abortSignal)
+      }
+      if (hold != null && hold !== false) {
+        const holdCount = typeof hold === 'number' ? hold : count
+        if (!pool.hold(holdCount)) {
+          throw new Error('[poolWait] hold failed after canHold succeeded')
+        }
+      }
+    },
+    priority,
+    abortSignal,
+  )
 }

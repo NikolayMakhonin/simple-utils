@@ -2,6 +2,7 @@ import { type IAbortSignalFast } from '@flemist/abort-controller-fast'
 import type { PromiseOrValue } from 'src/common/types/common'
 import { isPromiseLike } from 'src/common/async/promise/isPromiseLike'
 import { type IPool } from './Pool'
+import type { IPriorityQueue } from 'src/common/async/priority-queue'
 
 /** Pool where each hold unit equals multiplier holds in the underlying pool */
 export class PoolMult implements IPool {
@@ -16,6 +17,10 @@ export class PoolMult implements IPool {
     }
     this._pool = pool
     this._multiplier = multiplier
+  }
+
+  get priorityQueue(): IPriorityQueue {
+    return this._pool.priorityQueue
   }
 
   get heldCountMax(): number {

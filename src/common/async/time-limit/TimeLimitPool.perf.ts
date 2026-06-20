@@ -1,7 +1,6 @@
 import { describe, it } from 'vitest'
 import { calcPerformanceAsync } from 'rdtsc'
 import { TimeControllerMock } from '@flemist/time-controller'
-import { createAwaitPriority } from 'src/common/async/priority-queue/helpers'
 import { TimeLimitPool } from './TimeLimitPool'
 import { Pool } from 'src/common/async/pool/Pool'
 import { poolRunWait } from 'src/common/async/pool/poolRunWait'
@@ -10,7 +9,6 @@ import { Pools } from 'src/common/async/pool/Pools'
 describe('time-limits > TimeLimits perf', { timeout: 600000 }, () => {
   it('base', async () => {
     const emptyFunc = () => {}
-    const awaitPriority = createAwaitPriority()
     const timeController = new TimeControllerMock()
     const timeLimitPool = new TimeLimitPool({
       pool: new Pool(1),
@@ -32,7 +30,6 @@ describe('time-limits > TimeLimits perf', { timeout: 600000 }, () => {
                 pool: timeLimitsPool,
                 count: 1,
                 func: emptyFunc,
-                awaitPriority,
               }),
             )
           }

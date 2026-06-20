@@ -4,6 +4,7 @@ import { WeakOrMapFull } from 'src/common/object/weak-or/WeakOrMapFull'
 import { type IPool, Pool } from './Pool'
 import { PoolMult } from './PoolMult'
 import { Pools } from './Pools'
+import { type IPriorityQueue } from 'src/common/async/priority-queue'
 
 /**
  * Map of pools where each key has its own pool.
@@ -33,6 +34,10 @@ export class PoolMap<Key> implements IPoolMap<Key> {
         ? new PoolMult(this._commonPool, this._commonPool.heldCountMax)
         : this._commonPool
     this._createKeyPool = options.createKeyPool ?? createKeyPoolDefault
+  }
+
+  get priorityQueue(): IPriorityQueue {
+    return this._bulkPool.priorityQueue
   }
 
   get(key: Key): IPool {

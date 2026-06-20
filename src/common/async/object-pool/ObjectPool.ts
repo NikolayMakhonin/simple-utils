@@ -8,7 +8,6 @@ import { type IPool, Pool, poolWait } from 'src/common/async/pool/Pool'
 import { Pools } from 'src/common/async/pool/Pools'
 import { isPromiseLike } from 'src/common/async/promise/isPromiseLike'
 import { type Priority } from 'src/common/async/priority/Priority'
-import { type AwaitPriority } from 'src/common/async/priority-queue/helpers'
 
 export interface IObjectPool<TObject extends object> {
   readonly pool: IPool
@@ -33,7 +32,6 @@ export interface IObjectPool<TObject extends object> {
     count: number,
     priority?: null | Priority,
     abortSignal?: null | IAbortSignalFast,
-    awaitPriority?: null | AwaitPriority,
   ): Promise<TObject[]>
 
   use<TResult>(
@@ -44,7 +42,6 @@ export interface IObjectPool<TObject extends object> {
     ) => PromiseLikeOrValue<TResult>,
     priority?: null | Priority,
     abortSignal?: null | IAbortSignalFast,
-    awaitPriority?: null | AwaitPriority,
   ): Promise<TResult>
 
   allocate(size?: null | number): PromiseOrValue<number>
@@ -169,7 +166,6 @@ export class ObjectPool<TObject extends object>
     count: number,
     priority?: null | Priority,
     abortSignal?: null | IAbortSignalFast,
-    awaitPriority?: null | AwaitPriority,
   ): Promise<TObject[]> {
     await poolWait({
       pool: this._pool,
@@ -177,7 +173,6 @@ export class ObjectPool<TObject extends object>
       hold: true,
       priority,
       abortSignal,
-      awaitPriority,
     })
     return this.get(count)
   }
@@ -190,17 +185,11 @@ export class ObjectPool<TObject extends object>
     ) => PromiseLikeOrValue<TResult>,
     priority?: null | Priority,
     abortSignal?: null | IAbortSignalFast,
-    awaitPriority?: null | AwaitPriority,
   ): Promise<TResult> {
     if (!this._create) {
       throw new Error('[ObjectPool][use] create function is not specified')
     }
-    const objects = await this.getWait(
-      count,
-      priority,
-      abortSignal,
-      awaitPriority,
-    )
+    const objects = await this.getWait(count, priority, abortSignal)
 
     try {
       await this._createObjects(objects, count)

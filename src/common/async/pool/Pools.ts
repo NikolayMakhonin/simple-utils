@@ -1,23 +1,27 @@
 import { type IAbortSignalFast } from '@flemist/abort-controller-fast'
 import type { PromiseOrValue } from 'src/common/types/common'
-import { type Priority } from 'src/common/async/priority/Priority'
-import {
-  type AwaitPriority,
-  awaitPriorityDefault,
-  getPriorityQueueGlobal,
-} from 'src/common/async/priority-queue/helpers'
 import { isPromiseLike } from 'src/common/async/promise/isPromiseLike'
 import { type IPool } from './Pool'
+import {
+  type IPriorityQueue,
+  PriorityQueue,
+} from 'src/common/async/priority-queue'
 
 /** Composite pool that delegates operations to multiple underlying pools */
 export class Pools implements IPool {
+  private readonly _priorityQueue: IPriorityQueue
   private readonly _pools: IPool[]
 
   constructor(...pools: IPool[]) {
     if (!pools.length) {
       throw new Error('[Pools][constructor] pools should not be empty')
     }
+    this._priorityQueue = new PriorityQueue()
     this._pools = pools
+  }
+
+  get priorityQueue(): IPriorityQueue {
+    return this._priorityQueue
   }
 
   get heldCountMax() {
@@ -243,18 +247,19 @@ export function poolsTick(
   return Promise.race(promises)
 }
 
+/*
 export function poolsWait({
+  priorityQueue,
   pools,
   count,
   priority,
   abortSignal,
-  awaitPriority,
 }: {
+  priorityQueue: IPriorityQueue
   pools: IPool[]
   count: number | number[]
   priority?: null | Priority
   abortSignal?: null | IAbortSignalFast
-  awaitPriority?: null | AwaitPriority
 }): Promise<void> {
   const len = pools.length
   if (typeof count !== 'number' && count.length !== len) {
@@ -263,43 +268,33 @@ export function poolsWait({
     )
   }
 
-  if (!awaitPriority) {
-    awaitPriority = awaitPriorityDefault
-  }
-
-  return getPriorityQueueGlobal()
-    .run(
-      abortSignal => {
-        return [
-          (async () => {
-            while (!poolsCanHold(pools, count)) {
-              await poolsTick(pools, abortSignal)
-              await awaitPriority(priority, abortSignal)
-            }
-          })(),
-        ]
-      },
-      priority,
-      abortSignal,
-    )
-    .then(([promise]) => promise)
+  return priorityQueue.run(
+    async abortSignal => {
+      while (!poolsCanHold(pools, count)) {
+        await poolsTick(pools, abortSignal)
+      }
+    },
+    priority,
+    abortSignal,
+  )
 }
 
 export async function poolsWaitHold({
+  priorityQueue,
   pools,
   count,
   priority,
   abortSignal,
-  awaitPriority,
 }: {
+  priorityQueue: IPriorityQueue
   pools: IPool[]
   count: number | number[]
   priority?: null | Priority
   abortSignal?: null | IAbortSignalFast
-  awaitPriority?: null | AwaitPriority
 }): Promise<void> {
-  await poolsWait({ pools, count, priority, abortSignal, awaitPriority })
+  await poolsWait({ priorityQueue, pools, count, priority, abortSignal })
   if (!poolsHold(pools, count)) {
     throw new Error('[poolsWaitHold] hold failed after wait succeeded')
   }
 }
+*/

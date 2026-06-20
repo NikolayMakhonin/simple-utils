@@ -9,6 +9,10 @@ export class PoolWrapper implements IPool {
     this._pool = pool
   }
 
+  get priorityQueue() {
+    return this._pool.priorityQueue
+  }
+
   get heldCountMax(): number {
     return this._pool.heldCountMax
   }
