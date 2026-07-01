@@ -92,7 +92,7 @@ export class TaskBase<
       level = error instanceof AbortError ? LogLevel.debug : LogLevel.error
     }
     if (this.#options?.logLevel == null || this.#options.logLevel >= level) {
-      if (level >= LogLevel.error) {
+      if (level <= LogLevel.error) {
         console.error('[TaskBase]', error)
       } else {
         console.warn('[TaskBase]', error)
