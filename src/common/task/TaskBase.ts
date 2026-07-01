@@ -18,6 +18,14 @@ import { AbortError } from '@flemist/abort-controller-fast'
 export type TaskOptionsBase<Result = void> = AbortControllerReusableOptions & {
   readonly timeController?: null | ITimeController
   readonly logLevel?: null | LogLevel
+  /**
+   * Log error manually or skip it and return false
+   * or return error level to log it automatically if error level <= logLevel
+   * or return null to determine error level automatically
+   */
+  readonly logFuncError?:
+    | null
+    | ((error: any) => Exclude<LogLevel, LogLevel.none> | null | false)
   readonly successPredicate?: null | TaskSuccessPredicate<
     Result,
     TaskStatusBase<Result>
@@ -76,7 +84,13 @@ export class TaskBase<
   }
 
   private logError(error: any): void {
-    const level = error instanceof AbortError ? LogLevel.debug : LogLevel.error
+    let level = this.#options?.logFuncError?.(error)
+    if (level === false) {
+      return
+    }
+    if (level == null) {
+      level = error instanceof AbortError ? LogLevel.debug : LogLevel.error
+    }
     if (this.#options?.logLevel == null || this.#options.logLevel >= level) {
       if (level >= LogLevel.error) {
         console.error('[TaskBase]', error)
