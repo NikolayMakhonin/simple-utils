@@ -1,4 +1,5 @@
 import { isPlainObject } from './isPlainObject'
+import { setOwnProperty } from './setOwnProperty'
 
 // TODO: Add options, disable sort by default
 /**
@@ -14,17 +15,15 @@ export function getNormalizedObject<T>(obj: T): T {
     return obj
   }
 
-  return (
-    obj &&
-    Object.keys(obj)
-      .sort()
-      .reduce((a, key) => {
-        const value = getNormalizedObject(obj[key])
-        if (value != null) {
-          // && value !== '') {
-          a[key] = value
-        }
-        return a
-      }, {} as any)
-  )
+  const result: Record<string, unknown> = {}
+  const keys = Object.keys(obj).sort()
+  for (let i = 0, len = keys.length; i < len; i++) {
+    const key = keys[i]
+    const value = getNormalizedObject(obj[key])
+    if (value != null) {
+      // && value !== '') {
+      setOwnProperty(result, key, value)
+    }
+  }
+  return result as T
 }

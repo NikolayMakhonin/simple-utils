@@ -3,6 +3,7 @@
 import { formatDate } from './formatDate'
 import { getObjectId } from './getObjectId'
 import { truncateString, type TruncateStringOptions } from './truncateString'
+import { isPlainObject } from 'src/common/object/isPlainObject'
 
 function tryGetValue(obj: any, key: string | number): any {
   try {
@@ -112,22 +113,18 @@ export function formatAny(
     )
   }
 
-  if (obj instanceof Object) {
-    if (visited.has(obj)) {
-      const name =
-        obj.constructor === Object ? '' : (obj.constructor?.name ?? '')
+  if (visited.has(obj)) {
+    const name = obj.constructor === Object ? '' : (obj.constructor?.name ?? '')
+    return `${name}#${getObjectId(obj)}`
+  }
+  if (maxDepth != null && depth >= maxDepth) {
+    const name = obj.constructor === Object ? '' : (obj.constructor?.name ?? '')
+    if (showObjectId) {
       return `${name}#${getObjectId(obj)}`
     }
-    if (maxDepth != null && depth >= maxDepth) {
-      const name =
-        obj.constructor === Object ? '' : (obj.constructor?.name ?? '')
-      if (showObjectId) {
-        return `${name}#${getObjectId(obj)}`
-      }
-      return name || 'Object'
-    } else {
-      visited.add(obj)
-    }
+    return name || 'Object'
+  } else {
+    visited.add(obj)
   }
 
   if (Array.isArray(obj)) {
@@ -208,16 +205,12 @@ export function formatAny(
     return result
   }
 
-  if (
-    dontExpandClassInstances &&
-    obj.constructor &&
-    obj.constructor !== Object
-  ) {
-    const name = obj.constructor.name
+  if (dontExpandClassInstances && !isPlainObject(obj)) {
+    const name = obj.constructor?.name ?? ''
     if (showObjectId) {
       return `${name}#${getObjectId(obj)}`
     }
-    return name
+    return name || 'Object'
   }
 
   // object

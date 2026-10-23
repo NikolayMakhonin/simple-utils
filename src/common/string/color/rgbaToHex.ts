@@ -18,7 +18,7 @@ export function rgbaToHex(value: string) {
 
 export function hexToRgba(value: string) {
   return value?.replace(
-    /#((?:[a-f\d]{3,4}){1,2})(?:\/(\d+))?\b/gi,
+    /#([a-f\d]{8}|[a-f\d]{6}|[a-f\d]{3,4})(?:\/(\d+))?\b/gi,
     (_, hex, alpha) => {
       if ((hex.length === 3 || hex.length === 6) && alpha == null) {
         return _

@@ -1,3 +1,6 @@
+import { isPlainObject } from './isPlainObject'
+import { setOwnProperty } from './setOwnProperty'
+
 /**
  * Deep clone simple json like objects.
  * null and undefined are normalized to null.
@@ -17,15 +20,11 @@ export function deepCloneJsonLike<T>(value: T): T {
     return result as T
   }
 
-  if (typeof value === 'object') {
-    if (value.constructor && value.constructor !== Object) {
-      return value
-    }
-
+  if (isPlainObject(value)) {
     const result: Record<string, any> = {}
     for (const key in value) {
       if (Object.prototype.hasOwnProperty.call(value, key)) {
-        result[key] = deepCloneJsonLike((value as any)[key])
+        setOwnProperty(result, key, deepCloneJsonLike(value[key]))
       }
     }
     return result as T

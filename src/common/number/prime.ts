@@ -5,6 +5,10 @@ export function isPrime(n: number) {
   if (n > MAX_NUMBER) {
     throw new Error(`Number is too large: ${n}, max is ${MAX_NUMBER}`)
   }
+  // non-integers and numbers below -2^31 are not primes
+  if ((n | 0) !== n) {
+    return false
+  }
   // convert number to 32-bit integer for performance
   n = n | 0
   if (n <= 1) {
@@ -28,11 +32,12 @@ export function nextPrime(n: number) {
   if (n >= MAX_NUMBER_PRIME) {
     throw new Error(`Number is too large: ${n}, max is ${MAX_NUMBER_PRIME - 1}`)
   }
-  // convert number to 32-bit integer for performance
-  n = n | 0
-  if (n < 2) {
+  // !(n >= 2) is also true for NaN
+  if (!(n >= 2)) {
     return 2
   }
+  // convert number to 32-bit integer for performance
+  n = n | 0
   let candidate = n + (n % 2 === 0 ? 1 : 2)
   while (!isPrime(candidate)) {
     candidate += 2
@@ -44,11 +49,13 @@ export function prevPrime(n: number) {
   if (n > MAX_NUMBER) {
     throw new Error(`Number is too large: ${n}, max is ${MAX_NUMBER}`)
   }
-  // convert number to 32-bit integer for performance
-  n = n | 0
-  if (n <= 2) {
+  // !(n > 2) is also true for NaN
+  if (!(n > 2)) {
     return null
   }
+  // the largest prime below a fractional n is the largest prime below its ceiling
+  // convert number to 32-bit integer for performance
+  n = Math.ceil(n) | 0
   let candidate = n - (n % 2 === 0 ? 1 : 2)
   while (candidate > 2 && !isPrime(candidate)) {
     candidate -= 2

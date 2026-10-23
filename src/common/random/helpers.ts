@@ -131,11 +131,21 @@ export function randomEnum<EnumType extends Record<string, any>>(
   enumType: EnumType,
   predicate?: null | ((value: EnumType[keyof EnumType]) => boolean),
 ): EnumType[keyof EnumType] {
-  let values = Object.values(enumType) as EnumType[keyof EnumType][]
-  if (predicate) {
-    values = values.filter(predicate)
+  const values: EnumType[keyof EnumType][] = []
+  for (const key in enumType) {
+    if (Object.prototype.hasOwnProperty.call(enumType, key)) {
+      const value = enumType[key]
+      // Numeric TypeScript enums contain reverse mapping entries: E[E.A = 0] = 'A'
+      const isReverseMapping =
+        typeof value === 'string' &&
+        typeof enumType[value] === 'number' &&
+        String(enumType[value]) === key
+      if (!isReverseMapping && (!predicate || predicate(value))) {
+        values.push(value)
+      }
+    }
   }
-  return randomItem(rnd, values) as EnumType[keyof EnumType]
+  return randomItem(rnd, values)
 }
 
 export function arrayShuffle<T>(rnd: Random, array: T[]): T[] {

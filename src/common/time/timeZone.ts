@@ -4,27 +4,28 @@ export function convertTimeZone(
   timeZoneFrom?: null | string,
   timeZoneTo?: null | string,
 ): Date {
-  const dateFrom =
+  const time = date.getTime()
+  // The zone offset is measured without milliseconds on both sides,
+  // because toLocaleString drops them
+  const timeLocal = time - date.getUTCMilliseconds()
+
+  const timeFrom =
     timeZoneFrom == null
-      ? date
+      ? timeLocal
       : new Date(
           date.toLocaleString('en-US', {
             timeZone: timeZoneFrom,
           }),
-        )
+        ).getTime()
 
-  const dateTo =
+  const timeTo =
     timeZoneTo == null
-      ? date
+      ? timeLocal
       : new Date(
           date.toLocaleString('en-US', {
             timeZone: timeZoneTo,
           }),
-        )
+        ).getTime()
 
-  const result = new Date(
-    date.getTime() + dateTo.getTime() - dateFrom.getTime(),
-  )
-
-  return result
+  return new Date(time + timeTo - timeFrom)
 }

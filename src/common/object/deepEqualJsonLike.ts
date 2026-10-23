@@ -1,6 +1,8 @@
+import { isPlainObject } from './isPlainObject'
+
 /**
  * Most fast and very optimized deep equal simple json like objects.
- * null == undefined in this function.
+ * null equals undefined, and a property with a null or undefined value equals an absent property.
  * Supported only JSON primitive types.
  */
 export function deepEqualJsonLike(a: any, b: any): boolean {
@@ -34,15 +36,8 @@ export function deepEqualJsonLike(a: any, b: any): boolean {
     return true
   }
 
-  if (typeof a === 'object') {
-    if (typeof b !== 'object') {
-      return false
-    }
-
-    if (a.constructor && a.constructor !== Object) {
-      return false
-    }
-    if (b.constructor && b.constructor !== Object) {
+  if (isPlainObject(a)) {
+    if (!isPlainObject(b)) {
       return false
     }
 
