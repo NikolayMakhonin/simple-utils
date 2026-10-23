@@ -61,5 +61,5 @@ export function minMax(
   _min: number | null | undefined,
   _max: number | null | undefined,
 ): number | null | undefined {
-  return max(min(value, _min), _max)
+  return min(max(value, _min), _max)
 }

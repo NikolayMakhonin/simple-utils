@@ -14,7 +14,7 @@ export function escapeHtml(
       case '<':
         return '&lt;'
       case '>':
-        return '&rt;'
+        return '&gt;'
       case '"':
         return '&quot;'
       default:
