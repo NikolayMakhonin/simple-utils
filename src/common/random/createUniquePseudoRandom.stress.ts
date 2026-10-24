@@ -34,24 +34,28 @@ describe('createUniquePseudoRandom', () => {
     60 * 1000,
   )
 
-  it('all numbers', () => {
-    const count = UNIQUE_PSEUDO_RANDOM_MAX_COUNT
-    const random = createUniquePseudoRandom(count)
-    for (let i = 0; i < 2; i++) {
-      let hash = 0
-      let hashCheck = 0
-      let j = 0
-      while (true) {
-        const value = random()
-        hash ^= value
-        hashCheck ^= j
-        j++
-        if (j === count) {
-          break
+  it(
+    'all numbers',
+    () => {
+      const count = UNIQUE_PSEUDO_RANDOM_MAX_COUNT
+      const random = createUniquePseudoRandom(count)
+      for (let i = 0; i < 2; i++) {
+        let hash = 0
+        let hashCheck = 0
+        let j = 0
+        while (true) {
+          const value = random()
+          hash ^= value
+          hashCheck ^= j
+          j++
+          if (j === count) {
+            break
+          }
         }
-      }
 
-      expect(hash).toBe(hashCheck)
-    }
-  })
+        expect(hash).toBe(hashCheck)
+      }
+    },
+    60 * 1000,
+  )
 })

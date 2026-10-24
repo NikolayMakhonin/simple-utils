@@ -89,6 +89,56 @@ describe('date', () => {
     }
   })
 
+  it('convertTimeZone milliseconds', () => {
+    const date = new Date('2020-01-01T00:00:00.600Z')
+    const timeZones = [null, 'UTC', 'Europe/Kiev', 'Asia/Kolkata']
+    for (const timeZoneFrom of timeZones) {
+      for (const timeZoneTo of timeZones) {
+        assert.strictEqual(
+          convertTimeZone(date, timeZoneFrom, timeZoneTo).getUTCMilliseconds(),
+          600,
+        )
+      }
+    }
+  })
+
+  it('convertTimeZone DST', () => {
+    // The wall-clock time 02:30 does not exist in America/New_York on 2024-03-10
+    assert.deepStrictEqual(
+      convertTimeZone(
+        new Date('2024-03-10T02:30:00.000Z'),
+        'UTC',
+        'Europe/Kiev',
+      ),
+      new Date('2024-03-10T04:30:00.000Z'),
+    )
+    assert.deepStrictEqual(
+      convertTimeZone(
+        new Date('2024-03-10T06:30:00.000Z'),
+        'UTC',
+        'America/New_York',
+      ),
+      new Date('2024-03-10T01:30:00.000Z'),
+    )
+    assert.deepStrictEqual(
+      convertTimeZone(
+        new Date('2024-03-10T07:30:00.000Z'),
+        'UTC',
+        'America/New_York',
+      ),
+      new Date('2024-03-10T03:30:00.000Z'),
+    )
+  })
+
+  it('convertTimeZone invalid date', () => {
+    assert.ok(
+      Number.isNaN(
+        convertTimeZone(new Date(NaN), 'UTC', 'Europe/Kiev').getTime(),
+      ),
+    )
+    assert.ok(Number.isNaN(convertTimeZone(new Date(NaN)).getTime()))
+  })
+
   it('formatDate', () => {
     assert.strictEqual(
       formatDate(new Date('2020-01-01T00:00:00.000Z'), 'UTC'),

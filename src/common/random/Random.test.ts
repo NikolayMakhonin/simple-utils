@@ -45,4 +45,17 @@ describe('Random', () => {
     expect(statsActual.avg).toBeCloseTo(statsExpected.avg, 3)
     expect(statsActual.dispersion).toBeCloseTo(statsExpected.dispersion, 3)
   })
+
+  it('long sequence', () => {
+    const count = 6_000_000
+    const rnd = new Random(0)
+    for (let i = 0; i < count; i++) {
+      rnd.next()
+    }
+    // After count calls the state is the seed increased count times by 0x6d2b79f5 modulo 2^32
+    const rndExpected = new Random(Math.imul(count, 0x6d2b79f5))
+    for (let i = 0; i < 10; i++) {
+      expect(rnd.next()).toBe(rndExpected.next())
+    }
+  })
 })

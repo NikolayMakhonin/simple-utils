@@ -81,6 +81,7 @@
     "check": "run-p audit check:types lint",
     "========================= test =========================": "",
     "test:node": "vitest --run --config vite.projects.ts --project node --bail 3",
+    "test:stress": "vitest --run --config vite.projects.ts --project stress --bail 3",
     "test:browser": "vitest --run --config vite.projects.ts --project browser --bail 3",
     "test:chrome": "vitest --run --config vite.projects.ts --project browser --browser chromium --bail 3",
     "test:all": "vitest --run --config vite.projects.ts --bail 3",

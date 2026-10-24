@@ -19,7 +19,23 @@ export default defineConfig(env =>
             },
             include: [
               '**/*.{test,node}.{js,ts}',
-              '!**/*.{browser,perf,manual,api,e2e}.{js,ts}',
+              '!**/*.{browser,chrome,perf,manual,stress,api,e2e}.{js,ts}',
+              '!src/browser/**',
+            ],
+          },
+        },
+        {
+          extends: true,
+          resolve: {
+            conditions: ['node'],
+          },
+          test: {
+            name: {
+              label: 'stress',
+            },
+            include: [
+              '**/*.stress.{js,ts}',
+              '!**/*.{test,node,browser,chrome,perf,manual,api,e2e}.{js,ts}',
               '!src/browser/**',
             ],
           },
@@ -36,7 +52,7 @@ export default defineConfig(env =>
             },
             include: [
               '**/*.{test,browser}.{js,ts}',
-              '!**/*.{node,perf,manual,api,e2e}.{js,ts}',
+              '!**/*.{node,chrome,perf,manual,stress,api,e2e}.{js,ts}',
               '!src/node/**',
             ],
             browser: {
@@ -69,7 +85,7 @@ export default defineConfig(env =>
             },
             include: [
               '**/*.chrome.{js,ts}',
-              '!**/*.{node,perf,manual,api,e2e}.{js,ts}',
+              '!**/*.{test,node,browser,perf,manual,stress,api,e2e}.{js,ts}',
               '!src/node/**',
             ],
             browser: {
