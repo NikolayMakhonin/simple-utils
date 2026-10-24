@@ -202,6 +202,10 @@ describe('formatAny', () => {
 
     const errorNoStack = new Error('msg')
     errorNoStack.stack = ''
-    test(errorNoStack, 'msg')
+    test(errorNoStack, 'Error: msg')
+
+    const errorFramesOnly = new Error('msg')
+    errorFramesOnly.stack = '@http://a:1:1\n@http://b:2:2'
+    test(errorFramesOnly, 'Error: msg\n@http://a:1:1\n@http://b:2:2')
   })
 })

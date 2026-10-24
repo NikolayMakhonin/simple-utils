@@ -22,7 +22,9 @@ export default defineConfig(({ mode, isSsrBuild, command }) => {
         // Without path.resolve of vite aliases the dts plugin will not work
         rollupTypes: false,
         include: ['src/**/*.ts'],
-        exclude: ['**/*.{test,node,browser,perf,manual,api,e2e}.ts'],
+        exclude: [
+          '**/*.{test,node,browser,chrome,perf,manual,stress,api,e2e}.ts',
+        ],
         insertTypesEntry: true,
         staticImport: true,
       }),
@@ -91,7 +93,7 @@ export default defineConfig(({ mode, isSsrBuild, command }) => {
         include: ['src/**'],
         // vitest исключает файлы тестов, принудитеьно возвращаем их обратно
         exclude: [
-          '!**/*.{test,node,browser,perf,manual,api,e2e}.{js,ts}',
+          '!**/*.{test,node,browser,chrome,perf,manual,stress,api,e2e}.{js,ts}',
           '**/{tmp,temp,-tmp,-temp}/**',
         ],
         extension: ['.js', '.ts'],

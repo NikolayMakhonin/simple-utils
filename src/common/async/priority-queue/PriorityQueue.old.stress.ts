@@ -446,15 +446,13 @@ describe(
     })
 
     it('variants', { timeout: 20 * 60 * 1000 }, async () => {
-      const isBrowser = typeof window !== 'undefined'
-
       await testVariants({
-        readyToRunTime1: isBrowser ? [null, 1] : [null, 0, 1, 2],
+        readyToRunTime1: [null, 0, 1, 2],
         readyToRunTime2: [null],
         readyToRunTime3: [null],
 
-        abortTime1: isBrowser ? [null, 2] : [null, 0, 1, 2],
-        abortTime2: isBrowser ? [null, 0] : [null, 0, 1, 2],
+        abortTime1: [null, 0, 1, 2],
+        abortTime2: [null, 0, 1, 2],
         abortTime3: [null],
 
         order1: [0, 1, 2],
@@ -465,9 +463,9 @@ describe(
         runTime2: [null, 1, 2],
         runTime3: [null, 1, 2],
 
-        startTime1: isBrowser ? [1, 2] : [0, 1, 2],
-        startTime2: isBrowser ? [0, 2] : [0, 1, 2],
-        startTime3: isBrowser ? [0, 1] : [0, 1, 2],
+        startTime1: [0, 1, 2],
+        startTime2: [0, 1, 2],
+        startTime3: [0, 1, 2],
       })()
     })
   },

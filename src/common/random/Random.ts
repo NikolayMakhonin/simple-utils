@@ -1,7 +1,7 @@
 // noinspection PointlessBitwiseExpressionJS
 
 // from here: https://stackoverflow.com/a/47593316/5221762
-/** @param seed - integer number in range: [-2147483648, 2147483647] */
+/** @param seed - integer number; only its lowest 32 bits are used */
 function mulberry32(seed: number): () => number {
   return function _mulberry32() {
     seed = (seed + 0x6d2b79f5) | 0

@@ -48,7 +48,7 @@ export function argsToString(
       return true
     },
   })
-  if (/^(#\d+\s*)\{}$/.test(result)) {
+  if (/^(#\d+\s*)?\{}$/.test(result)) {
     return ''
   }
   return `(${result})`

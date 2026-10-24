@@ -122,7 +122,7 @@ export function formatAny(
   if (obj instanceof Error) {
     return indentLines(
       truncateString(
-        obj.stack || obj.message || String(obj),
+        getErrorText(obj),
         maxStringLength,
         options?.truncateOptions,
       ),
@@ -255,6 +255,22 @@ export function formatAny(
     pretty,
     depth,
   )
+}
+
+/**
+ * Error name, message, and stack
+ * V8 stacks start with the name and message, Firefox and Safari stacks contain only call frames
+ */
+function getErrorText(error: Error): string {
+  const text = String(error)
+  const stack = error.stack
+  if (!stack || typeof stack !== 'string') {
+    return text
+  }
+  if (stack.startsWith(text)) {
+    return stack
+  }
+  return `${text}\n${stack}`
 }
 
 /** `Name#id ` with the object id when showObjectId is set, `Name ` otherwise */
