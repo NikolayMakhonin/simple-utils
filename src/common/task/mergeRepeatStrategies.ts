@@ -113,9 +113,10 @@ function mergeDelays<
           resultDelay = result.delay
         }
       }
-      if (resultStop) {
-        return { stop: resultStop, stopReason: resultStopReason }
-      }
+    }
+
+    if (resultStop) {
+      return { stop: resultStop, stopReason: resultStopReason }
     }
 
     if (resultStop == null && resultDelay == null) {
