@@ -5,9 +5,10 @@ import {
 
 /**
  * Current time in milliseconds from the Date header of a web server response,
- * independent of the local clock
+ * independent of the local clock, with a precision of 1 second
  * @param options.url Any url with available HEAD method; in browsers a cross-origin
- * url must expose the Date header. Default is the current origin in browsers
+ * url must expose the Date header. A CDN should not cache the url, because the Date
+ * of its cached response can be hours old. Default is the current origin in browsers
  * and web workers, https://google.com in other environments
  * @param options.timeout Milliseconds before aborting the request; default is no timeout
  */
@@ -31,20 +32,20 @@ export async function getDateInet({
   try {
     const response = await fetch(url, {
       method: 'HEAD',
-      // A cached response carries the date of the original response, not the current time
+      // A response from the browser cache carries the date of the original response
       cache: 'no-store',
       signal: toAbortSignal(abortController.signal),
     })
     const dateStr = response.headers.get('date')
     if (!dateStr) {
       throw new Error(
-        `[getDateInet] No date header in response: ${response.status} ${url}`,
+        `[getDateInet] No date header in response from url (${url}); status: ${response.status}`,
       )
     }
     const date = new Date(dateStr).getTime()
     if (Number.isNaN(date)) {
       throw new Error(
-        `[getDateInet] Invalid date header (${dateStr}) in response: ${response.status} ${url}`,
+        `[getDateInet] Invalid date header (${dateStr}) in response from url (${url}); status: ${response.status}`,
       )
     }
     return date

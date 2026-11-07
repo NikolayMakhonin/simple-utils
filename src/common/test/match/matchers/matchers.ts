@@ -130,7 +130,8 @@ export function matchDeep<T>(
     const newExpected = expected.map((o, i) => matchDeep(o, toExpected, i))
     return matchArray(newExpected)
   }
-  if (isPlainObject(expected)) {
+  // A false result must not narrow expected: class instances reach the code below
+  if (isPlainObject(expected as unknown)) {
     const newExpected: any = {}
     for (const key in expected) {
       if (Object.prototype.hasOwnProperty.call(expected, key)) {

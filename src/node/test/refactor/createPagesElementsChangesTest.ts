@@ -17,6 +17,7 @@ import type {
   TGetAllElementsFilters,
 } from './types'
 import { getNormalizedObject } from 'src/common/object/getNormalizedObject'
+import { isPlainObject } from 'src/common/object/isPlainObject'
 import { setOwnProperty } from 'src/common/object/setOwnProperty'
 
 export type ObjectTransform = (
@@ -41,7 +42,7 @@ export const objectTransform: ObjectTransform = (
       objectTransform(item, index, parent, transform),
     )
   }
-  if (typeof result === 'object') {
+  if (isPlainObject(result)) {
     const newObj = {} as any
     for (const key in result) {
       if (Object.prototype.hasOwnProperty.call(result, key)) {

@@ -1,3 +1,4 @@
+import { isPlainObject } from 'src/common/object/isPlainObject'
 import { setOwnProperty } from 'src/common/object/setOwnProperty'
 
 export const DIFF_OLD = '-'
@@ -35,8 +36,8 @@ export function getObjectsDiff(
 
       return diffs
     }
-  } else if (valueOld instanceof Object) {
-    if (valueNew instanceof Object) {
+  } else if (isPlainObject(valueOld)) {
+    if (isPlainObject(valueNew)) {
       let diffs: Record<string, any> | null = null
 
       for (const key in valueOld) {

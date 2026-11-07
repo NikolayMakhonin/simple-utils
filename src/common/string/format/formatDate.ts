@@ -1,7 +1,8 @@
 import { convertTimeZone } from 'src/common/time/timeZone'
 
 /**
- * Default timeZone is Local
+ * YYYY-MM-DD{dateTimeSeparator}HH{timeSeparator}mm{timeSeparator}ss, or Invalid Date
+ * Default timeZone is Local, dateTimeSeparator is a space, timeSeparator is a colon
  */
 export function formatDate(
   date: Date,

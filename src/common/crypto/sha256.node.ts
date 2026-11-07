@@ -3,7 +3,7 @@ import crypto from 'node:crypto'
 import { sha256 } from './sha256'
 import { sha256Node } from './sha256Node'
 
-export function test(data: string | Uint8Array | number[] | null | undefined) {
+function test(data: string | Uint8Array | number[] | null | undefined) {
   if (data instanceof Array) {
     data = new Uint8Array(data)
   }
@@ -70,7 +70,7 @@ describe('calcSha256', () => {
     assert.strictEqual(sha256(words), sha256Node(bytes.subarray(4, 104)))
   })
 
-  it('Random data: 100 iterations with various lengths', () => {
+  it('Random data of various lengths', () => {
     for (let i = 0; i < 10000; i++) {
       const len = Math.floor(Math.random() * (i % 100))
       const input = new Uint8Array(crypto.randomBytes(len))

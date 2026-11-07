@@ -21,6 +21,14 @@ describe('objectTransform', () => {
     test({ a: [1, { b: 2 }] }, { a: [1, { b: 2 }] })
   })
 
+  it('class instances stay as they are', () => {
+    const date = new Date(1)
+    expect(objectTransform(date, null, null, transformIdentity)).toBe(date)
+    expect(
+      objectTransform({ a: [date] }, null, null, transformIdentity).a[0],
+    ).toBe(date)
+  })
+
   it('transform', () => {
     const result = objectTransform({ a: 1, b: [2] }, null, null, value =>
       typeof value === 'number' ? value + 1 : value,

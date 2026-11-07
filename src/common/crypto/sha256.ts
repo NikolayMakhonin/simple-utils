@@ -69,6 +69,9 @@ export function sha256Buffer(
     } else {
       bytes = encoder.encode(content)
     }
+  } else if ((content as unknown) instanceof Uint8Array) {
+    // Allocating a view for each call is noticeably slower on small inputs
+    bytes = content as Uint8Array
   } else if (ArrayBuffer.isView(content)) {
     bytes = new Uint8Array(
       content.buffer,
@@ -117,12 +120,12 @@ export function sha256Buffer(
     const dataEnd = part === 0 ? blocksEnd : tailEnd
     for (let offset = 0; offset < dataEnd; offset += 64) {
       for (let i = 0; i < 16; i++) {
-        const p = offset + (i << 2)
+        const pos = offset + (i << 2)
         w[i] =
-          (data[p] << 24) |
-          (data[p + 1] << 16) |
-          (data[p + 2] << 8) |
-          data[p + 3]
+          (data[pos] << 24) |
+          (data[pos + 1] << 16) |
+          (data[pos + 2] << 8) |
+          data[pos + 3]
       }
       for (let i = 16; i < 64; i++) {
         const v0 = w[i - 15]
@@ -188,7 +191,6 @@ export function sha256Buffer(
   return result
 }
 
-// Uint8Array keeps the lowest 8 bits of each assigned value
 function writeUint32BigEndian(
   bytes: Uint8Array,
   offset: number,

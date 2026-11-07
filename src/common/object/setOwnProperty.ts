@@ -1,5 +1,5 @@
 export function setOwnProperty(
-  obj: Record<string, unknown>,
+  obj: Record<string, any>,
   key: string,
   value: unknown,
 ): void {

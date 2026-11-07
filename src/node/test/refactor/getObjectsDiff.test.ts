@@ -38,6 +38,30 @@ describe('getObjectsDiff', () => {
     test({ a: 1 }, { b: 2 }, { a: diff(1, undefined), b: diff(undefined, 2) })
   })
 
+  it('values of different kinds', () => {
+    test({}, [], diff({}, []))
+    test({ a: 1 }, [1], diff({ a: 1 }, [1]))
+    test([1], { a: 1 }, diff([1], { a: 1 }))
+    test({}, 1, diff({}, 1))
+    test({}, null, diff({}, null))
+  })
+
+  it('class instances are compared by identity', () => {
+    const date = new Date(1)
+    test(date, date, null)
+    test(new Date(1), new Date(1), diff(new Date(1), new Date(1)))
+    test(new Date(1), new Date(2), diff(new Date(1), new Date(2)))
+    test({}, new Date(1), diff({}, new Date(1)))
+  })
+
+  it('objects without prototype', () => {
+    const create = (value: number) =>
+      Object.assign(Object.create(null), { a: value })
+    test(create(1), create(1), null)
+    test(create(1), create(2), { a: diff(1, 2) })
+    test({ a: 1 }, create(1), null)
+  })
+
   it('handleDiff', () => {
     const result = getObjectsDiff([1, 2], [1], (valueOld, valueNew, diffs) => ({
       valueOld,
@@ -59,7 +83,7 @@ describe('getObjectsDiff', () => {
 
   it('special keys', () => {
     function testProto(valueOld: string, valueNew: string, expected: unknown) {
-      const result = getObjectsDiff(JSON.parse(valueOld), JSON.parse(valueNew))
+      const result = getObjectsDiff(JSON.parse(valueOld), JSON.parse(valueNew))!
       expect(Object.getPrototypeOf(result)).toBe(Object.prototype)
       expect(Object.keys(result)).toEqual(['__proto__'])
       expect(
