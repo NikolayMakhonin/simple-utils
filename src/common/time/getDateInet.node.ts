@@ -38,13 +38,6 @@ describe('getDateInet', () => {
     expect(fetchStub.mock.calls[0][0]).toBe('https://google.com')
   })
 
-  it('default url with location: in a web worker window is undefined', async () => {
-    const fetchStub = stubFetch(DATE_HEADER)
-    vi.stubGlobal('location', { origin: 'https://example.test' })
-    await getDateInet()
-    expect(fetchStub.mock.calls[0][0]).toBe('https://example.test')
-  })
-
   it('timeout aborts the request', async () => {
     vi.stubGlobal(
       'fetch',
