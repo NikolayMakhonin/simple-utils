@@ -1,0 +1,84 @@
+import { describe, it, expect } from 'vitest'
+import { DIFF_NEW, DIFF_OLD, getObjectsDiff } from './getObjectsDiff'
+
+function diff(valueOld: unknown, valueNew: unknown) {
+  return { [DIFF_OLD]: valueOld, [DIFF_NEW]: valueNew }
+}
+
+describe('getObjectsDiff', () => {
+  function test(valueOld: unknown, valueNew: unknown, expected: unknown) {
+    expect(getObjectsDiff(valueOld, valueNew)).toEqual(expected)
+  }
+
+  it('base', () => {
+    test(null, null, null)
+    test(1, 1, null)
+    test(1, 2, diff(1, 2))
+    test([], [], null)
+    test({}, {}, null)
+    test([1], [1], null)
+    test({ a: 1 }, { a: 1 }, null)
+    test([1], [2], [diff(1, 2)])
+    test({ a: 1 }, { a: 2 }, { a: diff(1, 2) })
+    test({ a: [{ b: 1 }] }, { a: [{ b: 2 }] }, { a: [{ b: diff(1, 2) }] })
+    test([], {}, diff([], {}))
+  })
+
+  it('arrays of different lengths', () => {
+    test([1, 2, 3], [1, 2], [diff(3, undefined)])
+    test([1, 2], [1, 2, 3], [diff(undefined, 3)])
+    test([1], [], [diff(1, undefined)])
+    test([], [1], [diff(undefined, 1)])
+    test([1, 2], [3], [diff(1, 3), diff(2, undefined)])
+  })
+
+  it('objects with different keys', () => {
+    test({ a: 1 }, {}, { a: diff(1, undefined) })
+    test({}, { a: 1 }, { a: diff(undefined, 1) })
+    test({ a: 1 }, { b: 2 }, { a: diff(1, undefined), b: diff(undefined, 2) })
+  })
+
+  it('handleDiff', () => {
+    const result = getObjectsDiff([1, 2], [1], (valueOld, valueNew, diffs) => ({
+      valueOld,
+      valueNew,
+      diffs,
+    }))
+    expect(result).toEqual({
+      valueOld: [1, 2],
+      valueNew: [1],
+      diffs: [
+        {
+          valueOld: 2,
+          valueNew: undefined,
+          diffs: diff(2, undefined),
+        },
+      ],
+    })
+  })
+
+  it('special keys', () => {
+    function testProto(valueOld: string, valueNew: string, expected: unknown) {
+      const result = getObjectsDiff(JSON.parse(valueOld), JSON.parse(valueNew))
+      expect(Object.getPrototypeOf(result)).toBe(Object.prototype)
+      expect(Object.keys(result)).toEqual(['__proto__'])
+      expect(
+        Object.getOwnPropertyDescriptor(result, '__proto__')?.value,
+      ).toEqual(expected)
+    }
+
+    testProto('{"__proto__": 1}', '{"__proto__": 2}', diff(1, 2))
+    testProto('{"__proto__": 1}', '{}', diff(1, undefined))
+    testProto('{}', '{"__proto__": 1}', diff(undefined, 1))
+  })
+
+  it('inherited properties are absent keys', () => {
+    test({ toString: 1 }, {}, { toString: diff(1, undefined) })
+    test({}, { toString: 1 }, { toString: diff(undefined, 1) })
+    test(
+      JSON.parse('{"constructor": 1}'),
+      {},
+      JSON.parse('{"constructor": {"-": 1}}'),
+    )
+  })
+})

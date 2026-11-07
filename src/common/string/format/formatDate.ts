@@ -3,7 +3,12 @@ import { convertTimeZone } from 'src/common/time/timeZone'
 /**
  * Default timeZone is Local
  */
-export function formatDate(date: Date, timeZone?: null | string): string {
+export function formatDate(
+  date: Date,
+  timeZone?: null | string,
+  dateTimeSeparator?: null | string,
+  timeSeparator?: null | string,
+): string {
   if (Number.isNaN(date.getTime())) {
     return 'Invalid Date'
   }
@@ -16,5 +21,6 @@ export function formatDate(date: Date, timeZone?: null | string): string {
   const minutes = date.getUTCMinutes().toString().padStart(2, '0')
   const seconds = date.getUTCSeconds().toString().padStart(2, '0')
 
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+  const separator = timeSeparator ?? ':'
+  return `${year}-${month}-${day}${dateTimeSeparator ?? ' '}${hours}${separator}${minutes}${separator}${seconds}`
 }

@@ -1,7 +1,3 @@
-/**
- * UNIVERSAL ZERO-COPY HEX ENGINE
- */
-
 let BYTE_TO_HEX: string[] | null = null
 
 /**
@@ -9,7 +5,7 @@ let BYTE_TO_HEX: string[] | null = null
  */
 function getByteToHex(): string[] {
   if (!BYTE_TO_HEX) {
-    BYTE_TO_HEX = new Array(256)
+    BYTE_TO_HEX = []
     for (let i = 0; i < 256; i++) {
       BYTE_TO_HEX[i] = i.toString(16).padStart(2, '0')
     }

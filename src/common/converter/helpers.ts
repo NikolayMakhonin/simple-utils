@@ -77,7 +77,7 @@ export function toConverterWithDefaultTo<From, To>(
 }
 
 export function toConverterWithDefaultFrom<From, To>(
-  converter: ConverterWithDefaultFrom<From, To>,
+  converter: ConverterWithDefaultFrom<From, To> | undefined | null,
   converterDefault: ConverterWithDefaultFrom<From, To>,
 ): ConverterWithDefaultFrom<From, To> {
   if (converter == null) {
@@ -144,7 +144,7 @@ export function toConverterTo<From, To>(
 }
 
 export function toConverterFrom<From, To>(
-  converter: ConverterWithDefaultFrom<From, To>,
+  converter: ConverterWithDefaultFrom<From, To> | undefined | null,
   converterDefault: ConverterFrom<From, To>,
 ): ConverterFrom<From, To> {
   if (converter == null) {

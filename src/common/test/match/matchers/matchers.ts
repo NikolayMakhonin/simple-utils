@@ -23,6 +23,8 @@ import { type NumberRangeOptional } from 'src/common/types/common'
 import { ValueState } from 'src/common/async/value-state/ValueState'
 import { MatcherObjectEntry } from './MatcherObjectEntry'
 import { MatcherRef } from './MatcherRef'
+import { isPlainObject } from 'src/common/object/isPlainObject'
+import { setOwnProperty } from 'src/common/object/setOwnProperty'
 
 export function matchArray<T extends any[]>(expected?: null | MatchArray<T>) {
   return new MatcherArray<T>({ expected })
@@ -128,11 +130,15 @@ export function matchDeep<T>(
     const newExpected = expected.map((o, i) => matchDeep(o, toExpected, i))
     return matchArray(newExpected)
   }
-  if (expected.constructor === Object) {
+  if (isPlainObject(expected)) {
     const newExpected: any = {}
     for (const key in expected) {
       if (Object.prototype.hasOwnProperty.call(expected, key)) {
-        newExpected[key] = matchDeep(expected[key], toExpected, key)
+        setOwnProperty(
+          newExpected,
+          key,
+          matchDeep(expected[key], toExpected, key),
+        )
       }
     }
     return matchObject(newExpected)

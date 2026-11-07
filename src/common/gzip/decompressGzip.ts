@@ -1,6 +1,6 @@
 import { gunzipSync } from 'fflate'
 
-export function isGzipCompressed(data) {
+export function isGzipCompressed(data: Uint8Array): boolean {
   return data[0] === 0x1f && data[1] === 0x8b
 }
 

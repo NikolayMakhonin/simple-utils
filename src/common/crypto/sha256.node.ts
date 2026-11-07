@@ -32,11 +32,42 @@ describe('calcSha256', () => {
     test('Lorem ipsum dolor')
   })
 
-  it('Boundary: 55, 56, 63, 64, 65 bytes', () => {
-    ;[55, 56, 63, 64, 65].forEach(size => {
+  it('Boundary: padding in the last and in the next block', () => {
+    ;[55, 56, 63, 64, 65, 119, 120, 127, 128, 129].forEach(size => {
       const input = new Uint8Array(size).fill(0x41)
       test(input)
     })
+  })
+
+  it('Strings around the size of the reusable buffer', () => {
+    test('a'.repeat(21845))
+    test('a'.repeat(21846))
+    test('a'.repeat(65536))
+    test('я'.repeat(21845))
+    test('€'.repeat(21845))
+    test('€'.repeat(21846))
+    test('😀'.repeat(10922))
+    test('😀'.repeat(10923))
+  })
+
+  it('Previous input does not affect the next hash', () => {
+    test('a'.repeat(100000))
+    test('abc')
+    test(new Uint8Array(1000).fill(0xff))
+    test(new Uint8Array(10))
+  })
+
+  it('Views of a part of a buffer', () => {
+    const bytes = new Uint8Array(200)
+    for (let i = 0; i < bytes.length; i++) {
+      bytes[i] = i
+    }
+    const expected = sha256Node(bytes.subarray(3, 150))
+    assert.strictEqual(sha256(bytes.subarray(3, 150)), expected)
+    assert.strictEqual(sha256(Buffer.from(bytes.subarray(3, 150))), expected)
+    assert.strictEqual(sha256(new DataView(bytes.buffer, 3, 147)), expected)
+    const words = new Uint16Array(bytes.buffer, 4, 50)
+    assert.strictEqual(sha256(words), sha256Node(bytes.subarray(4, 104)))
   })
 
   it('Random data: 100 iterations with various lengths', () => {

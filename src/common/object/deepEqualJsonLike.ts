@@ -41,30 +41,33 @@ export function deepEqualJsonLike(a: any, b: any): boolean {
       return false
     }
 
+    let aCount = 0
     for (const key in a) {
       if (Object.prototype.hasOwnProperty.call(a, key)) {
+        const value = a[key]
         if (
           !deepEqualJsonLike(
-            a[key],
+            value,
             Object.prototype.hasOwnProperty.call(b, key) ? b[key] : null,
           )
         ) {
           return false
         }
-      }
-    }
-    for (const key in b) {
-      if (Object.prototype.hasOwnProperty.call(b, key)) {
-        if (
-          !Object.prototype.hasOwnProperty.call(a, key) &&
-          !deepEqualJsonLike(b[key], null)
-        ) {
-          return false
+        if (value != null) {
+          aCount++
         }
       }
     }
+    // Each counted value of a equals the value of b with the same key,
+    // so b has no other non-null values exactly when the counts are equal
+    let bCount = 0
+    for (const key in b) {
+      if (Object.prototype.hasOwnProperty.call(b, key) && b[key] != null) {
+        bCount++
+      }
+    }
 
-    return true
+    return aCount === bCount
   }
 
   return false

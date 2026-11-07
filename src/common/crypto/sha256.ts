@@ -4,9 +4,12 @@ import { toHex } from './toHex'
  * Optimized SHA-256 module with lazy resource allocation.
  */
 
+const STRING_BUFFER_SIZE = 65536
+
 let K: Uint32Array | null = null
 let W: Uint32Array | null = null
-let INTERNAL_BUF: Uint8Array | null = null
+let STRING_BUFFER: Uint8Array | null = null
+let TAIL_BUFFER: Uint8Array | null = null
 let ENCODER: TextEncoder | null = null
 
 /**
@@ -33,7 +36,8 @@ function ensureShaInit(): void {
 
   W = new Uint32Array(64)
   ENCODER = new TextEncoder()
-  INTERNAL_BUF = new Uint8Array(65536)
+  STRING_BUFFER = new Uint8Array(STRING_BUFFER_SIZE)
+  TAIL_BUFFER = new Uint8Array(128)
 }
 
 /**
@@ -53,19 +57,18 @@ export function sha256Buffer(
 
   const k = K!
   const w = W!
-  const enc = ENCODER!
-  let buf = INTERNAL_BUF!
+  const tail = TAIL_BUFFER!
 
   let bytes: Uint8Array
   if (typeof content === 'string') {
-    const est = content.length * 3
-    if (buf.length < est + 128) {
-      buf = INTERNAL_BUF = new Uint8Array(est + 128)
+    const encoder = ENCODER!
+    // UTF-8 takes at most 3 bytes per UTF-16 code unit
+    if (content.length * 3 <= STRING_BUFFER_SIZE) {
+      const buffer = STRING_BUFFER!
+      bytes = buffer.subarray(0, encoder.encodeInto(content, buffer).written)
+    } else {
+      bytes = encoder.encode(content)
     }
-    const r = enc.encodeInto(content, buf)
-    bytes = buf.subarray(0, r.written)
-  } else if ((content as unknown) instanceof Uint8Array) {
-    bytes = content as Uint8Array
   } else if (ArrayBuffer.isView(content)) {
     bytes = new Uint8Array(
       content.buffer,
@@ -78,35 +81,27 @@ export function sha256Buffer(
     )
   }
 
-  const n = bytes.length
-  const paddedLen = ((n + 72) >>> 6) << 6
-  if (buf.length < paddedLen) {
-    buf = INTERNAL_BUF = new Uint8Array(paddedLen)
-  }
+  // Complete blocks are read directly from the input, so that hashing a large input
+  // neither copies it nor keeps memory of its size after the call.
+  // The remaining bytes and the padding, at most 2 blocks, go through the tail buffer
+  const length = bytes.length
+  const blocksEnd = length - (length % 64)
+  const tailLength = length - blocksEnd
+  const tailEnd = tailLength < 56 ? 64 : 128
 
-  if (bytes !== buf) {
-    buf.set(bytes)
+  for (let i = 0; i < tailLength; i++) {
+    tail[i] = bytes[blocksEnd + i]
   }
 
   // Padding
-  buf[n] = 0x80
-  for (let i = n + 1; i < paddedLen; i++) {
-    buf[i] = 0
+  tail[tailLength] = 0x80
+  for (let i = tailLength + 1; i < tailEnd; i++) {
+    tail[i] = 0
   }
 
-  const bits = n * 8
-  const hi = (bits / 0x100000000) | 0
-  const lo = bits | 0
-
-  // Big-Endian length attachment
-  buf[paddedLen - 8] = hi >>> 24
-  buf[paddedLen - 7] = hi >>> 16
-  buf[paddedLen - 6] = hi >>> 8
-  buf[paddedLen - 5] = hi
-  buf[paddedLen - 4] = lo >>> 24
-  buf[paddedLen - 3] = lo >>> 16
-  buf[paddedLen - 2] = lo >>> 8
-  buf[paddedLen - 1] = lo
+  const bits = length * 8
+  writeUint32BigEndian(tail, tailEnd - 8, (bits / 0x100000000) | 0)
+  writeUint32BigEndian(tail, tailEnd - 4, bits | 0)
 
   let h0 = 0x6a09e667 | 0
   let h1 = 0xbb67ae85 | 0
@@ -117,40 +112,43 @@ export function sha256Buffer(
   let h6 = 0x1f83d9ab | 0
   let h7 = 0x5be0cd19 | 0
 
-  for (let offset = 0; offset < paddedLen; offset += 64) {
-    for (let i = 0; i < 16; i++) {
-      const p = offset + (i << 2)
-      w[i] =
-        (buf[p] << 24) | (buf[p + 1] << 16) | (buf[p + 2] << 8) | buf[p + 3]
-    }
-    for (let i = 16; i < 64; i++) {
-      const v0 = w[i - 15]
-      const v1 = w[i - 2]
-      const s0 =
-        ((v0 >>> 7) | (v0 << 25)) ^ ((v0 >>> 18) | (v0 << 14)) ^ (v0 >>> 3)
-      const s1 =
-        ((v1 >>> 17) | (v1 << 15)) ^ ((v1 >>> 19) | (v1 << 13)) ^ (v1 >>> 10)
-      w[i] = (w[i - 16] + s0 + w[i - 7] + s1) | 0
-    }
+  for (let part = 0; part < 2; part++) {
+    const data = part === 0 ? bytes : tail
+    const dataEnd = part === 0 ? blocksEnd : tailEnd
+    for (let offset = 0; offset < dataEnd; offset += 64) {
+      for (let i = 0; i < 16; i++) {
+        const p = offset + (i << 2)
+        w[i] =
+          (data[p] << 24) |
+          (data[p + 1] << 16) |
+          (data[p + 2] << 8) |
+          data[p + 3]
+      }
+      for (let i = 16; i < 64; i++) {
+        const v0 = w[i - 15]
+        const v1 = w[i - 2]
+        const s0 =
+          ((v0 >>> 7) | (v0 << 25)) ^ ((v0 >>> 18) | (v0 << 14)) ^ (v0 >>> 3)
+        const s1 =
+          ((v1 >>> 17) | (v1 << 15)) ^ ((v1 >>> 19) | (v1 << 13)) ^ (v1 >>> 10)
+        w[i] = (w[i - 16] + s0 + w[i - 7] + s1) | 0
+      }
 
-    let a = h0
-    let b = h1
-    let c = h2
-    let d = h3
-    let e = h4
-    let f = h5
-    let g = h6
-    let h = h7
+      let a = h0
+      let b = h1
+      let c = h2
+      let d = h3
+      let e = h4
+      let f = h5
+      let g = h6
+      let h = h7
 
-    // 4-way unrolling for V8 instruction pipelining
-    for (let i = 0; i < 64; i += 4) {
-      for (let j = 0; j < 4; j++) {
-        const idx = i + j
+      for (let i = 0; i < 64; i++) {
         const eS1 =
           ((e >>> 6) | (e << 26)) ^
           ((e >>> 11) | (e << 21)) ^
           ((e >>> 25) | (e << 7))
-        const t1 = (h + eS1 + (g ^ (e & (f ^ g))) + k[idx] + w[idx]) | 0
+        const t1 = (h + eS1 + (g ^ (e & (f ^ g))) + k[i] + w[i]) | 0
         const aS0 =
           ((a >>> 2) | (a << 30)) ^
           ((a >>> 13) | (a << 19)) ^
@@ -165,31 +163,41 @@ export function sha256Buffer(
         b = a
         a = (t1 + t2) | 0
       }
+
+      h0 = (h0 + a) | 0
+      h1 = (h1 + b) | 0
+      h2 = (h2 + c) | 0
+      h3 = (h3 + d) | 0
+      h4 = (h4 + e) | 0
+      h5 = (h5 + f) | 0
+      h6 = (h6 + g) | 0
+      h7 = (h7 + h) | 0
     }
-
-    h0 = (h0 + a) | 0
-    h1 = (h1 + b) | 0
-    h2 = (h2 + c) | 0
-    h3 = (h3 + d) | 0
-    h4 = (h4 + e) | 0
-    h5 = (h5 + f) | 0
-    h6 = (h6 + g) | 0
-    h7 = (h7 + h) | 0
   }
 
-  // Convert to big-endian Uint8Array (32 bytes)
   const result = new Uint8Array(32)
-  const hash = [h0, h1, h2, h3, h4, h5, h6, h7]
-  for (let i = 0; i < 8; i++) {
-    const word = hash[i]
-    const offset = i << 2
-    result[offset] = word >>> 24
-    result[offset + 1] = (word >>> 16) & 0xff
-    result[offset + 2] = (word >>> 8) & 0xff
-    result[offset + 3] = word & 0xff
-  }
+  writeUint32BigEndian(result, 0, h0)
+  writeUint32BigEndian(result, 4, h1)
+  writeUint32BigEndian(result, 8, h2)
+  writeUint32BigEndian(result, 12, h3)
+  writeUint32BigEndian(result, 16, h4)
+  writeUint32BigEndian(result, 20, h5)
+  writeUint32BigEndian(result, 24, h6)
+  writeUint32BigEndian(result, 28, h7)
 
   return result
+}
+
+// Uint8Array keeps the lowest 8 bits of each assigned value
+function writeUint32BigEndian(
+  bytes: Uint8Array,
+  offset: number,
+  word: number,
+): void {
+  bytes[offset] = word >>> 24
+  bytes[offset + 1] = word >>> 16
+  bytes[offset + 2] = word >>> 8
+  bytes[offset + 3] = word
 }
 
 /**
@@ -206,18 +214,6 @@ export function sha256(
   if (!buffer) {
     return null
   }
-
-  // SHA-256 standard hex output requires Big-Endian byte order.
-  // We map 32-bit words to bytes manually to maintain correct endianness for hex conversion.
-  // const resultBytes = new Uint8Array(32)
-  // for (let i = 0; i < 8; i++) {
-  //   const word = buffer[i]
-  //   const p = i << 2
-  //   resultBytes[p] = word >>> 24
-  //   resultBytes[p + 1] = (word >>> 16) & 0xff
-  //   resultBytes[p + 2] = (word >>> 8) & 0xff
-  //   resultBytes[p + 3] = word & 0xff
-  // }
 
   return toHex(buffer)
 }

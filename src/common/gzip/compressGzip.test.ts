@@ -1,5 +1,5 @@
 // vitest test for compressGzip / decompressGzip / isGzipCompressed functions
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { compressGzip, type CompressLevel } from './compressGzip'
 import { decompressGzip, isGzipCompressed } from './decompressGzip'
 import { Random } from 'src/common/random/Random'
@@ -36,4 +36,18 @@ describe('gzip', () => {
     },
     5 * 60 * 1000,
   )
+
+  it('equal data compresses to equal bytes at any time', () => {
+    vi.useFakeTimers()
+    try {
+      const data = new Uint8Array([1, 2, 3])
+      vi.setSystemTime(1000000000000)
+      const compressed1 = compressGzip(data, { level: 6 })
+      vi.setSystemTime(2000000000000)
+      const compressed2 = compressGzip(data, { level: 6 })
+      expect(compressed2).toEqual(compressed1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })

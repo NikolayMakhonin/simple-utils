@@ -6,6 +6,7 @@ import {
   WorkerErrorType,
 } from './types'
 import { AbortError } from '@flemist/abort-controller-fast'
+import { setOwnProperty } from 'src/common/object/setOwnProperty'
 
 export function isWebWorker(): boolean {
   return typeof self === 'object' && typeof self.postMessage === 'function'
@@ -54,7 +55,7 @@ export function deserializeError(data: ErrorSerialized) {
     for (const key in data.props) {
       if (Object.prototype.hasOwnProperty.call(data.props, key)) {
         try {
-          error[key] = data.props[key]
+          setOwnProperty(error, key, data.props[key])
         } catch {
           // ignore read-only properties
         }

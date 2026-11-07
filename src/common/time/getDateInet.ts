@@ -4,8 +4,12 @@ import {
 } from '@flemist/abort-controller-fast'
 
 /**
- * TODO: write doc comments
- * url: any url with available HEAD method. Default is "/"
+ * Current time in milliseconds from the Date header of a web server response,
+ * independent of the local clock
+ * @param options.url Any url with available HEAD method; in browsers a cross-origin
+ * url must expose the Date header. Default is the current origin in browsers
+ * and web workers, https://google.com in other environments
+ * @param options.timeout Milliseconds before aborting the request; default is no timeout
  */
 export async function getDateInet({
   url,
@@ -15,30 +19,37 @@ export async function getDateInet({
   timeout?: null | number
 } = {}) {
   if (!url) {
-    url = typeof window !== 'undefined' ? '/' : 'https://google.com'
+    url =
+      typeof location !== 'undefined' ? location.origin : 'https://google.com'
   }
-  let timer: any
+  const abortController = new AbortControllerFast()
+  const timer = timeout
+    ? setTimeout(() => {
+        abortController.abort()
+      }, timeout)
+    : null
   try {
-    const abortController = new AbortControllerFast()
-    timer = timeout
-      ? setTimeout(() => {
-          abortController.abort()
-        }, timeout)
-      : null
     const response = await fetch(url, {
       method: 'HEAD',
+      // A cached response carries the date of the original response, not the current time
+      cache: 'no-store',
       signal: toAbortSignal(abortController.signal),
     })
     const dateStr = response.headers.get('date')
     if (!dateStr) {
       throw new Error(
-        `[Now][getDateInet] No date header in response: ${response.status} ${url}`,
+        `[getDateInet] No date header in response: ${response.status} ${url}`,
       )
     }
     const date = new Date(dateStr).getTime()
+    if (Number.isNaN(date)) {
+      throw new Error(
+        `[getDateInet] Invalid date header (${dateStr}) in response: ${response.status} ${url}`,
+      )
+    }
     return date
   } finally {
-    if (timer) {
+    if (timer != null) {
       clearTimeout(timer)
     }
   }

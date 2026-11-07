@@ -1,3 +1,5 @@
+import { setOwnProperty } from 'src/common/object/setOwnProperty'
+
 export const DIFF_OLD = '-'
 export const DIFF_NEW = '+'
 
@@ -14,7 +16,7 @@ export function getObjectsDiff(
       let diffs: any[] | null = null
 
       for (
-        let i = 0, len = Math.max(valueNew.length, valueNew.length);
+        let i = 0, len = Math.max(valueOld.length, valueNew.length);
         i < len;
         i++
       ) {
@@ -39,12 +41,18 @@ export function getObjectsDiff(
 
       for (const key in valueOld) {
         if (Object.prototype.hasOwnProperty.call(valueOld, key)) {
-          const diff = getObjectsDiff(valueOld[key], valueNew[key], handleDiff)
+          const diff = getObjectsDiff(
+            valueOld[key],
+            Object.prototype.hasOwnProperty.call(valueNew, key)
+              ? valueNew[key]
+              : void 0,
+            handleDiff,
+          )
           if (diff != null) {
             if (!diffs) {
               diffs = {}
             }
-            diffs[key] = diff
+            setOwnProperty(diffs, key, diff)
           }
         }
       }
@@ -53,12 +61,12 @@ export function getObjectsDiff(
           Object.prototype.hasOwnProperty.call(valueNew, key) &&
           !Object.prototype.hasOwnProperty.call(valueOld, key)
         ) {
-          const diff = getObjectsDiff(valueOld[key], valueNew[key], handleDiff)
+          const diff = getObjectsDiff(void 0, valueNew[key], handleDiff)
           if (diff != null) {
             if (!diffs) {
               diffs = {}
             }
-            diffs[key] = diff
+            setOwnProperty(diffs, key, diff)
           }
         }
       }

@@ -10,11 +10,13 @@ export function createUniquePseudoRandom(
   startFrom?: null | number,
 ) {
   if (count <= 0) {
-    throw new Error(`[random][PseudoRandom] count(${count}) must be > 0`)
+    throw new Error(
+      `[random][createUniquePseudoRandom] count (${count}) must be > 0`,
+    )
   }
   if (count > UNIQUE_PSEUDO_RANDOM_MAX_COUNT) {
     throw new Error(
-      `[random][PseudoRandom] count(${count}) must be <= ${UNIQUE_PSEUDO_RANDOM_MAX_COUNT}`,
+      `[random][createUniquePseudoRandom] count (${count}) must be <= ${UNIQUE_PSEUDO_RANDOM_MAX_COUNT}`,
     )
   }
   if (startFrom == null) {
@@ -22,7 +24,7 @@ export function createUniquePseudoRandom(
   }
   if (startFrom >= count) {
     throw new Error(
-      `[random][PseudoRandom] startFrom(${startFrom}) must be < count(${count})`,
+      `[random][createUniquePseudoRandom] startFrom (${startFrom}) must be < count (${count})`,
     )
   }
   let value = startFrom

@@ -62,7 +62,6 @@ describe('date', () => {
       'UTC',
       'Europe/Kiev',
       'America/Los_Angeles',
-      'America/Los_Angeles',
       'America/New_York',
       'America/Chicago',
       'America/Denver',
@@ -156,73 +155,39 @@ describe('date', () => {
     )
 
     assert.strictEqual(
-      formatDate(new Date('2020-01-01T00:00:00.000Z'), 'America/Los_Angeles'),
-      '2019-12-31 16:00:00',
-    )
-
-    assert.strictEqual(
       formatDate(new Date('2020-01-01T00:00:00.000Z'), 'America/New_York'),
       '2019-12-31 19:00:00',
     )
   })
 
-  it.skip('convertTimeZone local', () => {
-    // Local (+04:00), UTC
+  it('convertTimeZone local', () => {
+    const date = new Date('2020-01-01T00:00:00.000Z')
+    const time = date.getTime()
+    const localOffset = -date.getTimezoneOffset() * 60 * 1000
+    const losAngelesOffset = -8 * 60 * 60 * 1000
+
+    // Local, UTC
     assert.deepStrictEqual(
-      convertTimeZone(new Date('2020-01-01T00:00:00.000Z'), null, 'UTC'),
-      new Date('2019-12-31T20:00:00.000Z'),
+      convertTimeZone(date, null, 'UTC'),
+      new Date(time - localOffset),
     )
 
-    // UTC, Local (+04:00)
+    // UTC, Local
     assert.deepStrictEqual(
-      convertTimeZone(new Date('2020-01-01T00:00:00.000Z'), 'UTC', null),
-      new Date('2020-01-01T04:00:00.000Z'),
+      convertTimeZone(date, 'UTC', null),
+      new Date(time + localOffset),
     )
 
-    // Local (+04:00), America/Los_Angeles
+    // Local, America/Los_Angeles
     assert.deepStrictEqual(
-      convertTimeZone(
-        new Date('2020-01-01T00:00:00.000Z'),
-        null,
-        'America/Los_Angeles',
-      ),
-      new Date('2019-12-31T12:00:00.000Z'),
+      convertTimeZone(date, null, 'America/Los_Angeles'),
+      new Date(time - localOffset + losAngelesOffset),
     )
 
-    // America/Los_Angeles, Local (+04:00)
+    // America/Los_Angeles, Local
     assert.deepStrictEqual(
-      convertTimeZone(
-        new Date('2020-01-01T00:00:00.000Z'),
-        'America/Los_Angeles',
-        null,
-      ),
-      new Date('2020-01-01T12:00:00.000Z'),
+      convertTimeZone(date, 'America/Los_Angeles', null),
+      new Date(time + localOffset - losAngelesOffset),
     )
-  })
-
-  it('formatDate current', () => {
-    console.log(
-      `[test][timeZone] Current date UTC: ${formatDate(new Date(), 'UTC')}`,
-    )
-    console.log(
-      `[test][timeZone] Current date Europe/Kiev: ${formatDate(new Date(), 'Europe/Kiev')}`,
-    )
-    console.log(
-      `[test][timeZone] Current date America/Los_Angeles: ${formatDate(
-        new Date(),
-        'America/Los_Angeles',
-      )}`,
-    )
-    console.log(
-      `[test][timeZone] Current date Asia/Tbilisi: ${formatDate(new Date(), 'Asia/Tbilisi')}`,
-    )
-  })
-
-  it('parse', () => {
-    const date = new Date('2020-01-01')
-    date.setMonth(date.getMonth() + 1)
-    date.setMilliseconds(-1)
-    console.log('[test][timeZone] date.toISOString', date.toISOString())
-    console.log('[test][timeZone] date.toString', date.toString())
   })
 })

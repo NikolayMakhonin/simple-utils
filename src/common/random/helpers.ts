@@ -9,12 +9,15 @@ export function randomFloat(
     toExclusive = from
     from = 0
   }
-  if (toExclusive <= from) {
+  const range = toExclusive - from
+  if (!(range > 0 && range < Infinity)) {
     throw new Error(
-      `[random][randomFloat] toExclusive (${toExclusive}) must be greater than from (${from})`,
+      `[random][randomFloat] toExclusive (${toExclusive}) must be greater than from (${from}) by a finite number`,
     )
   }
-  return rnd.next() * (toExclusive - from) + from
+  const value = rnd.next() * range + from
+  // The sum rounds up to toExclusive when from is large relative to the range
+  return value < toExclusive ? value : from
 }
 
 export function randomInt(
@@ -22,7 +25,7 @@ export function randomInt(
   from: number,
   toExclusive?: null | number,
 ): number {
-  return Math.floor(randomFloat(rnd, from, toExclusive!))
+  return Math.floor(randomFloat(rnd, from, toExclusive))
 }
 
 export function randomBoolean(
@@ -32,6 +35,7 @@ export function randomBoolean(
   return rnd.next() < (trueProbability ?? 0.5)
 }
 
+/** Returns -1 when the total weight is 0 */
 export function randomIndexWeighted(rnd: Random, weights: number[]): number
 export function randomIndexWeighted(
   rnd: Random,
@@ -54,7 +58,13 @@ export function randomIndexWeighted(
 
   let totalWeight = 0
   for (let i = 0; i < length; i++) {
-    totalWeight += getWeight(i)
+    const weight = getWeight(i)
+    if (weight < 0) {
+      throw new Error(
+        `[random][randomIndexWeighted] weight (${weight}) of index ${i} must not be negative`,
+      )
+    }
+    totalWeight += weight
   }
   if (totalWeight === 0) {
     return -1
@@ -116,9 +126,6 @@ export function randomItems<T>(
   count: number,
   remove?: null | boolean,
 ): T[] {
-  if (items.length === 0) {
-    throw new Error('[random][randomItems] items is empty')
-  }
   const result: T[] = []
   for (let i = 0; i < count; i++) {
     result.push(randomItem(rnd, items as Array<T>, remove))
