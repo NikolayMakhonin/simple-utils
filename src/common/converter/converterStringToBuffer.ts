@@ -12,8 +12,9 @@ export const converterStringToBuffer: Converter<string, Uint8Array> = {
   },
   from: (value: Uint8Array) => {
     if (textDecoder == null) {
-      // Invalid bytes must throw: replacing them with U+FFFD would silently change the value
-      textDecoder = new TextDecoder('utf-8', { fatal: true })
+      // Invalid bytes must throw and a leading BOM must stay:
+      // replacing them or removing it would silently change the value
+      textDecoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
     }
     return textDecoder.decode(value)
   },

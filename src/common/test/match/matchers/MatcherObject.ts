@@ -41,7 +41,12 @@ export class MatcherObject<T> extends Matcher<
       if (!Object.prototype.hasOwnProperty.call(expected, key)) {
         continue
       }
-      const actualValue = actual[key]
+      // An absent __proto__ key must not read as the prototype of actual
+      const actualValue =
+        key === '__proto__' &&
+        !Object.prototype.hasOwnProperty.call(actual, key)
+          ? void 0
+          : actual[key]
       const expectedValue = expected[key]
       const matchResult = match(actualValue, expectedValue)
       if (matchResult.result) {

@@ -25,6 +25,10 @@ function getTimeZoneOffset(
   date: Date,
   timeZone: null | undefined | string,
 ): number {
+  // The offset of UTC is always 0, and formatToParts is by far the slowest part of this function
+  if (timeZone === 'UTC') {
+    return 0
+  }
   let day = 0
   let hours = 0
   let minutes = 0

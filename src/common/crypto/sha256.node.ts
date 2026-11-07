@@ -83,6 +83,24 @@ describe('calcSha256', () => {
     test(input)
   })
 
+  it('Keeps no memory of the input size', () => {
+    const bytes = new Uint8Array(8 * 1024 * 1024)
+    let memoryBefore = process.memoryUsage().arrayBuffers
+    sha256(bytes)
+    assert.isBelow(
+      process.memoryUsage().arrayBuffers - memoryBefore,
+      bytes.length / 2,
+    )
+
+    const str = 'a'.repeat(4 * 1024 * 1024)
+    memoryBefore = process.memoryUsage().arrayBuffers
+    sha256(str)
+    assert.isBelow(
+      process.memoryUsage().arrayBuffers - memoryBefore,
+      str.length * 2,
+    )
+  })
+
   it('Errors: Unsupported types', () => {
     // @ts-expect-error
     assert.throws(() => sha256(123), /Unsupported content type/)

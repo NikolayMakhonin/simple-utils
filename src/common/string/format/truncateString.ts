@@ -2,7 +2,7 @@ export type TruncateStringOptions = {
   /** Remove the start of the string instead of its end */
   fromStart?: null | boolean
   appendEllipsis?: null | boolean
-  /** Append the number of removed code units in the form (5) */
+  /** Add the number of removed code units in the form (5), on the side of the removed part */
   appendTruncatedLength?: null | boolean
 }
 
