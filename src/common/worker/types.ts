@@ -1,6 +1,7 @@
 import type { TransferListItem as TransferableNode } from 'worker_threads'
 import type { ISubject } from '../rx'
 import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
+import type { EnumOf } from 'src/common/types/common'
 
 /** The list of transferable types for any environment. */
 export type TransferableAny = Transferable | TransferableNode
@@ -80,12 +81,13 @@ export interface IMessagePort {
 
 // region WorkerError
 
-export enum WorkerErrorType {
-  messageError = 'messageError',
+export type WorkerErrorType = EnumOf<typeof WorkerErrorType>
+export const WorkerErrorType = {
+  messageError: 'messageError',
   /** Errors after which the worker cannot continue to work and will be closed. */
-  fatalError = 'fatalError',
-  closed = 'closed',
-}
+  fatalError: 'fatalError',
+  closed: 'closed',
+} as const
 
 export class WorkerError extends Error {
   readonly type: WorkerErrorType
@@ -99,11 +101,12 @@ export class WorkerError extends Error {
   }
 }
 
-export enum ErrorSerializedType {
-  abort = 'abort',
-  worker = 'worker',
-  generic = 'generic',
-}
+export type ErrorSerializedType = EnumOf<typeof ErrorSerializedType>
+export const ErrorSerializedType = {
+  abort: 'abort',
+  worker: 'worker',
+  generic: 'generic',
+} as const
 
 export type ErrorSerialized = {
   type: ErrorSerializedType
@@ -115,46 +118,49 @@ export type ErrorSerialized = {
 
 // region WorkerClient
 
-export enum WorkerClientStatus {
-  disconnected = 'disconnected',
-  connecting = 'connecting',
-  connected = 'connected',
-  closing = 'closing',
-  closed = 'closed',
-}
+export type WorkerClientStatus = EnumOf<typeof WorkerClientStatus>
+export const WorkerClientStatus = {
+  disconnected: 'disconnected',
+  connecting: 'connecting',
+  connected: 'connected',
+  closing: 'closing',
+  closed: 'closed',
+} as const
 
-export enum WorkerClientRequestType {
-  data = 'data',
-  close = 'close',
-}
+export type WorkerClientRequestType = EnumOf<typeof WorkerClientRequestType>
+export const WorkerClientRequestType = {
+  data: 'data',
+  close: 'close',
+} as const
 
 export type WorkerClientRequestData<Data> = {
-  type: WorkerClientRequestType.data
+  type: typeof WorkerClientRequestType.data
   data: WorkerData<Data>
 }
 export type WorkerClientRequestClose = {
-  type: WorkerClientRequestType.close
+  type: typeof WorkerClientRequestType.close
 }
 export type WorkerClientRequest<Data> =
   | WorkerClientRequestData<Data>
   | WorkerClientRequestClose
 
-export enum WorkerClientResponseType {
-  status = 'status',
-  data = 'data',
-  error = 'error',
-}
+export type WorkerClientResponseType = EnumOf<typeof WorkerClientResponseType>
+export const WorkerClientResponseType = {
+  status: 'status',
+  data: 'data',
+  error: 'error',
+} as const
 
 export type WorkerClientResponseStatus = {
-  type: WorkerClientResponseType.status
+  type: typeof WorkerClientResponseType.status
   status: WorkerClientStatus
 }
 export type WorkerClientResponseData<Data> = {
-  type: WorkerClientResponseType.data
+  type: typeof WorkerClientResponseType.data
   data: WorkerData<Data>
 }
 export type WorkerClientResponseError = {
-  type: WorkerClientResponseType.error
+  type: typeof WorkerClientResponseType.error
   error: any
 }
 export type WorkerClientResponse<Data> =
@@ -166,48 +172,50 @@ export type WorkerClientResponse<Data> =
 
 // region WorkerServer
 
-export enum WorkerServerRequestType {
-  data = 'data',
-  error = 'error',
-  close = 'close',
-}
+export type WorkerServerRequestType = EnumOf<typeof WorkerServerRequestType>
+export const WorkerServerRequestType = {
+  data: 'data',
+  error: 'error',
+  close: 'close',
+} as const
 
 export type WorkerServerRequestData<Data> = {
-  type: WorkerServerRequestType.data
+  type: typeof WorkerServerRequestType.data
   data: WorkerData<Data>
 }
 export type WorkerServerRequestError = {
-  type: WorkerServerRequestType.error
+  type: typeof WorkerServerRequestType.error
   error: any
 }
 export type WorkerServerRequestClose = {
-  type: WorkerServerRequestType.close
+  type: typeof WorkerServerRequestType.close
 }
 export type WorkerServerRequest<Data> =
   | WorkerServerRequestData<Data>
   | WorkerServerRequestError
   | WorkerServerRequestClose
 
-export enum WorkerServerResponseType {
-  connected = 'connected',
-  data = 'data',
-  error = 'error',
-  close = 'close',
-}
+export type WorkerServerResponseType = EnumOf<typeof WorkerServerResponseType>
+export const WorkerServerResponseType = {
+  connected: 'connected',
+  data: 'data',
+  error: 'error',
+  close: 'close',
+} as const
 
 export type WorkerServerResponseConnected = {
-  type: WorkerServerResponseType.connected
+  type: typeof WorkerServerResponseType.connected
 }
 export type WorkerServerResponseData<Data> = {
-  type: WorkerServerResponseType.data
+  type: typeof WorkerServerResponseType.data
   data: WorkerData<Data>
 }
 export type WorkerServerResponseError = {
-  type: WorkerServerResponseType.error
+  type: typeof WorkerServerResponseType.error
   error: ErrorSerialized
 }
 export type WorkerServerResponseClose = {
-  type: WorkerServerResponseType.close
+  type: typeof WorkerServerResponseType.close
 }
 export type WorkerServerResponse<Data> =
   | WorkerServerResponseConnected

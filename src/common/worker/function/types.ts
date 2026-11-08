@@ -5,7 +5,7 @@ import {
   type WorkerData,
   type WorkerEvent,
 } from '../types'
-import type { PromiseLikeOrValue } from 'src/common/types/common'
+import type { PromiseLikeOrValue, EnumOf } from 'src/common/types/common'
 
 // region WorkerFunctionClient
 
@@ -98,18 +98,19 @@ export type WorkerFunctionServer<
 
 // region WorkerFunctionRequest
 
-export enum WorkerFunctionRequestType {
-  input = 'input',
-  event = 'event',
-}
+export type WorkerFunctionRequestType = EnumOf<typeof WorkerFunctionRequestType>
+export const WorkerFunctionRequestType = {
+  input: 'input',
+  event: 'event',
+} as const
 
 export type WorkerFunctionRequestInput<Input> = {
-  type: WorkerFunctionRequestType.input
+  type: typeof WorkerFunctionRequestType.input
   data: Input
 }
 
 export type WorkerFunctionRequestEvent<EventInput extends WorkerEvent<any>> = {
-  type: WorkerFunctionRequestType.event
+  type: typeof WorkerFunctionRequestType.event
   data: EventInput
 }
 
@@ -121,19 +122,22 @@ export type WorkerFunctionRequest<Input, EventInput extends WorkerEvent<any>> =
 
 // region WorkerFunctionResponse
 
-export enum WorkerFunctionResponseType {
-  output = 'output',
-  event = 'event',
-}
+export type WorkerFunctionResponseType = EnumOf<
+  typeof WorkerFunctionResponseType
+>
+export const WorkerFunctionResponseType = {
+  output: 'output',
+  event: 'event',
+} as const
 
 export type WorkerFunctionResponseOutput<Output> = {
-  type: WorkerFunctionResponseType.output
+  type: typeof WorkerFunctionResponseType.output
   data: Output
 }
 
 export type WorkerFunctionResponseEvent<EventOutput extends WorkerEvent<any>> =
   {
-    type: WorkerFunctionResponseType.event
+    type: typeof WorkerFunctionResponseType.event
     data: EventOutput
   }
 

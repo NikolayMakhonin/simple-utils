@@ -25,7 +25,7 @@ export type TaskOptionsBase<Result = void> = AbortControllerReusableOptions & {
    */
   readonly logFuncError?:
     | null
-    | ((error: any) => Exclude<LogLevel, LogLevel.none> | null | false)
+    | ((error: any) => Exclude<LogLevel, typeof LogLevel.none> | null | false)
   readonly successPredicate?: null | TaskSuccessPredicate<
     Result,
     TaskStatusBase<Result>

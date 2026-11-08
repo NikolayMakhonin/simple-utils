@@ -1,7 +1,7 @@
 import {
   AbortControllerReusable,
   type AbortControllerReusableOptions,
-} from '../async'
+} from '../async/abort/AbortControllerReusable'
 import {
   type ITimeController,
   timeControllerDefault,

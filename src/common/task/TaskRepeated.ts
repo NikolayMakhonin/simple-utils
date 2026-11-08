@@ -19,7 +19,7 @@ import {
   type TaskRunOptionsBase,
   type TaskStatusBase,
 } from './types'
-import { isPromiseLike } from 'src/common/async'
+import { isPromiseLike } from 'src/common/async/promise/isPromiseLike'
 import { createTaskRerun, type CreateTaskRerunResult } from './TaskWithRerun'
 import type { TaskOptionsBase } from './TaskBase'
 import { type ITaskWrapperSource, TaskWrapper } from './TaskWrapper'

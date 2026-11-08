@@ -8,7 +8,7 @@ import {
   type WorkerServerResponse,
   WorkerServerResponseType,
 } from './types'
-import type { Unsubscribe } from 'src/common/types'
+import type { Unsubscribe, EnumOf } from 'src/common/types'
 import { getWorkerFatalErrors, serializeError } from './helpers'
 
 export type WorkerServerOptions = {
@@ -133,11 +133,12 @@ export class WorkerServer<RequestData, ResponseData>
   }
 }
 
-export enum WorkerServerStatus {
-  disconnected = 'disconnected',
-  connected = 'connected',
-  closed = 'closed',
-}
+export type WorkerServerStatus = EnumOf<typeof WorkerServerStatus>
+export const WorkerServerStatus = {
+  disconnected: 'disconnected',
+  connected: 'connected',
+  closed: 'closed',
+} as const
 
 export interface IWorkerServer<RequestData, ResponseData>
   extends ISubject<

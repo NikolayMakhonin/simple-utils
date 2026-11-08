@@ -5,17 +5,19 @@ import {
   type IAbortSignalFast,
 } from '@flemist/abort-controller-fast'
 import { isPromiseLike } from 'src/common/async/promise/isPromiseLike'
+import type { EnumOf } from 'src/common/types/common'
 
 // TODO: write doc comments
-export enum ConsoleMessageLevel {
-  log = 'log',
-  warn = 'warn',
-  error = 'error',
-  info = 'info',
-  debug = 'debug',
-  trace = 'trace',
-  assert = 'assert',
-}
+export type ConsoleMessageLevel = EnumOf<typeof ConsoleMessageLevel>
+export const ConsoleMessageLevel = {
+  log: 'log',
+  warn: 'warn',
+  error: 'error',
+  info: 'info',
+  debug: 'debug',
+  trace: 'trace',
+  assert: 'assert',
+} as const
 
 const consoleMethods: ConsoleMessageLevel[] = Object.values(ConsoleMessageLevel)
 

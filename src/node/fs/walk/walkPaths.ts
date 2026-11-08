@@ -11,7 +11,7 @@ import { useAbortController } from 'src/common/async/abort/useAbortController'
 import type { PromiseLikeOrValue } from 'src/common/types/common'
 import * as path from 'path'
 import { getFileId, pathResolve } from './helpers'
-import { poolFs } from 'src/node'
+import { poolFs } from 'src/node/fs/pools'
 import { type MatchPath } from 'src/node/fs/glob/createMatchPath'
 
 // TODO: write doc comments

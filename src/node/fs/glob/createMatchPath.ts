@@ -1,6 +1,6 @@
 import picomatch from 'picomatch'
 import * as path from 'path'
-import { pathNormalize } from 'src/node'
+import { pathNormalize } from 'src/node/fs/pathNormalize'
 
 /**
  * true - include the path

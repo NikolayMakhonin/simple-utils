@@ -35,3 +35,9 @@ export type Mutable<T> = {
 }
 
 export type Ref<T> = { value: T }
+
+/**
+ * The values of an object of named constants that replaces an enum:
+ * `export type Status = EnumOf<typeof Status>` above `export const Status = { ... } as const`
+ */
+export type EnumOf<T> = T[keyof T]

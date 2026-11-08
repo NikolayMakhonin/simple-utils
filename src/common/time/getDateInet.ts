@@ -6,10 +6,10 @@ import {
 /**
  * Current time in milliseconds from the Date header of a web server response,
  * independent of the local clock, with a precision of 1 second
- * @param options.url Any url with available HEAD method; in browsers a cross-origin
- * url must expose the Date header. A CDN should not cache the url, because the Date
- * of its cached response can be hours old. Default is the current origin in browsers
- * and web workers, https://google.com in other environments
+ * @param options.url Any url with available HEAD method. Never use a url served by a CDN,
+ * because the Date of its cached response can be hours old. In browsers a cross-origin url
+ * must expose the Date header. Default is the current site in browsers and web workers;
+ * other environments have no current site, so there the default is https://google.com
  * @param options.timeout Milliseconds before aborting the request; default is no timeout
  */
 export async function getDateInet({

@@ -64,7 +64,7 @@ export function urlParamToFloat(
 
 // TODO: write doc comments
 export function urlGetString(
-  paramName,
+  paramName: string,
   urlOrParams?: null | string | URL | URLSearchParams,
 ) {
   const params = urlGetParams(urlOrParams)
@@ -81,7 +81,7 @@ export function urlGetString(
 
 // TODO: write doc comments
 export function urlGetBoolean(
-  paramName,
+  paramName: string,
   urlOrParams?: null | string | URL | URLSearchParams,
 ) {
   return urlParamToBoolean(urlGetString(paramName, urlOrParams))
@@ -89,7 +89,7 @@ export function urlGetBoolean(
 
 // TODO: write doc comments
 export function urlGetInt(
-  paramName,
+  paramName: string,
   urlOrParams?: null | string | URL | URLSearchParams,
 ) {
   return urlParamToInt(urlGetString(paramName, urlOrParams))
@@ -97,7 +97,7 @@ export function urlGetInt(
 
 // TODO: write doc comments
 export function urlGetFloat(
-  paramName,
+  paramName: string,
   urlOrParams?: null | string | URL | URLSearchParams,
 ) {
   return urlParamToFloat(urlGetString(paramName, urlOrParams))
