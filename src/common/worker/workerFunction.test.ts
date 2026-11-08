@@ -12,6 +12,7 @@ import type {
   WorkerFunctionTestOutput,
 } from './-test/types'
 import { createWorkerVite } from './create/createWorkerVite'
+import { createWorkerWeb } from './create/createWorkerWeb'
 
 const STEP_DURATION_MS = 100
 const TOTAL_STEPS = 10
@@ -19,8 +20,13 @@ const WORKER_COUNT = 3
 const TASKS_PER_WORKER = 3
 
 const pool = createWorkerConnectPool({
-  createWorker: () =>
-    createWorkerVite(new URL('./-test/worker.ts', import.meta.url)),
+  // The test runs in Node.js, which has no Worker, and in browsers
+  createWorker: () => {
+    const url = new URL('./-test/worker.ts', import.meta.url)
+    return typeof Worker === 'undefined'
+      ? createWorkerVite(url)
+      : createWorkerWeb(url)
+  },
   maxCount: WORKER_COUNT,
 })
 

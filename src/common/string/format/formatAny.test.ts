@@ -58,6 +58,13 @@ describe('formatAny', () => {
       maxItems: 1,
       pretty: true,
     })
+    const map = new Map([
+      ['a', 1],
+      ['b', 2],
+    ])
+    test(map, 'Map [["a", 1], ["b", 2]]', { maxItems: 2 })
+    test(map, 'Map [["a", 1], ...]', { maxItems: 1 })
+    test(map, 'Map [...]', { maxItems: 0 })
   })
 
   it('filter', () => {
@@ -67,6 +74,53 @@ describe('formatAny', () => {
     test([1, 3, 2], '[1, 3]', { filter, maxItems: 2 })
     test([1, 2, 3, 4], '[1, 3, ...]', { filter, maxItems: 2 })
     test({ a: { b: 1 } }, '{a: {}}', { filter: path => path.length < 2 })
+    test(
+      new Map([
+        ['a', 1],
+        ['b', 2],
+        ['c', 3],
+      ]),
+      'Map [["a", 1], ["c", 3]]',
+      { filter },
+    )
+    test(new Set([1, 2, 3]), 'Set [1, 3]', { filter })
+  })
+
+  it('paths seen by filter and customToString', () => {
+    function getPaths(value: unknown) {
+      const paths: string[] = []
+      formatAny(value, {
+        filter: path => {
+          paths.push(path.join('.'))
+          return true
+        },
+      })
+      return paths
+    }
+
+    expect(getPaths({ a: [1, { b: 2 }], c: { d: {} }, e: 3 })).toEqual([
+      'a',
+      'a.0',
+      'a.1',
+      'a.1.b',
+      'c',
+      'c.d',
+      'e',
+    ])
+    expect(
+      getPaths([new Map([['k', { a: 1 }]]), new Set([{ b: 1 }]), 1]),
+    ).toEqual(['0', '0.0', '0.0.a', '1', '1.0', '1.0.b', '2'])
+
+    const paths: string[] = []
+    formatAny(
+      { a: [1], b: {} },
+      {
+        customToString: (obj, path) => {
+          paths.push(path.join('.'))
+        },
+      },
+    )
+    expect(paths).toEqual(['', 'a', 'a.0', 'b'])
   })
 
   it('maxDepth', () => {
@@ -123,29 +177,92 @@ describe('formatAny', () => {
     test(set, `Set#${getObjectId(set)} [1]`, options)
     const bytes = new Uint8Array(2)
     test(bytes, `Uint8Array#${getObjectId(bytes)}[2]`, options)
+    const error = new Error('msg')
+    error.stack = 'Error: msg'
+    test(error, `Error#${getObjectId(error)} Error: msg`, options)
+  })
+
+  it('showObjectId of values that are not expanded', () => {
+    const func = function func() {}
+    test(func, `function func#${getObjectId(func)}`, {
+      showObjectId: true,
+      dontExpandFunctions: true,
+    })
+
+    const inner = { b: 1 }
+    const outer = { a: inner }
+    test(outer, `#${getObjectId(outer)} {a: #${getObjectId(inner)}}`, {
+      showObjectId: true,
+      maxDepth: 1,
+    })
+
+    class Item {
+      a = 1
+    }
+    const item = new Item()
+    test(item, `Item#${getObjectId(item)}`, {
+      showObjectId: true,
+      dontExpandClassInstances: true,
+    })
   })
 
   it('references', () => {
     const obj: Record<string, unknown> = { a: 1 }
     obj.self = obj
-    test(obj, `{a: 1, self: #${getObjectId(obj)}}`)
+    const objId = getObjectId(obj)
+    test(obj, `#${objId} {a: 1, self: #${objId}}`)
 
     const arr: unknown[] = [1]
     arr.push(arr)
-    test(arr, `[1, Array#${getObjectId(arr)}]`)
+    const arrId = getObjectId(arr)
+    test(arr, `#${arrId} [1, Array#${arrId}]`)
 
     const shared = { b: 1 }
-    test({ x: shared, y: shared }, `{x: {b: 1}, y: #${getObjectId(shared)}}`)
+    const sharedId = getObjectId(shared)
+    test({ x: shared, y: shared }, `{x: #${sharedId} {b: 1}, y: #${sharedId}}`)
+    test([shared, [shared]], `[#${sharedId} {b: 1}, [#${sharedId}]]`)
+
+    const map = new Map([['a', shared]])
+    const mapId = getObjectId(map)
+    test([map, map], `[Map#${mapId} [["a", {b: 1}]], Map#${mapId}]`)
+
+    class Item {
+      a = 1
+    }
+    const item = new Item()
+    const itemId = getObjectId(item)
+    test([item, item], `[Item#${itemId} {a: 1}, Item#${itemId}]`)
+
+    // Only repeated objects show ids
+    test(
+      { x: { c: 1 }, y: shared, z: shared },
+      `{x: {c: 1}, y: #${sharedId} {b: 1}, z: #${sharedId}}`,
+    )
 
     const objNullPrototype = Object.create(null)
     objNullPrototype.a = 'x'
     objNullPrototype.self = objNullPrototype
-    test(objNullPrototype, `{a: "x", self: #${getObjectId(objNullPrototype)}}`)
+    const objNullPrototypeId = getObjectId(objNullPrototype)
+    test(
+      objNullPrototype,
+      `#${objNullPrototypeId} {a: "x", self: #${objNullPrototypeId}}`,
+    )
 
     const nested = Object.create(null)
     nested.child = Object.create(null)
     nested.child.value = 1
     test(nested, '{child: Object}', { maxDepth: 1 })
+
+    // The first occurrence is cut by maxDepth, so the id must appear there as well
+    test(
+      [[shared], shared, shared],
+      `[[#${sharedId}], #${sharedId} {b: 1}, #${sharedId}]`,
+      { maxDepth: 2 },
+    )
+
+    test([item, item], `[Item#${itemId}, Item#${itemId}]`, {
+      dontExpandClassInstances: true,
+    })
   })
 
   it('showArrayIndex', () => {
@@ -174,6 +291,21 @@ describe('formatAny', () => {
     test({ a: new Date(0), b: 1 }, '{a: DATE, b: 1}', {
       customToString: obj => (obj instanceof Date ? 'DATE' : null),
     })
+
+    class Box {
+      value: unknown
+      constructor(value: unknown) {
+        this.value = value
+      }
+    }
+    const options: FormatAnyOptions = {
+      customToString: (obj, path, toString) =>
+        obj instanceof Box ? `Box(${toString(obj.value)})` : null,
+    }
+    test(new Box('x'), 'Box(x)', options)
+    test({ a: new Box({ b: 'x' }) }, '{a: Box({b: "x"})}', options)
+    test(1, '1', options)
+    test('x', 'x', options)
   })
 
   it('special objects', () => {
@@ -185,6 +317,14 @@ describe('formatAny', () => {
       {
         get a() {
           throw new Error('fail')
+        },
+      },
+      '{a: "Error: fail"}',
+    )
+    test(
+      {
+        get a() {
+          throw 'fail'
         },
       },
       '{a: "Error: fail"}',
@@ -207,5 +347,94 @@ describe('formatAny', () => {
     const errorFramesOnly = new Error('msg')
     errorFramesOnly.stack = '@http://a:1:1\n@http://b:2:2'
     test(errorFramesOnly, 'Error: msg\n@http://a:1:1\n@http://b:2:2')
+  })
+
+  describe('error properties', () => {
+    type ErrorWithProps = Error & { code?: number; data?: unknown }
+
+    function createError(
+      message: string,
+      options?: ErrorOptions,
+    ): ErrorWithProps {
+      const error = new Error(message, options)
+      error.stack = `Error: ${message}`
+      return error
+    }
+
+    it('custom properties', () => {
+      const error = createError('msg')
+      error.code = 5
+      error.data = { a: 'x' }
+      test(error, 'Error: msg {code: 5, data: {a: "x"}}')
+      test(error, 'Error: msg {\n  code: 5,\n  data: {\n    a: "x"\n  }\n}', {
+        pretty: true,
+      })
+      test(error, 'Error: msg {code: 5, ...}', { maxItems: 1 })
+      test(error, 'Error: msg {...}', { maxItems: 0 })
+      test(error, 'Error: msg {code: 5}', {
+        filter: path => path[0] !== 'data',
+      })
+    })
+
+    it('without expanding', () => {
+      const error = createError('msg')
+      error.code = 5
+      test(error, 'Error: msg', { maxDepth: 0 })
+      test({ e: error }, '{e: Error: msg}', { maxDepth: 1 })
+      test(error, 'Error: msg', { dontExpandClassInstances: true })
+    })
+
+    it('what the text shows is not repeated', () => {
+      const error = createError('msg')
+      error.name = 'Custom'
+      error.stack = 'Custom: msg'
+      test(error, 'Custom: msg')
+    })
+
+    it('cause and errors', () => {
+      const cause = createError('inner')
+      test(
+        createError('outer', { cause }),
+        'Error: outer {cause: Error: inner}',
+      )
+      test(
+        createError('outer', { cause: createError('middle', { cause }) }),
+        'Error: outer {cause: Error: middle {cause: Error: inner}}',
+      )
+      test(
+        createError('outer', { cause: 'text' }),
+        'Error: outer {cause: "text"}',
+      )
+
+      const errorCauseAssigned = createError('outer')
+      errorCauseAssigned.cause = 1
+      test(errorCauseAssigned, 'Error: outer {cause: 1}')
+
+      const aggregate = new AggregateError([cause], 'many')
+      aggregate.stack = 'AggregateError: many'
+      test(aggregate, 'AggregateError: many {errors: [Error: inner]}')
+    })
+
+    it('references', () => {
+      const error = createError('self')
+      error.cause = error
+      const id = getObjectId(error)
+      test(error, `Error#${id} Error: self {cause: Error#${id}}`)
+
+      const shared = createError('shared')
+      const sharedId = getObjectId(shared)
+      test(
+        { x: shared, y: shared },
+        `{x: Error#${sharedId} Error: shared, y: Error#${sharedId}}`,
+      )
+    })
+  })
+
+  it('negative year does not throw', () => {
+    test(new Date('-000001-06-15T00:00:00.000Z'), '-000001-06-15T00:00:00.000Z')
+    test(
+      [new Date('-000001-06-15T00:00:00.000Z')],
+      '[-000001-06-15T00:00:00.000Z]',
+    )
   })
 })

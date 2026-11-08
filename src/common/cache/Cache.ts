@@ -186,6 +186,30 @@ export class Cache<
     await promiseAllWait(promises)
   }
 
+  /**
+   * Returns the stored data converted back,
+   * or null when it cannot be read (a corrupted file, an old format, etc)
+   */
+  private async readStored<Result, Stored>(
+    key: Key,
+    converter: null | undefined | ConverterAsync<Result, Stored>,
+    stored: Stored,
+  ): Promise<{ result: Result } | null> {
+    try {
+      return {
+        result: converter
+          ? await converter.from(stored)
+          : (stored as unknown as Result),
+      }
+    } catch (error) {
+      console.warn(
+        `[Cache][readStored] stored data of key (${String(key)}) cannot be read`,
+        error,
+      )
+      return null
+    }
+  }
+
   async getOrCreate<T extends Value>(
     input: Input,
     func: (input: Input) => PromiseLikeOrValue<T>,
@@ -216,28 +240,30 @@ export class Cache<
 
         const now = this.#timeController.now()
 
+        // Stored data that cannot be read is recalculated below,
+        // otherwise every call for its key would fail
         if (!statOld.hasError && storedValue != null) {
-          const statNew = {
-            ...statOld,
-            dateUsed: now,
+          const read = await this.readStored(
+            key,
+            this.#options.converterValue,
+            storedValue,
+          )
+          if (read != null) {
+            await this.#stats.set(key, { ...statOld, dateUsed: now })
+            return read.result as T
           }
-          const value = this.#options.converterValue
-            ? await this.#options.converterValue.from(storedValue)
-            : (storedValue as unknown as Value)
-          await this.#stats.set(key, statNew)
-          return value as T
         }
 
         if (statOld.hasError && storedError != null) {
-          const statNew = {
-            ...statOld,
-            dateUsed: now,
+          const read = await this.readStored(
+            key,
+            this.#options.converterError,
+            storedError,
+          )
+          if (read != null) {
+            await this.#stats.set(key, { ...statOld, dateUsed: now })
+            throw read.result
           }
-          const error = this.#options.converterError
-            ? await this.#options.converterError.from(storedError)
-            : (storedError as unknown as Error)
-          await this.#stats.set(key, statNew)
-          throw error
         }
       }
 

@@ -60,7 +60,7 @@ export async function subscribeJsErrors({
           (key, value) => {
             if (typeof value === 'object' && value != null) {
               if (objects.has(value)) {
-                return '[Circular]'
+                return '[Repeated]'
               }
               objects.add(value)
             }

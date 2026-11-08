@@ -1,10 +1,10 @@
 import { describe, it } from 'vitest'
 import { calcPerformanceAsync } from 'rdtsc'
 import { EMPTY_FUNC } from 'src/common/constants'
-import 'setimmediate'
+import { waitMicrotasks } from './waitMicrotasks'
 
 describe('waitMicrotasks perf', () => {
-  it('setImmediate', { timeout: 60 * 60 * 1000 }, async function () {
+  it('waitMicrotasks', { timeout: 60 * 60 * 1000 }, async () => {
     const result = await calcPerformanceAsync({
       time: 1000,
       funcs: [
@@ -13,16 +13,11 @@ describe('waitMicrotasks perf', () => {
             await Promise.resolve().then(EMPTY_FUNC)
           }
         },
-        // () => {
-        //   return waitMicrotasks()
-        // },
         () => {
-          return new Promise<void>(resolve => {
-            setImmediate(resolve)
-          })
+          return waitMicrotasks()
         },
       ],
     })
-    console.log(result)
+    console.log('[test][waitMicrotasks]', result)
   })
 })

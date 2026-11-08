@@ -70,13 +70,19 @@ export function randomIndexWeighted(
     return -1
   }
   let value = randomFloat(rnd, totalWeight)
+  let lastIndex = -1
   for (let i = 0; i < length; i++) {
-    value -= getWeight(i)
-    if (value < 0) {
-      return i
+    const weight = getWeight(i)
+    if (weight > 0) {
+      value -= weight
+      if (value < 0) {
+        return i
+      }
+      lastIndex = i
     }
   }
-  return length - 1
+  // Rounding errors of the sums can leave a remainder after the last positive weight
+  return lastIndex
 }
 
 export function randomItem<T>(

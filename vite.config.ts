@@ -47,6 +47,9 @@ export default defineConfig(({ mode, isSsrBuild, command }) => {
         },
       },
       rollupOptions: {
+        // With the default browser platform import.meta.url is undefined
+        // in the cjs output, so new URL(..., import.meta.url) throws
+        platform: 'node',
         external: [
           ...builtinModules,
           ...builtinModules.map(m => `node:${m}`),
@@ -78,10 +81,15 @@ export default defineConfig(({ mode, isSsrBuild, command }) => {
       exclude: ['chromium-bidi'],
     },
     test: {
+      // Vitest copies include into coverage.exclude, where a negated pattern
+      // would exclude every other file, so exclusions must be in exclude
       include: [
         '**/*.{test,node,browser,chrome,perf,manual,stress,api,e2e}.{js,ts}',
-        '!**/{tmp,temp,-tmp,-temp}/**',
-        '!./*.ts',
+      ],
+      exclude: [
+        ...configDefaults.exclude,
+        '**/{tmp,temp,-tmp,-temp}/**',
+        './*.ts',
       ],
       testTimeout: 10000,
       hookTimeout: 10000,
@@ -92,13 +100,10 @@ export default defineConfig(({ mode, isSsrBuild, command }) => {
       coverage: {
         provider: 'v8',
         include: ['src/**'],
-        // vitest исключает файлы тестов, принудитеьно возвращаем их обратно
-        exclude: [
-          '!**/*.{test,node,browser,chrome,perf,manual,stress,api,e2e}.{js,ts}',
-          '**/{tmp,temp,-tmp,-temp}/**',
-        ],
-        extension: ['.js', '.ts'],
-        all: true,
+        // Test files cannot be counted: vitest adds test.include to coverage.exclude,
+        // and a negated pattern here would exclude every other file
+        // see: https://github.com/vitest-dev/vitest/commit/b5268965
+        exclude: ['**/{tmp,temp,-tmp,-temp}/**'],
         clean: true,
         cleanOnRerun: true,
         reportOnFailure: true,

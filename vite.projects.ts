@@ -6,6 +6,8 @@ import configBase from './vite.config'
 export default defineConfig(env =>
   mergeConfig(configBase(env), {
     test: {
+      // Each project extends the base include, which lists every test suffix,
+      // so its exclude must list every suffix except its own
       projects: [
         {
           extends: true,
@@ -17,10 +19,9 @@ export default defineConfig(env =>
               label: 'node',
               // color: 'blue',
             },
-            include: [
-              '**/*.{test,node}.{js,ts}',
-              '!**/*.{browser,chrome,perf,manual,stress,api,e2e}.{js,ts}',
-              '!src/browser/**',
+            exclude: [
+              '**/*.{browser,chrome,perf,manual,stress,api,e2e}.{js,ts}',
+              'src/browser/**',
             ],
           },
         },
@@ -33,10 +34,9 @@ export default defineConfig(env =>
             name: {
               label: 'stress',
             },
-            include: [
-              '**/*.stress.{js,ts}',
-              '!**/*.{test,node,browser,chrome,perf,manual,api,e2e}.{js,ts}',
-              '!src/browser/**',
+            exclude: [
+              '**/*.{test,node,browser,chrome,perf,manual,api,e2e}.{js,ts}',
+              'src/browser/**',
             ],
           },
         },
@@ -50,10 +50,9 @@ export default defineConfig(env =>
               label: 'browser',
               // color: 'green',
             },
-            include: [
-              '**/*.{test,browser}.{js,ts}',
-              '!**/*.{node,chrome,perf,manual,stress,api,e2e}.{js,ts}',
-              '!src/node/**',
+            exclude: [
+              '**/*.{node,chrome,perf,manual,stress,api,e2e}.{js,ts}',
+              'src/node/**',
             ],
             browser: {
               enabled: true,
@@ -69,6 +68,10 @@ export default defineConfig(env =>
                 { browser: 'webkit' },
               ],
               api: {
+                // By default the server listens on the first address of localhost,
+                // which can be ::1, while Firefox sometimes connects through 127.0.0.1
+                // only: its page.goto then fails with NS_ERROR_CONNECTION_REFUSED
+                host: '127.0.0.1',
                 port: 4001,
               },
             },
@@ -83,10 +86,9 @@ export default defineConfig(env =>
             name: {
               label: 'chrome',
             },
-            include: [
-              '**/*.chrome.{js,ts}',
-              '!**/*.{test,node,browser,perf,manual,stress,api,e2e}.{js,ts}',
-              '!src/node/**',
+            exclude: [
+              '**/*.{test,node,browser,perf,manual,stress,api,e2e}.{js,ts}',
+              'src/node/**',
             ],
             browser: {
               enabled: true,

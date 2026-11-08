@@ -1,9 +1,5 @@
-// from: https://dev.to/composite/nodejs-worker-thread-with-typescript-5b00
 import { parentPort, workerData } from 'node:worker_threads'
-import { createServer } from 'vite'
-import { ViteNodeRunner } from 'vite-node/client'
-import { ViteNodeServer } from 'vite-node/server'
-import { installSourcemapsSupport } from 'vite-node/source-map'
+import { createServer, createServerModuleRunner } from 'vite'
 
 async function run() {
   // create vite server
@@ -16,9 +12,8 @@ async function run() {
       ws: false,
     },
     optimizeDeps: {
-      // It's recommended to disable deps optimization
+      // No browser loads modules from this server, so it needs no dependency optimization
       noDiscovery: true,
-      include: undefined,
     },
   })
 
@@ -26,31 +21,15 @@ async function run() {
     server.close()
   })
 
-  // create vite-node server
-  const node = new ViteNodeServer(server)
-
-  // fixes stack traces in Errors
-  installSourcemapsSupport({
-    getSourceMap: source => node.getSourceMap(source),
-  })
-
-  // create vite-node runner
-  const runner = new ViteNodeRunner({
-    root: server.config.root,
-    base: server.config.base,
-    // when having the server and runner in a different context,
-    // you will need to handle the communication between them
-    // and pass to this function
-    fetchModule(id) {
-      return node.fetchModule(id)
-    },
-    resolveId(id, importer) {
-      return node.resolveId(id, importer)
-    },
+  // The module runner of the Vite of the project, so that the vite config
+  // of the project runs in the Vite version it was written for;
+  // it maps stack traces to the sources by default
+  const runner = createServerModuleRunner(server.environments.ssr, {
+    hmr: false,
   })
 
   // execute the file and wait for it to finish
-  await runner.executeFile(workerData.scriptPath)
+  await runner.import(workerData.scriptPath)
 
   parentPort.postMessage('ready')
 }

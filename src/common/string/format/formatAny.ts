@@ -5,6 +5,10 @@ import { getObjectId } from './getObjectId'
 import { truncateString, type TruncateStringOptions } from './truncateString'
 import { isPlainObject } from 'src/common/object/isPlainObject'
 
+// Own properties of standard errors that are not enumerable but carry the real reason:
+// Node.js fetch throws "fetch failed" and keeps the network error in cause
+const ERROR_HIDDEN_KEYS = ['cause', 'errors']
+
 function tryGetValue(obj: any, key: string | number): any {
   try {
     return obj[key]
@@ -13,6 +17,7 @@ function tryGetValue(obj: any, key: string | number): any {
   }
 }
 
+/** @param path Valid only during the call: it changes afterwards, so copy it to keep it */
 export type FormatAnyToString = (
   obj: any,
   path: string[],
@@ -21,6 +26,7 @@ export type FormatAnyToString = (
 
 export type FormatAnyOptions = {
   pretty?: null | boolean
+  /** The path is valid only during the call: it changes afterwards, so copy it to keep it */
   filter?: null | ((path: string[], value: any) => boolean)
   maxDepth?: null | number
   maxItems?: null | number
@@ -33,11 +39,19 @@ export type FormatAnyOptions = {
   truncateOptions?: null | TruncateStringOptions
 }
 
-export function formatAny(
+export function formatAny(obj: any, options?: null | FormatAnyOptions): string {
+  // A value that is not an object is formatted without the state of formatAnyWithState:
+  // its inner functions are created on every call, which made formatting a number
+  // or a string 2-3x slower in Node.js, Chromium, and Firefox
+  if ((obj == null || typeof obj !== 'object') && !options?.customToString) {
+    return formatNotObject(obj, options, 0, false)
+  }
+  return formatAnyWithState(obj, options)
+}
+
+function formatAnyWithState(
   obj: any,
-  options?: null | FormatAnyOptions,
-  path?: null | string[],
-  visited?: null | Set<any>,
+  options: null | undefined | FormatAnyOptions,
 ): string {
   const {
     pretty,
@@ -48,213 +62,316 @@ export function formatAny(
     showObjectId,
     showArrayIndex,
     dontExpandClassInstances,
-    dontExpandFunctions,
     customToString,
+    truncateOptions,
   } = options ?? {}
-  if (path == null) {
-    path = []
-  }
-  if (visited == null) {
-    visited = new Set()
-  }
+  // Created when first needed: most values have no repeated objects, and a Date visits nothing
+  let visited: Set<any> | null = null
+  let repeated: Set<any> | null = null
+  let idsShown: Set<any> | null = null
+  // One array for all values instead of an allocation per value; absent when nothing reads it
+  const path: string[] | null =
+    filter != null || customToString != null ? [] : null
 
-  if (customToString) {
-    const str = customToString(obj, path, o =>
-      formatAny(o, options, path, visited),
-    )
-    if (str != null) {
-      return truncateString(str, maxStringLength, options?.truncateOptions)
-    }
+  function isIdShown(obj: any): boolean {
+    return !!showObjectId || (idsShown != null && idsShown.has(obj))
   }
 
-  const depth = path.length
-
-  if (typeof obj === 'string') {
-    obj = truncateString(obj, maxStringLength, options?.truncateOptions)
-    if (visited.size > 0) {
-      // JSON.stringify inside objects only
-      obj = JSON.stringify(obj)
-    }
-    return obj
-  }
-
-  if (obj == null || typeof obj !== 'object') {
-    if (typeof obj === 'function') {
-      if (dontExpandFunctions) {
-        const name = obj.name || 'anonymous'
-        if (showObjectId) {
-          return `function ${name}#${getObjectId(obj)}`
-        }
-        return `function ${name}`
+  function format(obj: any, depth: number): string {
+    if (customToString) {
+      const str = customToString(obj, path!, o => format(o, depth))
+      if (str != null) {
+        return truncateString(str, maxStringLength, truncateOptions)
       }
-      return indentLines(
-        truncateString(String(obj), maxStringLength, options?.truncateOptions),
-        pretty,
+    }
+
+    if (obj == null || typeof obj !== 'object') {
+      return formatNotObject(obj, options, depth, visited != null)
+    }
+
+    if (obj instanceof ArrayBuffer || ArrayBuffer.isView(obj)) {
+      const name = getClassName(obj)
+      if (showObjectId) {
+        return `${name}#${getObjectId(obj)}[${obj.byteLength}]`
+      }
+      return `${name}[${obj.byteLength}]`
+    }
+
+    if (obj instanceof RegExp) {
+      return truncateString(String(obj), maxStringLength, truncateOptions)
+    }
+
+    if (obj instanceof Date) {
+      // formatDate throws for a negative year, while this function must print any value
+      return obj.getFullYear() < 0 ? obj.toISOString() : formatDate(obj)
+    }
+
+    const isError = obj instanceof Error
+
+    if (visited != null && visited.has(obj)) {
+      if (repeated == null) {
+        repeated = new Set()
+      }
+      repeated.add(obj)
+      return `${getClassName(obj)}#${getObjectId(obj)}`
+    }
+    if (!isError && maxDepth != null && depth >= maxDepth) {
+      const name = getClassName(obj)
+      if (isIdShown(obj)) {
+        return `${name}#${getObjectId(obj)}`
+      }
+      return name || 'Object'
+    }
+    if (visited == null) {
+      visited = new Set()
+    }
+    visited.add(obj)
+
+    if (isError) {
+      return formatError(obj, depth)
+    }
+
+    if (Array.isArray(obj)) {
+      const items: string[] = []
+      let truncated = false
+      for (let i = 0, len = obj.length; i < len; i++) {
+        if (path != null) {
+          path[depth] = String(i)
+        }
+        const value = tryGetValue(obj, i)
+        if (filter != null && !filter(path!, value)) {
+          continue
+        }
+        if (maxItems != null && items.length >= maxItems) {
+          truncated = true
+          break
+        }
+        const valueStr = format(value, depth + 1)
+        items.push(showArrayIndex ? `${i}: ${valueStr}` : valueStr)
+      }
+      return formatItems(
+        getPrefix(obj, '', isIdShown(obj)) + '[',
+        ']',
+        items,
+        truncated,
         depth,
       )
     }
-    if (typeof obj === 'bigint') {
-      return `${obj}n`
+
+    if (obj instanceof Map) {
+      const items: string[] = []
+      let truncated = false
+      let index = 0
+      for (const [key, value] of obj) {
+        if (path != null) {
+          path[depth] = String(index++)
+        }
+        if (filter != null && !filter(path!, value)) {
+          continue
+        }
+        if (maxItems != null && items.length >= maxItems) {
+          truncated = true
+          break
+        }
+        const keyStr = format(key, depth + 1)
+        const valueStr = format(value, depth + 1)
+        items.push(`[${keyStr}, ${valueStr}]`)
+      }
+      return formatItems(
+        getPrefix(obj, 'Map', isIdShown(obj)) + '[',
+        ']',
+        items,
+        truncated,
+        depth,
+      )
     }
-    return String(obj)
-  }
 
-  if (obj instanceof ArrayBuffer || ArrayBuffer.isView(obj)) {
-    const name = obj.constructor?.name ?? ''
-    if (showObjectId) {
-      return `${name}#${getObjectId(obj)}[${obj.byteLength}]`
+    if (obj instanceof Set) {
+      const items: string[] = []
+      let truncated = false
+      let index = 0
+      for (const value of obj) {
+        if (path != null) {
+          path[depth] = String(index++)
+        }
+        if (filter != null && !filter(path!, value)) {
+          continue
+        }
+        if (maxItems != null && items.length >= maxItems) {
+          truncated = true
+          break
+        }
+        items.push(format(value, depth + 1))
+      }
+      return formatItems(
+        getPrefix(obj, 'Set', isIdShown(obj)) + '[',
+        ']',
+        items,
+        truncated,
+        depth,
+      )
     }
-    return `${name}[${obj.byteLength}]`
-  }
 
-  if (obj instanceof RegExp) {
-    return truncateString(
-      String(obj),
-      maxStringLength,
-      options?.truncateOptions,
-    )
-  }
-
-  if (obj instanceof Date) {
-    return formatDate(obj)
-  }
-
-  if (obj instanceof Error) {
-    return indentLines(
-      truncateString(
-        getErrorText(obj),
-        maxStringLength,
-        options?.truncateOptions,
-      ),
-      pretty,
-      depth,
-    )
-  }
-
-  if (visited.has(obj)) {
-    const name = obj.constructor === Object ? '' : (obj.constructor?.name ?? '')
-    return `${name}#${getObjectId(obj)}`
-  }
-  if (maxDepth != null && depth >= maxDepth) {
-    const name = obj.constructor === Object ? '' : (obj.constructor?.name ?? '')
-    if (showObjectId) {
-      return `${name}#${getObjectId(obj)}`
+    if (dontExpandClassInstances && !isPlainObject(obj)) {
+      const name = getClassName(obj)
+      if (isIdShown(obj)) {
+        return `${name}#${getObjectId(obj)}`
+      }
+      return name || 'Object'
     }
-    return name || 'Object'
-  } else {
-    visited.add(obj)
-  }
 
-  if (Array.isArray(obj)) {
+    // object
     const items: string[] = []
     let truncated = false
-    for (let i = 0, len = obj.length; i < len; i++) {
-      const pathNext = [...path, String(i)]
-      const value = tryGetValue(obj, i)
-      if (filter != null && !filter(pathNext, value)) {
-        continue
-      }
-      if (maxItems != null && items.length >= maxItems) {
+    for (const key in obj) {
+      if (!addProperty(obj, key, items, depth)) {
         truncated = true
         break
       }
-      const valueStr = formatAny(value, options, pathNext, visited)
-      items.push(showArrayIndex ? `${i}: ${valueStr}` : valueStr)
     }
+    const name = getClassName(obj)
     return formatItems(
-      getPrefix(obj, '', showObjectId) + '[',
-      ']',
+      getPrefix(obj, name, isIdShown(obj)) + '{',
+      '}',
       items,
       truncated,
-      pretty,
       depth,
     )
   }
 
-  if (obj instanceof Map) {
-    const items: string[] = []
-    let truncated = false
-    let index = 0
-    for (const [key, value] of obj) {
-      const pathNext = [...path, String(index++)]
-      if (filter != null && !filter(pathNext, value)) {
-        continue
-      }
-      if (maxItems != null && items.length >= maxItems) {
-        truncated = true
-        break
-      }
-      const keyStr = formatAny(key, options, pathNext, visited)
-      const valueStr = formatAny(value, options, pathNext, visited)
-      items.push(`[${keyStr}, ${valueStr}]`)
+  /** Adds `key: value` to items; returns false when items reached maxItems */
+  function addProperty(
+    obj: any,
+    key: string,
+    items: string[],
+    depth: number,
+  ): boolean {
+    if (path != null) {
+      path[depth] = key
     }
-    return formatItems(
-      getPrefix(obj, 'Map', showObjectId) + '[',
-      ']',
-      items,
-      truncated,
-      pretty,
-      depth,
-    )
-  }
-
-  if (obj instanceof Set) {
-    const items: string[] = []
-    let truncated = false
-    let index = 0
-    for (const value of obj) {
-      const pathNext = [...path, String(index++)]
-      if (filter != null && !filter(pathNext, value)) {
-        continue
-      }
-      if (maxItems != null && items.length >= maxItems) {
-        truncated = true
-        break
-      }
-      items.push(formatAny(value, options, pathNext, visited))
-    }
-    return formatItems(
-      getPrefix(obj, 'Set', showObjectId) + '[',
-      ']',
-      items,
-      truncated,
-      pretty,
-      depth,
-    )
-  }
-
-  if (dontExpandClassInstances && !isPlainObject(obj)) {
-    const name = obj.constructor?.name ?? ''
-    if (showObjectId) {
-      return `${name}#${getObjectId(obj)}`
-    }
-    return name || 'Object'
-  }
-
-  // object
-  const items: string[] = []
-  let truncated = false
-  for (const key in obj) {
-    const pathNext = [...path, key]
     const value = tryGetValue(obj, key)
-    if (filter != null && !filter(pathNext, value)) {
-      continue
+    if (filter != null && !filter(path!, value)) {
+      return true
     }
     if (maxItems != null && items.length >= maxItems) {
-      truncated = true
-      break
+      return false
     }
-    items.push(`${key}: ${formatAny(value, options, pathNext, visited)}`)
+    items.push(`${key}: ${format(value, depth + 1)}`)
+    return true
   }
-  const name = obj.constructor === Object ? '' : (obj.constructor?.name ?? '')
-  return formatItems(
-    getPrefix(obj, name, showObjectId) + '{',
-    '}',
-    items,
-    truncated,
-    pretty,
-    depth,
-  )
+
+  /** The text of the error, followed by its properties that the text does not show */
+  function formatError(error: any, depth: number): string {
+    let text = indentLines(
+      truncateString(getErrorText(error), maxStringLength, truncateOptions),
+      pretty,
+      depth,
+    )
+    if (isIdShown(error)) {
+      text = `${getClassName(error)}#${getObjectId(error)} ${text}`
+    }
+    if (dontExpandClassInstances || (maxDepth != null && depth >= maxDepth)) {
+      return text
+    }
+
+    const items: string[] = []
+    let truncated = false
+    for (const key in error) {
+      if (
+        key !== 'name' &&
+        key !== 'message' &&
+        key !== 'stack' &&
+        !addProperty(error, key, items, depth)
+      ) {
+        truncated = true
+        break
+      }
+    }
+    for (let i = 0; !truncated && i < ERROR_HIDDEN_KEYS.length; i++) {
+      const key = ERROR_HIDDEN_KEYS[i]
+      if (
+        Object.prototype.hasOwnProperty.call(error, key) &&
+        !Object.prototype.propertyIsEnumerable.call(error, key)
+      ) {
+        truncated = !addProperty(error, key, items, depth)
+      }
+    }
+
+    const result = formatItems(`${text} {`, '}', items, truncated, depth)
+    return items.length > 0 ? result : text
+  }
+
+  /** Joins formatted items: on one line, or one item per line indented by depth when pretty */
+  function formatItems(
+    start: string,
+    end: string,
+    items: string[],
+    truncated: boolean,
+    depth: number,
+  ): string {
+    if (path != null) {
+      path.length = depth
+    }
+    if (truncated) {
+      items.push('...')
+    }
+    if (items.length === 0) {
+      return start + end
+    }
+    if (!pretty) {
+      return start + items.join(', ') + end
+    }
+    const indent = '  '.repeat(depth)
+    return `${start}\n${indent}  ${items.join(`,\n${indent}  `)}\n${indent}${end}`
+  }
+
+  const result = format(obj, 0)
+  if (repeated == null || showObjectId) {
+    return result
+  }
+  // The output must show the id of a repeated object at its first occurrence, so that the
+  // reader can find what a reference points to; repeats are known only after printing it
+  idsShown = repeated
+  visited = null
+  return format(obj, 0)
+}
+
+function formatNotObject(
+  value: any,
+  options: null | undefined | FormatAnyOptions,
+  depth: number,
+  isInsideObject: boolean,
+): string {
+  if (typeof value === 'string') {
+    const str = truncateString(
+      value,
+      options?.maxStringLength,
+      options?.truncateOptions,
+    )
+    return isInsideObject ? JSON.stringify(str) : str
+  }
+  if (typeof value === 'function') {
+    if (options?.dontExpandFunctions) {
+      const name = value.name || 'anonymous'
+      if (options.showObjectId) {
+        return `function ${name}#${getObjectId(value)}`
+      }
+      return `function ${name}`
+    }
+    return indentLines(
+      truncateString(
+        String(value),
+        options?.maxStringLength,
+        options?.truncateOptions,
+      ),
+      options?.pretty,
+      depth,
+    )
+  }
+  if (typeof value === 'bigint') {
+    return `${value}n`
+  }
+  return String(value)
 }
 
 /**
@@ -273,38 +390,17 @@ function getErrorText(error: Error): string {
   return `${text}\n${stack}`
 }
 
-/** `Name#id ` with the object id when showObjectId is set, `Name ` otherwise */
-function getPrefix(
-  obj: object,
-  name: string,
-  showObjectId: null | undefined | boolean,
-): string {
-  if (showObjectId) {
+/** The class name to print: empty for a plain object */
+function getClassName(obj: any): string {
+  return obj.constructor === Object ? '' : (obj.constructor?.name ?? '')
+}
+
+/** `Name#id ` with the object id, or `Name ` without it */
+function getPrefix(obj: object, name: string, isIdShown: boolean): string {
+  if (isIdShown) {
     return `${name}#${getObjectId(obj)} `
   }
   return name ? `${name} ` : ''
-}
-
-/** Joins formatted items: on one line, or one item per line indented by depth when pretty */
-function formatItems(
-  start: string,
-  end: string,
-  items: string[],
-  truncated: boolean,
-  pretty: null | undefined | boolean,
-  depth: number,
-): string {
-  if (truncated) {
-    items.push('...')
-  }
-  if (items.length === 0) {
-    return start + end
-  }
-  if (!pretty) {
-    return start + items.join(', ') + end
-  }
-  const indent = '  '.repeat(depth)
-  return `${start}\n${indent}  ${items.join(`,\n${indent}  `)}\n${indent}${end}`
 }
 
 /** Indents the lines after the first one, so that a multi-line value stays under its key when pretty */
