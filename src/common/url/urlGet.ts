@@ -17,8 +17,8 @@ export function urlGetParams(
   if (typeof urlOrParams === 'string') {
     return new URL(urlOrParams).searchParams
   }
-  if (typeof window !== 'undefined') {
-    return new URL(window.location.href).searchParams
+  if (typeof location !== 'undefined') {
+    return new URL(location.href).searchParams
   }
   return new URLSearchParams()
 }

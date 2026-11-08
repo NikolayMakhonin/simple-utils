@@ -12,6 +12,7 @@ import {
 export class WorkerNode implements IWorker {
   readonly #listenerWrappers: Map<string, Map<any, any>> = new Map()
   readonly #worker: NodeWorker
+  #isTerminated = false
 
   constructor(worker: NodeWorker) {
     this.#worker = worker
@@ -34,6 +35,10 @@ export class WorkerNode implements IWorker {
       let wrapper = listenerWrappers.get(listener)
       if (wrapper == null) {
         wrapper = (exitCode: number) => {
+          // The exit code of terminate() is 1, the same as of a crash
+          if (this.#isTerminated) {
+            return
+          }
           if (exitCode === 0) {
             listener(
               new WorkerError(
@@ -77,6 +82,7 @@ export class WorkerNode implements IWorker {
   }
 
   async terminate(): Promise<void> {
+    this.#isTerminated = true
     await this.#worker.terminate()
   }
 }

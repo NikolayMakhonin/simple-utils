@@ -382,13 +382,15 @@ export type MatchRangeOptions = {
   to?: null | MatchRangeValueOptions
 }
 
-const DATE_MIN = Math.ceil(Date.now() - 10 * 365.25 * 24 * 60 * 60 * 1000)
-const DATE_MAX = Math.ceil(Date.now() + 10 * 365.25 * 24 * 60 * 60 * 1000)
+const DATE_DISTANCE_MAX = 10 * 365.25 * 24 * 60 * 60 * 1000
 export function matchIntDate(options?: null | MatchIntArgs): Matcher<number> {
+  // Computed per call: computed at load, even marked /* @__PURE__ */, it would
+  // stay in the bundle of every web application that imports this library
+  const now = Date.now()
   return matchInt({
     ...options,
-    min: options?.min ?? DATE_MIN,
-    max: options?.max ?? DATE_MAX,
+    min: options?.min ?? now - DATE_DISTANCE_MAX,
+    max: options?.max ?? now + DATE_DISTANCE_MAX,
   }).name('int date')
 }
 

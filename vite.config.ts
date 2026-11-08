@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config'
+import { configDefaults, defineConfig } from 'vitest/config'
 import { createLogger, loadEnv } from 'vite'
 import dts from 'vite-plugin-dts'
 import path from 'path'
@@ -24,6 +24,7 @@ export default defineConfig(({ mode, isSsrBuild, command }) => {
         include: ['src/**/*.ts'],
         exclude: [
           '**/*.{test,node,browser,chrome,perf,manual,stress,api,e2e}.ts',
+          '**/-test/**',
         ],
         insertTypesEntry: true,
         staticImport: true,

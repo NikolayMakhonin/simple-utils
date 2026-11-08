@@ -7,7 +7,10 @@ export async function createWorkerWeb(
   const webWorker = new Worker(workerPathOrUrl, { type: 'module' })
   const worker = new WorkerWeb(webWorker)
   worker.on('error', error => {
-    console.error(error)
+    console.error(
+      `[createWorkerWeb] error in the worker of ${String(workerPathOrUrl)}`,
+      error,
+    )
   })
   return worker
 }

@@ -3,7 +3,7 @@ import type {
   WorkerConnectRequest,
   WorkerServerHandler,
 } from './types'
-import { isWebWorker, serializeError } from './helpers'
+import { serializeError } from './helpers'
 
 const workerServerHandlers: Record<string, WorkerServerHandler> = {}
 
@@ -50,7 +50,7 @@ export function workerServerStart() {
     }
   }
 
-  if (isWebWorker()) {
+  if (typeof self !== 'undefined') {
     self.addEventListener('message', (event: MessageEvent) => {
       onMessage(event.data)
     })

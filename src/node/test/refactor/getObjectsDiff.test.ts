@@ -81,6 +81,41 @@ describe('getObjectsDiff', () => {
     })
   })
 
+  it('handleDiff of objects', () => {
+    const result = getObjectsDiff(
+      { a: 1, b: 1 },
+      { a: 2, b: 1 },
+      (valueOld, valueNew, diffs) => ({ valueOld, valueNew, diffs }),
+    )
+    expect(result).toEqual({
+      valueOld: { a: 1, b: 1 },
+      valueNew: { a: 2, b: 1 },
+      diffs: {
+        a: { valueOld: 1, valueNew: 2, diffs: diff(1, 2) },
+      },
+    })
+  })
+
+  it('handleDiff returning null drops the difference', () => {
+    expect(getObjectsDiff({ a: 1 }, { a: 2 }, () => null)).toBe(null)
+    expect(getObjectsDiff([1], [2], () => null)).toBe(null)
+    expect(
+      getObjectsDiff(
+        { a: 1, b: 1 },
+        { a: 2, b: 2 },
+        (valueOld, valueNew, diffs) =>
+          valueOld === 1 && valueNew === 2 ? null : diffs,
+      ),
+    ).toBe(null)
+    expect(
+      getObjectsDiff(
+        { a: 1, b: 3 },
+        { a: 2, b: 4 },
+        (valueOld, valueNew, diffs) => (valueOld === 1 ? null : diffs),
+      ),
+    ).toEqual({ b: diff(3, 4) })
+  })
+
   it('special keys', () => {
     function testProto(valueOld: string, valueNew: string, expected: unknown) {
       const result = getObjectsDiff(JSON.parse(valueOld), JSON.parse(valueNew))!

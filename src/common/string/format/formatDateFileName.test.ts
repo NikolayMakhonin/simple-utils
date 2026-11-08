@@ -18,4 +18,18 @@ describe('formatDateFileName', () => {
   it('invalid date', () => {
     test(new Date(NaN), 'UTC', 'Invalid Date')
   })
+
+  it('negative year', () => {
+    test(new Date('0000-06-15T00:00:00.000Z'), 'UTC', '0000-06-15_00-00-00')
+    expect(() =>
+      formatDateFileName(new Date('-000001-06-15T00:00:00.000Z'), 'UTC'),
+    ).toThrow(/Negative year \(-1\)/)
+    // The year becomes negative in the requested time zone
+    expect(() =>
+      formatDateFileName(
+        new Date('0000-01-01T00:00:00.000Z'),
+        'America/New_York',
+      ),
+    ).toThrow(/Negative year \(-1\)/)
+  })
 })

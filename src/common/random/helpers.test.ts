@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { Random } from './Random'
 import {
+  arrayShuffle,
+  randomBoolean,
   randomEnum,
   randomFloat,
   randomIndexWeighted,
@@ -100,12 +102,77 @@ describe('randomIndexWeighted', () => {
     expect(randomIndexWeighted(new RandomFixed(RANDOM_MAX), [1, 3])).toBe(1)
   })
 
+  it('never selects a zero weight', () => {
+    // The largest value of Math.random(): the sums of the weights round to exactly it
+    const rnd = new RandomFixed(1 - 2 ** -53)
+    expect(randomIndexWeighted(rnd, [0.1, 0.2, 0.3, 0])).toBe(2)
+    expect(randomIndexWeighted(rnd, [0.1, 0.2, 0.3, 0, 0])).toBe(2)
+    expect(randomIndexWeighted(rnd, [0, 0.1, 0.2, 0.3, 0])).toBe(3)
+  })
+
   it('errors', () => {
     const rnd = new Random(0)
+    expect(() => randomIndexWeighted(rnd, 1, null as any)).toThrow(/getWeight/)
     expect(() => randomIndexWeighted(rnd, [-1, 3])).toThrow(/negative/)
     expect(() => randomIndexWeighted(rnd, [-Infinity])).toThrow(/negative/)
     expect(() => randomIndexWeighted(rnd, [NaN, 1])).toThrow()
     expect(() => randomIndexWeighted(rnd, [Infinity, 1])).toThrow()
+  })
+})
+
+describe('randomBoolean', () => {
+  function test(
+    value: number,
+    trueProbability: number | null,
+    expected: boolean,
+  ) {
+    expect(randomBoolean(new RandomFixed(value), trueProbability)).toBe(
+      expected,
+    )
+  }
+
+  it('base', () => {
+    test(0, null, true)
+    test(0.49, null, true)
+    test(0.5, null, false)
+    test(RANDOM_MAX, null, false)
+  })
+
+  it('trueProbability', () => {
+    test(0, 0, false)
+    test(RANDOM_MAX, 1, true)
+    test(0.2, 0.3, true)
+    test(0.3, 0.3, false)
+  })
+})
+
+describe('arrayShuffle', () => {
+  it('base', () => {
+    const rnd = new Random(0)
+    expect(arrayShuffle(rnd, [])).toEqual([])
+    expect(arrayShuffle(rnd, [1])).toEqual([1])
+  })
+
+  it('shuffles in place and keeps all items', () => {
+    const items = [1, 2, 3, 4, 5, 6, 7, 8]
+    const result = arrayShuffle(new Random(0), items)
+    expect(result).toBe(items)
+    expect(items).not.toEqual([1, 2, 3, 4, 5, 6, 7, 8])
+    expect(items.slice().sort()).toEqual([1, 2, 3, 4, 5, 6, 7, 8])
+  })
+
+  it('selects all permutations with equal probability', () => {
+    const rnd = new Random(0)
+    const iterations = 60000
+    const counts = new Map<string, number>()
+    for (let i = 0; i < iterations; i++) {
+      const key = arrayShuffle(rnd, [1, 2, 3]).join('')
+      counts.set(key, (counts.get(key) ?? 0) + 1)
+    }
+    expect(counts.size).toBe(6)
+    counts.forEach(count => {
+      expect(Math.abs(count / (iterations / 6) - 1)).toBeLessThan(0.05)
+    })
   })
 })
 

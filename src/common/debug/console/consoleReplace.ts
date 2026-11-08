@@ -19,7 +19,8 @@ export const ConsoleMessageLevel = {
   assert: 'assert',
 } as const
 
-const consoleMethods: ConsoleMessageLevel[] = Object.values(ConsoleMessageLevel)
+const consoleMethods: ConsoleMessageLevel[] =
+  /* @__PURE__ */ Object.values(ConsoleMessageLevel)
 
 function bindConsoleMethod(method: (...args: any[]) => void) {
   return function () {

@@ -20,7 +20,6 @@ describe('waitMicrotasks', () => {
       resolvedActual = 0
       const resolvedExpected = createMicrotasksTree(i, i)
       await waitMicrotasks()
-      console.log('i', i)
       assert.strictEqual(resolvedActual, resolvedExpected)
     }
   })
