@@ -24,6 +24,10 @@ describe('calcSha256', () => {
       ],
     })
 
-    console.log(result)
+    console.log(
+      `[test][sha256] CPU cycles per call; len: ${len}` +
+        '; funcs: empty function, sha256Node, sha256, crypto.randomBytes',
+      result,
+    )
   })
 })

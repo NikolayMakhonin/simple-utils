@@ -18,8 +18,8 @@ export function randomFloat(
   const value = rnd.next() * range + from
   // When range is small relative to from, the sum can round up to toExclusive.
   // Returning from in this case keeps the results uniform.
-  // Without this case, from gets half the share of other results,
-  // because only sums above from round to it
+  // Each result gets the sums that round to it on both sides.
+  // No sum is less than from, so without this case from gets half the share
   return value < toExclusive ? value : from
 }
 

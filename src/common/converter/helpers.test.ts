@@ -4,7 +4,7 @@ import { toConverterFrom, toConverterWithDefaultFrom } from './helpers'
 describe('toConverterFrom', () => {
   const converterDefault = { from: (to: number) => String(to) }
 
-  it('returns converterDefault when converter is null', () => {
+  it('returns converterDefault when converter is null or undefined', () => {
     expect(toConverterFrom(null, converterDefault)).toBe(converterDefault)
     expect(toConverterFrom(undefined, converterDefault)).toBe(converterDefault)
   })
@@ -24,7 +24,7 @@ describe('toConverterWithDefaultFrom', () => {
       `${convertDefault(to)}?`,
   }
 
-  it('returns converterDefault when converter is null', () => {
+  it('returns converterDefault when converter is null or undefined', () => {
     expect(toConverterWithDefaultFrom(null, converterDefault)).toBe(
       converterDefault,
     )

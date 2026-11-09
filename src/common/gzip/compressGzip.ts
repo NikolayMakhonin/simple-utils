@@ -18,6 +18,6 @@ export function compressGzip(
   options: CompressGzipOptions,
 ): Uint8Array {
   // Without mtime: 0, the gzip header gets the current time,
-  // so equal data compresses to different bytes
+  // so equal data compressed at different times gets different bytes
   return gzipSync(buffer, { level: options.level, mtime: 0 })
 }

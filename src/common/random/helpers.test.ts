@@ -105,8 +105,8 @@ describe('randomIndexWeighted', () => {
   })
 
   it('never selects a zero weight', () => {
-    // The largest value of Math.random(). With it, subtracting the weights
-    // 0.1, 0.2, 0.3 from the random value leaves exactly 0 because of rounding
+    // The largest value of Math.random(). With it, value in randomIndexWeighted
+    // minus the weights 0.1, 0.2, 0.3 is exactly 0 because of rounding
     const rnd = new RandomFixed(1 - 2 ** -53)
     expect(randomIndexWeighted(rnd, [0.1, 0.2, 0.3, 0])).toBe(2)
     expect(randomIndexWeighted(rnd, [0.1, 0.2, 0.3, 0, 0])).toBe(2)

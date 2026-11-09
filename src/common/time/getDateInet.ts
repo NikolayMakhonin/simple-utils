@@ -8,7 +8,7 @@ import {
  * The result does not depend on the local clock. Its precision is 1 second
  * @param options.url Any url that answers a HEAD request. Never use a url served by a CDN:
  * the Date of a response cached by a CDN can be hours old. In browsers, a url of another
- * origin must expose the Date header (Access-Control-Expose-Headers: Date).
+ * origin must allow CORS and expose the Date header (Access-Control-Expose-Headers: Date).
  * Default: location.origin in pages and web workers, https://google.com elsewhere
  * @param options.timeout Milliseconds before the request is aborted. Default: no timeout
  */

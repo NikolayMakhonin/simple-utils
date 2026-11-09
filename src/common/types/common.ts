@@ -37,8 +37,8 @@ export type Mutable<T> = {
 export type Ref<T> = { value: T }
 
 /**
- * Union of the values of an `as const` object that replaces an enum, e.g.
- * `export type Status = EnumOf<typeof Status>` declared above
- * `export const Status = { learn: 'l', known: 'k' } as const` gives 'l' | 'k'
+ * Union of the values of an `as const` object that replaces an enum:
+ * for `const Status = { learn: 'l', known: 'k' } as const`,
+ * `EnumOf<typeof Status>` is 'l' | 'k'
  */
 export type EnumOf<T> = T[keyof T]

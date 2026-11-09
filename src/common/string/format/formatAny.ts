@@ -31,7 +31,7 @@ export type FormatAnyToString = (
 export type FormatAnyOptions = {
   pretty?: null | boolean
   /**
-   * The path argument holds the keys from the root value to value (property names,
+   * The path argument holds the keys from the root value to the checked value (property names,
    * array indexes, Map and Set entry indexes). formatAny reuses this array,
    * so copy it to keep it after the call
    */
@@ -231,7 +231,7 @@ function formatAnyWithState(
       return name || 'Object'
     }
 
-    // object
+    // Any other object: its properties that for...in lists
     const items: string[] = []
     let truncated = false
     for (const key in obj) {

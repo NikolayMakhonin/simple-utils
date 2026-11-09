@@ -4,7 +4,7 @@ import { EMPTY_FUNC } from 'src/common/constants'
 import { waitMicrotasks } from './waitMicrotasks'
 
 describe('waitMicrotasks perf', () => {
-  it('vs 16 sequential microtasks', { timeout: 60 * 60 * 1000 }, async () => {
+  it('vs a loop of 16 awaits', { timeout: 60 * 60 * 1000 }, async () => {
     const result = await calcPerformanceAsync({
       time: 1000,
       funcs: [
@@ -20,7 +20,7 @@ describe('waitMicrotasks perf', () => {
     })
     console.log(
       '[test][waitMicrotasks] CPU cycles per call' +
-        '; funcs: 16 sequential microtasks, waitMicrotasks()',
+        '; funcs: 16 x await Promise.resolve().then(), waitMicrotasks()',
       result,
     )
   })
