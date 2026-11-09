@@ -37,7 +37,8 @@ describe('urlGet', () => {
 
   it('urlGet', () => {
     const url = 'https://example.test/?some-name=x&flag=yes&count=5&rate=0.5'
-    // Names are compared without case and without non-word characters
+    // Names are compared ignoring case and non-word characters,
+    // so SomeName finds some-name
     expect(urlGetString('SomeName', url)).toBe('x')
     expect(urlGetString('absent', url)).toBe(null)
     expect(urlGetBoolean('flag', url)).toBe(true)

@@ -8,7 +8,8 @@ export async function createWorkerWeb(
   const worker = new WorkerWeb(webWorker)
   worker.on('error', error => {
     console.error(
-      `[createWorkerWeb] error in the worker of ${String(workerPathOrUrl)}`,
+      `[createWorkerWeb] error in the web worker` +
+        ` of script (${String(workerPathOrUrl)})`,
       error,
     )
   })

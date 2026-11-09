@@ -15,14 +15,14 @@ describe('escapeRegExp', () => {
     expect(escapeRegExp('abc')).toBe('abc')
   })
 
-  it('special characters match literally', () => {
+  it('special characters match literally, also with the u flag', () => {
     test('/\\^$*+?.()|[]{}')
     test('a.b')
     test('(a|b)*')
     test('[a-z]')
   })
 
-  it('special characters do not act as a pattern', () => {
+  it('escaped special characters do not match other text', () => {
     expect(new RegExp(escapeRegExp('a.b')).test('axb')).toBe(false)
     expect(new RegExp(escapeRegExp('a*')).test('aa')).toBe(false)
     expect(new RegExp(escapeRegExp('[a]')).test('a')).toBe(false)

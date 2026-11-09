@@ -339,7 +339,7 @@ describe('Cache', () => {
       expect(consoleWarn).toHaveBeenCalledTimes(1)
     })
 
-    it('a failed recalculation replaces the corrupted value', async () => {
+    it('when recalculation throws, the error replaces the corrupted value', async () => {
       const { t, cache } = createCacheCorruptible()
       await cache.getOrCreate('key1', () => 'value1')
       t.storages.value.data.set('key1', CORRUPTED)
@@ -353,7 +353,7 @@ describe('Cache', () => {
       expect(t.storages.error.data.get('key1')).toBe('error1')
     })
 
-    it('an error of func is not treated as unreadable data', async () => {
+    it('an error thrown by func is returned from the cache, not treated as unreadable', async () => {
       const { cache } = createCacheCorruptible()
       await expect(
         cache.getOrCreate('key1', () => {

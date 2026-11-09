@@ -1,9 +1,8 @@
 import { formatDate } from './formatDate'
 
 /**
- * YYYY-MM-DD_HH-mm-ss, or Invalid Date
- * Default timeZone is Local
- * Throws for a negative year
+ * Formats the date in timeZone as `YYYY-MM-DD_HH-mm-ss`. The default timeZone is Local.
+ * Returns 'Invalid Date' for an invalid date. Throws for a negative year
  */
 export function formatDateFileName(
   date: Date,

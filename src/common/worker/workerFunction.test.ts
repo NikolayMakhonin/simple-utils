@@ -20,7 +20,8 @@ const WORKER_COUNT = 3
 const TASKS_PER_WORKER = 3
 
 const pool = createWorkerConnectPool({
-  // The test runs in Node.js, which has no Worker, and in browsers
+  // Node.js has no Worker, so there the worker runs through Vite in a worker thread.
+  // In browsers it runs as a web worker
   createWorker: () => {
     const url = new URL('./-test/worker.ts', import.meta.url)
     return typeof Worker === 'undefined'

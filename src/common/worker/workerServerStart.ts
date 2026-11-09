@@ -50,6 +50,8 @@ export function workerServerStart() {
     }
   }
 
+  // Checks self instead of isWebWorker(), because a page also has self.
+  // A page receives messages through the message event of self, as a web worker does
   if (typeof self !== 'undefined') {
     self.addEventListener('message', (event: MessageEvent) => {
       onMessage(event.data)

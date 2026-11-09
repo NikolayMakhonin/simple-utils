@@ -12,7 +12,7 @@ async function run() {
       ws: false,
     },
     optimizeDeps: {
-      // No browser loads modules from this server, so it needs no dependency optimization
+      // Dependency optimization is for browsers, and no browser loads modules from this server
       noDiscovery: true,
     },
   })
@@ -21,9 +21,9 @@ async function run() {
     server.close()
   })
 
-  // The module runner of the Vite of the project, so that the vite config
-  // of the project runs in the Vite version it was written for;
-  // it maps stack traces to the sources by default
+  // The module runner of the Vite installed in the project, so that the vite config
+  // of the project runs on the Vite version it was written for.
+  // The runner maps stack traces to the source files by default
   const runner = createServerModuleRunner(server.environments.ssr, {
     hmr: false,
   })

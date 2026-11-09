@@ -3,7 +3,8 @@ import { createWorkerVite } from './createWorkerVite'
 import { WorkerError, WorkerErrorType } from '../types'
 
 describe('createWorkerVite', { timeout: 60 * 1000 }, () => {
-  // createWorkerVite logs every error of the thread
+  // Silences console.error: createWorkerVite logs every error of the worker thread.
+  // These tests cause errors on purpose
   beforeAll(() => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
   })
@@ -12,7 +13,7 @@ describe('createWorkerVite', { timeout: 60 * 1000 }, () => {
     vi.restoreAllMocks()
   })
 
-  it('rejects when the thread fails before ready', async () => {
+  it('rejects when the script throws during import', async () => {
     const error: Error = await createWorkerVite(
       new URL('../-test/workerThrow.ts', import.meta.url),
     ).then(
@@ -22,11 +23,13 @@ describe('createWorkerVite', { timeout: 60 * 1000 }, () => {
       o => o,
     )
     expect(error.message).toBe('test worker error')
-    // Vite transforms the file, so only a source map gives its own line
-    expect(error.stack).toContain('workerThrow.ts:5:')
+    // The line of the throw in workerThrow.ts.
+    // Vite removes a type from that file, which moves the throw to another line.
+    // So only a source map gives this line in the stack
+    expect(error.stack).toContain('workerThrow.ts:6:')
   })
 
-  it('rejects on an unexpected message before ready', async () => {
+  it('rejects when the script posts a message during import', async () => {
     const error: WorkerError = await createWorkerVite(
       new URL('../-test/workerMessageEarly.ts', import.meta.url),
     ).then(
@@ -40,7 +43,7 @@ describe('createWorkerVite', { timeout: 60 * 1000 }, () => {
     expect(error.message).toContain('1n')
   })
 
-  it('leaves messages after ready to the caller', async () => {
+  it('passes messages posted after import to the caller', async () => {
     const worker = await createWorkerVite(
       new URL('../-test/workerMessageLate.ts', import.meta.url),
     )

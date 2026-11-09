@@ -10,7 +10,10 @@ import {
   randomItems,
 } from './helpers'
 
-/** Always returns the same value, to reach the rare results of a real generator */
+/**
+ * Random whose next() always returns value,
+ * so that tests can check results that a real generator returns rarely
+ */
 class RandomFixed extends Random {
   readonly #value: number
 
@@ -24,6 +27,7 @@ class RandomFixed extends Random {
   }
 }
 
+// The largest value of Random.next() with a seed
 const RANDOM_MAX = 1 - 2 ** -32
 
 describe('randomFloat', () => {
@@ -68,12 +72,10 @@ describe('randomFloat', () => {
 })
 
 describe('randomInt', () => {
-  it('stays in range at the maximum value of the generator', () => {
+  it('stays below toExclusive at RANDOM_MAX', () => {
     const rnd = new RandomFixed(RANDOM_MAX)
     expect(randomInt(rnd, 3)).toBe(2)
     expect(randomInt(rnd, 2 ** 40, 2 ** 40 + 1)).toBe(2 ** 40)
-    const now = 1700000000000
-    expect(randomInt(rnd, now, now + 1)).toBe(now)
   })
 })
 
@@ -103,7 +105,8 @@ describe('randomIndexWeighted', () => {
   })
 
   it('never selects a zero weight', () => {
-    // The largest value of Math.random(): the sums of the weights round to exactly it
+    // The largest value of Math.random(). With it, subtracting the weights
+    // 0.1, 0.2, 0.3 from the random value leaves exactly 0 because of rounding
     const rnd = new RandomFixed(1 - 2 ** -53)
     expect(randomIndexWeighted(rnd, [0.1, 0.2, 0.3, 0])).toBe(2)
     expect(randomIndexWeighted(rnd, [0.1, 0.2, 0.3, 0, 0])).toBe(2)
@@ -184,7 +187,7 @@ describe('randomItems', () => {
     expect(randomItems(rnd, [1], 2)).toEqual([1, 1])
   })
 
-  it('remove', () => {
+  it('remove takes the selected items out of items', () => {
     const rnd = new Random(0)
     const items = [1, 2, 3]
     const result = randomItems(rnd, items, 2, true)

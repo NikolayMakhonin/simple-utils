@@ -62,7 +62,8 @@ export function sha256Buffer(
   let bytes: Uint8Array
   if (typeof content === 'string') {
     const encoder = ENCODER!
-    // UTF-8 takes at most 3 bytes per UTF-16 code unit
+    // The whole string fits when length * 3 <= the buffer size:
+    // UTF-8 takes at most 3 bytes per UTF-16 char
     if (content.length * 3 <= STRING_BUFFER_SIZE) {
       const buffer = STRING_BUFFER!
       bytes = buffer.subarray(0, encoder.encodeInto(content, buffer).written)
@@ -70,7 +71,8 @@ export function sha256Buffer(
       bytes = encoder.encode(content)
     }
   } else if ((content as unknown) instanceof Uint8Array) {
-    // Allocating a view for each call is noticeably slower on small inputs
+    // Used as is: a new Uint8Array view, as for other views below,
+    // is noticeably slower on small inputs
     bytes = content as Uint8Array
   } else if (ArrayBuffer.isView(content)) {
     bytes = new Uint8Array(
@@ -84,9 +86,9 @@ export function sha256Buffer(
     )
   }
 
-  // Complete blocks are read directly from the input, so that hashing a large input
-  // neither copies it nor keeps memory of its size after the call.
-  // The remaining bytes and the padding, at most 2 blocks, go through the tail buffer
+  // Complete 64-byte blocks are hashed right from bytes, so a large input
+  // is not copied into a buffer of its size. The other bytes and
+  // the padding (1 or 2 blocks) are hashed from TAIL_BUFFER
   const length = bytes.length
   const blocksEnd = length - (length % 64)
   const tailLength = length - blocksEnd
@@ -146,8 +148,9 @@ export function sha256Buffer(
       let g = h6
       let h = h7
 
-      // Four rounds at a time instead of one loop of 64 rounds: measured about 10% faster
-      // in Chromium and Firefox, equal in WebKit, about 15% slower in Node.js 22
+      // Nested loops of 16 iterations of 4 rounds instead of one loop of 64 rounds:
+      // measured about 10% faster in Chromium and Firefox, the same in WebKit,
+      // about 15% slower in Node.js 22
       for (let i = 0; i < 64; i += 4) {
         for (let j = 0; j < 4; j++) {
           const idx = i + j

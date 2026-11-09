@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { sha256, sha256Buffer } from './sha256'
 
-// Test vectors of the SHA-256 standard
+// Reference SHA-256 hashes published by NIST
 const HASH_EMPTY =
   'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
 const HASH_ABC =

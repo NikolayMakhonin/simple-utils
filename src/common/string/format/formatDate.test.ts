@@ -31,7 +31,7 @@ describe('formatDate', () => {
     test(new Date(NaN), 'Asia/Tokyo', 'Invalid Date')
   })
 
-  it('time zone moves the date out of the range of Date', () => {
+  it('Invalid Date when timeZone moves the date out of the range of Date', () => {
     test(new Date(8.64e15), 'Asia/Tokyo', 'Invalid Date')
   })
 
@@ -39,7 +39,7 @@ describe('formatDate', () => {
     expect(() =>
       formatDate(new Date('-000001-06-15T00:00:00Z'), 'UTC'),
     ).toThrow(/-1/)
-    // Year 0 in UTC is year -1 in a time zone behind UTC
+    // In New York, 0000-01-01 00:00 UTC is still in year -1
     const date = new Date('0000-01-01T00:00:00Z')
     expect(formatDate(date, 'UTC')).toBe('0000-01-01 00:00:00')
     expect(() => formatDate(date, 'America/New_York')).toThrow(/-1/)

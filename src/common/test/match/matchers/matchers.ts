@@ -130,7 +130,8 @@ export function matchDeep<T>(
     const newExpected = expected.map((o, i) => matchDeep(o, toExpected, i))
     return matchArray(newExpected)
   }
-  // A false result must not narrow expected: class instances reach the code below
+  // The cast to unknown keeps TypeScript from narrowing expected by this check,
+  // because the code below must still accept class instances such as ValueState
   if (isPlainObject(expected as unknown)) {
     const newExpected: any = {}
     for (const key in expected) {
@@ -384,8 +385,9 @@ export type MatchRangeOptions = {
 
 const DATE_DISTANCE_MAX = 10 * 365.25 * 24 * 60 * 60 * 1000
 export function matchIntDate(options?: null | MatchIntArgs): Matcher<number> {
-  // Computed per call: computed at load, even marked /* @__PURE__ */, it would
-  // stay in the bundle of every web application that imports this library
+  // Date.now() is read per call, not at module level.
+  // Module-level code would run on every import of this library.
+  // The range must be relative to the time of the call, not of the import
   const now = Date.now()
   return matchInt({
     ...options,

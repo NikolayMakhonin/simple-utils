@@ -37,7 +37,7 @@ describe('gzip', () => {
     5 * 60 * 1000,
   )
 
-  it('equal data compresses to equal bytes at any time', () => {
+  it('equal data compresses to equal bytes at different system times', () => {
     vi.useFakeTimers()
     try {
       const data = new Uint8Array([1, 2, 3])

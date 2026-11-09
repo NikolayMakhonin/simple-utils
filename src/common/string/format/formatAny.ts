@@ -5,8 +5,9 @@ import { getObjectId } from './getObjectId'
 import { truncateString, type TruncateStringOptions } from './truncateString'
 import { isPlainObject } from 'src/common/object/isPlainObject'
 
-// Own properties of standard errors that are not enumerable but carry the real reason:
-// Node.js fetch throws "fetch failed" and keeps the network error in cause
+// Error properties that hold the underlying errors: cause, and errors of AggregateError.
+// Errors create them not enumerable, so for...in skips them.
+// E.g. Node.js fetch throws "fetch failed" with the network error in cause
 const ERROR_HIDDEN_KEYS = ['cause', 'errors']
 
 function tryGetValue(obj: any, key: string | number): any {
@@ -17,7 +18,10 @@ function tryGetValue(obj: any, key: string | number): any {
   }
 }
 
-/** @param path Valid only during the call: it changes afterwards, so copy it to keep it */
+/**
+ * @param path Keys from the root value to obj (property names, array indexes, Map and Set
+ * entry indexes). formatAny reuses this array, so copy it to keep it after the call
+ */
 export type FormatAnyToString = (
   obj: any,
   path: string[],
@@ -26,7 +30,11 @@ export type FormatAnyToString = (
 
 export type FormatAnyOptions = {
   pretty?: null | boolean
-  /** The path is valid only during the call: it changes afterwards, so copy it to keep it */
+  /**
+   * The path argument holds the keys from the root value to value (property names,
+   * array indexes, Map and Set entry indexes). formatAny reuses this array,
+   * so copy it to keep it after the call
+   */
   filter?: null | ((path: string[], value: any) => boolean)
   maxDepth?: null | number
   maxItems?: null | number
@@ -40,9 +48,10 @@ export type FormatAnyOptions = {
 }
 
 export function formatAny(obj: any, options?: null | FormatAnyOptions): string {
-  // A value that is not an object is formatted without the state of formatAnyWithState:
-  // its inner functions are created on every call, which made formatting a number
-  // or a string 2-3x slower in Node.js, Chromium, and Firefox
+  // Fast path for a primitive value or a function.
+  // formatAnyWithState creates its inner functions on every call.
+  // For a number or a string, that makes formatting 2-3 times slower
+  // in Node.js, Chromium and Firefox
   if ((obj == null || typeof obj !== 'object') && !options?.customToString) {
     return formatNotObject(obj, options, 0, false)
   }
@@ -65,11 +74,13 @@ function formatAnyWithState(
     customToString,
     truncateOptions,
   } = options ?? {}
-  // Created when first needed: most values have no repeated objects, and a Date visits nothing
+  // These sets stay null until first needed, so that values that do not need them
+  // allocate nothing. A Date needs no visited, most objects need no repeated
   let visited: Set<any> | null = null
   let repeated: Set<any> | null = null
   let idsShown: Set<any> | null = null
-  // One array for all values instead of an allocation per value; absent when nothing reads it
+  // One array reused for all values, instead of a new array per value.
+  // Null when neither filter nor customToString reads it
   const path: string[] | null =
     filter != null || customToString != null ? [] : null
 
@@ -102,7 +113,7 @@ function formatAnyWithState(
     }
 
     if (obj instanceof Date) {
-      // formatDate throws for a negative year, while this function must print any value
+      // For a negative year formatDate throws, but formatAny must format any value
       return obj.getFullYear() < 0 ? obj.toISOString() : formatDate(obj)
     }
 
@@ -239,7 +250,10 @@ function formatAnyWithState(
     )
   }
 
-  /** Adds `key: value` to items; returns false when items reached maxItems */
+  /**
+   * Adds `key: value` to items, unless filter rejects it.
+   * Returns false when items already has maxItems items
+   */
   function addProperty(
     obj: any,
     key: string,
@@ -260,7 +274,10 @@ function formatAnyWithState(
     return true
   }
 
-  /** The text of the error, followed by its properties that the text does not show */
+  /**
+   * The error text (name, message and stack),
+   * followed by the other properties of the error, e.g. code, cause
+   */
   function formatError(error: any, depth: number): string {
     let text = indentLines(
       truncateString(getErrorText(error), maxStringLength, truncateOptions),
@@ -301,7 +318,10 @@ function formatAnyWithState(
     return items.length > 0 ? result : text
   }
 
-  /** Joins formatted items: on one line, or one item per line indented by depth when pretty */
+  /**
+   * Joins formatted items: on one line, or one item per line indented by depth when pretty.
+   * Also cuts path back to depth, removing the keys that the items added
+   */
   function formatItems(
     start: string,
     end: string,
@@ -329,8 +349,8 @@ function formatAnyWithState(
   if (repeated == null || showObjectId) {
     return result
   }
-  // The output must show the id of a repeated object at its first occurrence, so that the
-  // reader can find what a reference points to; repeats are known only after printing it
+  // A repeated object prints as Name#id after its first occurrence. To print the same id
+  // at the first occurrence too, format again: only now it is known which objects repeat
   idsShown = repeated
   visited = null
   return format(obj, 0)
@@ -395,7 +415,7 @@ function getClassName(obj: any): string {
   return obj.constructor === Object ? '' : (obj.constructor?.name ?? '')
 }
 
-/** `Name#id ` with the object id, or `Name ` without it */
+/** `Name#id ` when isIdShown, otherwise `Name `, or an empty string for an empty name */
 function getPrefix(obj: object, name: string, isIdShown: boolean): string {
   if (isIdShown) {
     return `${name}#${getObjectId(obj)} `

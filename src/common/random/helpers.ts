@@ -12,11 +12,14 @@ export function randomFloat(
   const range = toExclusive - from
   if (!(range > 0 && range < Infinity)) {
     throw new Error(
-      `[random][randomFloat] toExclusive (${toExclusive}) must be greater than from (${from}) by a finite number`,
+      `[random][randomFloat] toExclusive (${toExclusive}) - from (${from}) must be a finite number > 0`,
     )
   }
   const value = rnd.next() * range + from
-  // The sum rounds up to toExclusive when from is large relative to the range
+  // When range is small relative to from, the sum can round up to toExclusive.
+  // Returning from in this case keeps the results uniform.
+  // Without this case, from gets half the share of other results,
+  // because only sums above from round to it
   return value < toExclusive ? value : from
 }
 
@@ -35,7 +38,7 @@ export function randomBoolean(
   return rnd.next() < (trueProbability ?? 0.5)
 }
 
-/** Returns -1 when the total weight is 0 */
+/** Returns -1 when there are no weights or all of them are 0 */
 export function randomIndexWeighted(rnd: Random, weights: number[]): number
 export function randomIndexWeighted(
   rnd: Random,
@@ -81,7 +84,8 @@ export function randomIndexWeighted(
       lastIndex = i
     }
   }
-  // Rounding errors of the sums can leave a remainder after the last positive weight
+  // Rounding errors can leave value >= 0 after subtracting all weights.
+  // In this case the last index with a positive weight is selected, never a zero weight
   return lastIndex
 }
 

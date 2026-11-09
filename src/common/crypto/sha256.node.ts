@@ -32,14 +32,14 @@ describe('calcSha256', () => {
     test('Lorem ipsum dolor')
   })
 
-  it('Boundary: padding in the last and in the next block', () => {
+  it('Boundary: sizes at which the padding takes 1 or 2 blocks', () => {
     ;[55, 56, 63, 64, 65, 119, 120, 127, 128, 129].forEach(size => {
       const input = new Uint8Array(size).fill(0x41)
       test(input)
     })
   })
 
-  it('Strings around the size of the reusable buffer', () => {
+  it('Strings just below and above the length limit of STRING_BUFFER', () => {
     test('a'.repeat(21845))
     test('a'.repeat(21846))
     test('a'.repeat(65536))
@@ -57,7 +57,7 @@ describe('calcSha256', () => {
     test(new Uint8Array(10))
   })
 
-  it('Views of a part of a buffer', () => {
+  it('Typed arrays and DataView over a part of an ArrayBuffer', () => {
     const bytes = new Uint8Array(200)
     for (let i = 0; i < bytes.length; i++) {
       bytes[i] = i
@@ -83,7 +83,7 @@ describe('calcSha256', () => {
     test(input)
   })
 
-  it('Keeps no memory of the input size', () => {
+  it('Does not keep a buffer as large as the input after the call', () => {
     const bytes = new Uint8Array(8 * 1024 * 1024)
     let memoryBefore = process.memoryUsage().arrayBuffers
     sha256(bytes)
@@ -95,6 +95,8 @@ describe('calcSha256', () => {
     const str = 'a'.repeat(4 * 1024 * 1024)
     memoryBefore = process.memoryUsage().arrayBuffers
     sha256(str)
+    // The limit allows the copy that encode() makes (str.length bytes),
+    // which is not collected yet when measured
     assert.isBelow(
       process.memoryUsage().arrayBuffers - memoryBefore,
       str.length * 2,

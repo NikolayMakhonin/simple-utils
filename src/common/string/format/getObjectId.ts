@@ -2,8 +2,8 @@ let nextObjectId = 0
 const objectIdMap = new WeakMap<object, number>()
 
 /**
- * Number that identifies the object: the same for each call with this object,
- * different for different objects; does not keep the object in memory
+ * Returns a number that identifies the object: the same on every call with this object,
+ * different for different objects. The object can still be garbage collected
  */
 export function getObjectId(obj: object): number {
   let id = objectIdMap.get(obj)

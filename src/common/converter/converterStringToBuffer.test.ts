@@ -21,7 +21,7 @@ describe('converterStringToBuffer', () => {
     test('\ufeff\ufeff', [0xef, 0xbb, 0xbf, 0xef, 0xbb, 0xbf])
   })
 
-  it('invalid bytes throw instead of changing the value', () => {
+  it('invalid UTF-8 throws instead of turning into U+FFFD', () => {
     const { from } = converterStringToBuffer
     expect(() => from(new Uint8Array([0xff]))).toThrow()
     expect(() => from(new Uint8Array([0x61, 0xc0, 0x80]))).toThrow()

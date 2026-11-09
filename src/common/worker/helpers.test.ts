@@ -13,7 +13,7 @@ describe('deserializeError', () => {
     expect(result.stack).toBe(error.stack)
   })
 
-  it('attack attempt: __proto__ in received properties', () => {
+  it('__proto__ in props does not change the prototype of the error', () => {
     const result = deserializeError({
       type: ErrorSerializedType.generic,
       error: new Error('msg'),

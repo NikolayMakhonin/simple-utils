@@ -2,9 +2,10 @@ import { WorkerNode } from './WorkerNode'
 import { type IWorker, WorkerError, WorkerErrorType } from '../types'
 import { formatAny } from 'src/common/string/format/formatAny'
 
-// A variable, because a bundler follows a literal import: it would put Vite into the build
-// of this library and into every application bundle with this function, while Vite
-// must load from the node_modules of the project
+// The module name is in a variable, so that bundlers cannot follow the import.
+// A followed import would put Vite into the build of this library
+// and into the bundle of every app that uses createWorkerVite.
+// Vite must be loaded from the node_modules of the app
 const VITE_MODULE_NAME = 'vite'
 
 async function _createWorkerVite(
@@ -13,8 +14,8 @@ async function _createWorkerVite(
   const [{ Worker: NodeWorker }, { fileURLToPath }] = await Promise.all([
     import('worker_threads'),
     import('url'),
-    // Vite must stay loaded in this thread, because the whole process can crash
-    // with an access violation when the last thread using its native addon exits
+    // Vite is loaded in this thread too: the process can crash when a worker thread
+    // exits while it is the only thread that has loaded Vite's native addon
     // see: https://github.com/napi-rs/package-template/issues/308
     import(/* @vite-ignore */ VITE_MODULE_NAME),
   ])
@@ -33,7 +34,8 @@ async function _createWorkerVite(
   const worker = new WorkerNode(nodeWorker)
   worker.on('error', error => {
     console.error(
-      `[createWorkerVite] error in the thread of ${String(workerPathOrUrl)}`,
+      `[createWorkerVite] error in the worker thread` +
+        ` of script (${String(workerPathOrUrl)})`,
       error,
     )
   })
@@ -52,7 +54,8 @@ async function _createWorkerVite(
         reject(
           new WorkerError(
             WorkerErrorType.messageError,
-            `[createWorkerVite] unexpected message: ${formatAny(message)}`,
+            `[createWorkerVite] the worker thread posted a message before 'ready'` +
+              `: ${formatAny(message)}`,
           ),
         )
       }
@@ -71,8 +74,10 @@ async function _createWorkerVite(
 let prevCreateWorkerVitePromise: Promise<IWorker> | null = null
 
 /**
- * Creates a worker thread that runs a source module of the project
- * with the module runner of the Vite of the project
+ * Starts a Node.js worker thread that runs the source file (TypeScript, etc)
+ * through the Vite installed in the project, with the vite config of the project.
+ * Resolves after the file has been imported.
+ * Rejects when the file throws or posts a message during the import
  */
 export async function createWorkerVite(
   workerPathOrUrl: string | URL,

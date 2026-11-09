@@ -28,7 +28,7 @@ describe('matchDeep', () => {
     test(new Date(1), new Date(1), false)
   })
 
-  it('special keys', () => {
+  it('constructor and __proto__ keys', () => {
     test(
       JSON.parse('{"constructor": 1}'),
       JSON.parse('{"constructor": 1}'),
@@ -52,12 +52,12 @@ describe('matchDeep', () => {
     test({ a: 1 }, create(1), true)
   })
 
-  it('attack attempt: __proto__ in expected is not lost', () => {
+  it('__proto__ key of expected stays a key, not the prototype', () => {
     test({}, JSON.parse('{"__proto__": {"polluted": 1}}'), false)
     test({ polluted: 1 }, JSON.parse('{"__proto__": {"polluted": 1}}'), false)
   })
 
-  it('an absent __proto__ key is not the prototype', () => {
+  it('missing __proto__ key of actual is undefined, not its prototype', () => {
     test({}, JSON.parse('{"__proto__": {}}'), false)
     test({}, JSON.parse('{"__proto__": null}'), true)
     test(JSON.parse('{"__proto__": {}}'), JSON.parse('{"__proto__": {}}'), true)

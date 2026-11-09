@@ -187,8 +187,9 @@ export class Cache<
   }
 
   /**
-   * Returns the stored data converted back,
-   * or null when it cannot be read (a corrupted file, an old format, etc)
+   * Converts the stored value or error back with converter.from.
+   * Returns null when the conversion throws (a corrupted file, an old data format, etc).
+   * The result is wrapped in an object, because the result itself can be null
    */
   private async readStored<Result, Stored>(
     key: Key,
@@ -203,7 +204,8 @@ export class Cache<
       }
     } catch (error) {
       console.warn(
-        `[Cache][readStored] stored data of key (${String(key)}) cannot be read`,
+        `[Cache][readStored] converter.from failed` +
+          ` for stored data of key (${String(key)})`,
         error,
       )
       return null
@@ -240,8 +242,9 @@ export class Cache<
 
         const now = this.#timeController.now()
 
-        // Stored data that cannot be read is recalculated below,
-        // otherwise every call for its key would fail
+        // When readStored returns null, func below recalculates the value
+        // and replaces the unreadable data. Without the recalculation,
+        // every call for this key would fail on the same data
         if (!statOld.hasError && storedValue != null) {
           const read = await this.readStored(
             key,

@@ -6,8 +6,9 @@ import configBase from './vite.config'
 export default defineConfig(env =>
   mergeConfig(configBase(env), {
     test: {
-      // Each project extends the base include, which lists every test suffix,
-      // so its exclude must list every suffix except its own
+      // Each project inherits include from vite.config.ts, which matches all test files
+      // (*.test.ts, *.node.ts, *.browser.ts, etc). So the exclude of each project
+      // lists all suffixes except its own
       projects: [
         {
           extends: true,
@@ -68,9 +69,9 @@ export default defineConfig(env =>
                 { browser: 'webkit' },
               ],
               api: {
-                // By default the server listens on the first address of localhost,
-                // which can be ::1, while Firefox sometimes connects through 127.0.0.1
-                // only: its page.goto then fails with NS_ERROR_CONNECTION_REFUSED
+                // By default the server can listen only on ::1, the first address of localhost.
+                // Firefox can connect to 127.0.0.1 instead, and its page.goto fails
+                // with NS_ERROR_CONNECTION_REFUSED
                 host: '127.0.0.1',
                 port: 4001,
               },

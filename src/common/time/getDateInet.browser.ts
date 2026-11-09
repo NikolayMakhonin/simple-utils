@@ -3,8 +3,8 @@ import { getDateInet } from './getDateInet'
 
 const MODULE_URL = new URL('./getDateInet.ts', import.meta.url).href
 
-// A blob worker is the hardest case of the default url:
-// it has no window, and a relative url cannot be resolved against its blob: url
+// The worker is created from a blob: url to test the default url in the hardest case.
+// A blob worker has no window, and '/' cannot be resolved against its blob: url
 const WORKER_CODE = `
 const { getDateInet } = await import(${JSON.stringify(MODULE_URL)})
 self.postMessage(await getDateInet())

@@ -19,14 +19,15 @@ export function waitMicrotasks(
 let messageChannel: MessageChannel | null = null
 const messageCallbacks: (() => void)[] = []
 
-/** Runs the callback in a new macrotask, so after all queued microtasks */
+/** Calls the callback when no microtasks are left in the queue */
 function runAfterMicrotasks(callback: () => void): void {
   if (typeof setImmediate === 'function') {
     setImmediate(callback)
     return
   }
-  // A message, because setTimeout(0) is delayed by 4 ms when nested,
-  // and a global setImmediate polyfill would stay in every application bundle with this library
+  // MessageChannel, not setTimeout(0): browsers delay nested setTimeout(0) to 4 ms.
+  // Not the setimmediate polyfill: it would be added to the bundle of every app
+  // that uses this library
   if (messageChannel == null) {
     messageChannel = new MessageChannel()
     messageChannel.port1.onmessage = () => {

@@ -4,13 +4,13 @@ import {
 } from '@flemist/abort-controller-fast'
 
 /**
- * Current time in milliseconds from the Date header of a web server response,
- * independent of the local clock, with a precision of 1 second
- * @param options.url Any url with available HEAD method. Never use a url served by a CDN,
- * because the Date of its cached response can be hours old. In browsers a cross-origin url
- * must expose the Date header. Default is the current site in browsers and web workers;
- * other environments have no current site, so there the default is https://google.com
- * @param options.timeout Milliseconds before aborting the request; default is no timeout
+ * Returns the current time in milliseconds from the Date header of a web server response.
+ * The result does not depend on the local clock. Its precision is 1 second
+ * @param options.url Any url that answers a HEAD request. Never use a url served by a CDN:
+ * the Date of a response cached by a CDN can be hours old. In browsers, a url of another
+ * origin must expose the Date header (Access-Control-Expose-Headers: Date).
+ * Default: location.origin in pages and web workers, https://google.com elsewhere
+ * @param options.timeout Milliseconds before the request is aborted. Default: no timeout
  */
 export async function getDateInet({
   url,
@@ -32,7 +32,8 @@ export async function getDateInet({
   try {
     const response = await fetch(url, {
       method: 'HEAD',
-      // A response from the browser cache carries the date of the original response
+      // Without it, the browser cache can return a response
+      // with the old Date of the original response
       cache: 'no-store',
       signal: toAbortSignal(abortController.signal),
     })

@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { dateNowUnique } from './dateNowUnique'
 
 describe('dateNowUnique', () => {
-  // The previous date is shared between tests, so each test starts ahead of it
+  // The prevDate of dateNowUnique stays between tests,
+  // so each test starts with a clock ahead of all earlier results
   let clock = Date.now() + 1e9
 
   afterEach(() => {
@@ -15,24 +16,24 @@ describe('dateNowUnique', () => {
     expect(dateNowUnique()).toBe(expected)
   }
 
-  it('returns the clock when it is ahead', () => {
+  it('returns Date.now() when it is greater than the previous result', () => {
     test(clock, clock)
     test(clock + 10, clock + 10)
   })
 
-  it('increments while the clock stands still', () => {
+  it('returns the previous result + 1 while Date.now() does not change', () => {
     test(clock, clock)
     test(clock, clock + 1)
     test(clock, clock + 2)
   })
 
-  it('increments when the clock goes back', () => {
+  it('returns the previous result + 1 when Date.now() goes back', () => {
     test(clock, clock)
     test(clock - 1000, clock + 1)
     test(clock - 1000, clock + 2)
   })
 
-  it('returns to the clock after the clock overtakes it', () => {
+  it('returns Date.now() again once it exceeds the previous result', () => {
     test(clock, clock)
     test(clock, clock + 1)
     test(clock, clock + 2)
@@ -40,7 +41,7 @@ describe('dateNowUnique', () => {
     test(clock + 100, clock + 100)
   })
 
-  it('strictly increases on the real clock', () => {
+  it('each result is greater than the previous one with the real Date.now()', () => {
     let prev = dateNowUnique()
     for (let i = 0; i < 1000; i++) {
       const value = dateNowUnique()

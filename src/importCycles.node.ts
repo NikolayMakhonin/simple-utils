@@ -6,7 +6,10 @@ import ts from 'typescript'
 
 const SRC_DIR = path.dirname(fileURLToPath(import.meta.url))
 
-/** Imports that stay at runtime: type-only imports are erased and cannot form a cycle */
+/**
+ * Module paths that the file imports and re-exports, except type-only ones.
+ * TypeScript removes type-only imports from the output, so they form no cycle
+ */
 function getRuntimeImports(file: string, text: string): string[] {
   const sourceFile = ts.createSourceFile(file, text, ts.ScriptTarget.Latest)
   const result: string[] = []

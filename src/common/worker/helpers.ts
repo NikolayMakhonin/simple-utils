@@ -8,7 +8,7 @@ import {
 import { AbortError } from '@flemist/abort-controller-fast'
 import { setOwnProperty } from 'src/common/object/setOwnProperty'
 
-/** True in a web worker of any kind, false in a page and outside browsers */
+/** True in a dedicated, shared or service web worker; false in a page and outside browsers */
 export function isWebWorker(): boolean {
   return (
     typeof WorkerGlobalScope !== 'undefined' &&
@@ -121,7 +121,9 @@ export function getWorkerFatalErrors(): IObservable<WorkerError> {
           )
         }
 
-        // A page has self too, and reports its errors the same way as a web worker
+        // Checks self instead of isWebWorker(), because a page also has self.
+        // A page reports uncaught errors through the error and unhandledrejection
+        // events of self, as a web worker does
         const hasSelf = typeof self !== 'undefined'
         if (hasSelf) {
           self.addEventListener('error', onError)

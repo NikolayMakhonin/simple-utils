@@ -36,7 +36,7 @@ describe('objectTransform', () => {
     expect(result).toEqual({ a: 2, b: [3] })
   })
 
-  it('special keys', () => {
+  it('__proto__ key stays a key, not the prototype', () => {
     const result = objectTransform(
       JSON.parse('{"__proto__": {"a": 1}}'),
       null,

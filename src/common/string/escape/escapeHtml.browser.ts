@@ -9,14 +9,14 @@ describe('escapeHtml', () => {
     expect(element.textContent).toBe(text)
   }
 
-  it('attack attempts stay plain text', () => {
+  it('inserted as HTML, shows the text as is and creates no elements', () => {
     test('<img src=x onerror="alert(1)">')
     test('<script>alert(1)</script>')
     test('&lt;b&gt;&amp;')
     test(`"'<>&`)
   })
 
-  it('attack attempts inside an attribute stay plain text', () => {
+  it('inside a quoted attribute, gives the text as is and adds no attributes', () => {
     const text = `" onerror="alert(1)' onerror='alert(1)`
     const element = document.createElement('div')
     element.innerHTML = `<a title="${escapeHtml(text)}"></a><a title='${escapeHtml(text)}'></a>`

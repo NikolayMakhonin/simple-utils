@@ -30,7 +30,7 @@ describe('arrayFilterFast', () => {
     test([0, 1, 0, 2, 0], [1, 2])
   })
 
-  it('type guard', () => {
+  it('type guard predicate narrows the result type', () => {
     const arr: (number | null)[] = [1, null, 2]
     const result: number[] = arrayFilterFast(
       arr,

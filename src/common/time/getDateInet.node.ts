@@ -23,7 +23,7 @@ describe('getDateInet', () => {
     expect(await getDateInet({ url: 'https://example.test/' })).toBe(DATE_TIME)
   })
 
-  it('never answers from the HTTP cache', async () => {
+  it('sends a HEAD request with cache: no-store', async () => {
     const fetchStub = stubFetch(DATE_HEADER)
     await getDateInet({ url: 'https://example.test/' })
     const [url, init] = fetchStub.mock.calls[0]
@@ -32,7 +32,7 @@ describe('getDateInet', () => {
     expect(init.cache).toBe('no-store')
   })
 
-  it('default url without location', async () => {
+  it('default url is https://google.com without location', async () => {
     const fetchStub = stubFetch(DATE_HEADER)
     await getDateInet()
     expect(fetchStub.mock.calls[0][0]).toBe('https://google.com')

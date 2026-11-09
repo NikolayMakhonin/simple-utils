@@ -25,7 +25,8 @@ function getTimeZoneOffset(
   date: Date,
   timeZone: null | undefined | string,
 ): number {
-  // The offset of UTC is always 0, and formatToParts is by far the slowest part of this function
+  // Shortcut for UTC: its offset is always 0.
+  // The formatToParts call below is by far the slowest part of this function
   if (timeZone === 'UTC') {
     return 0
   }

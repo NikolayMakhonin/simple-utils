@@ -35,7 +35,8 @@ export class WorkerNode implements IWorker {
       let wrapper = listenerWrappers.get(listener)
       if (wrapper == null) {
         wrapper = (exitCode: number) => {
-          // The exit code of terminate() is 1, the same as of a crash
+          // No error after terminate(): terminate() exits the worker with code 1,
+          // the same code as a crash. The code below would report it as fatalError
           if (this.#isTerminated) {
             return
           }

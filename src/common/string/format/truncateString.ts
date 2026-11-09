@@ -2,13 +2,16 @@ export type TruncateStringOptions = {
   /** Remove the start of the string instead of its end */
   fromStart?: null | boolean
   appendEllipsis?: null | boolean
-  /** Add the number of removed code units in the form (5), on the side of the removed part */
+  /**
+   * Add the number of removed code units (as counted by str.length) as `(5)`,
+   * at the side where they were removed
+   */
   appendTruncatedLength?: null | boolean
 }
 
 /**
- * The result is never longer than maxLength: the ellipsis and the truncated length
- * are omitted when they do not fit, and a surrogate pair is never cut in half
+ * Cuts str to at most maxLength code units. The ellipsis and the truncated length
+ * are omitted when they do not fit. A surrogate pair is never cut in half
  */
 export function truncateString(
   str: string,
@@ -48,8 +51,8 @@ export function truncateString(
 }
 
 /**
- * At most length code units from the start of the string, or from its end when fromStart is set
- * Half of a surrogate pair would turn into a broken character, so a cut pair is dropped entirely
+ * The first length code units of str, or the last ones when fromStart is set.
+ * A surrogate pair cut by the boundary is dropped entirely, because half of it is a broken char
  */
 function sliceSurrogateSafe(
   str: string,

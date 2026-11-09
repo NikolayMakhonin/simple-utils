@@ -47,8 +47,8 @@ export default defineConfig(({ mode, isSsrBuild, command }) => {
         },
       },
       rollupOptions: {
-        // With the default browser platform import.meta.url is undefined
-        // in the cjs output, so new URL(..., import.meta.url) throws
+        // Without it, the cjs build turns import.meta.url into undefined.
+        // createWorkerVite passes import.meta.url to new URL(), which throws for undefined
         platform: 'node',
         external: [
           ...builtinModules,
@@ -81,8 +81,8 @@ export default defineConfig(({ mode, isSsrBuild, command }) => {
       exclude: ['chromium-bidi'],
     },
     test: {
-      // Vitest copies include into coverage.exclude, where a negated pattern
-      // would exclude every other file, so exclusions must be in exclude
+      // Exclusions are in exclude, not negated patterns here: vitest adds include
+      // to coverage.exclude. In coverage.exclude, '!**/tmp/**' excludes every file outside tmp
       include: [
         '**/*.{test,node,browser,chrome,perf,manual,stress,api,e2e}.{js,ts}',
       ],
@@ -100,8 +100,8 @@ export default defineConfig(({ mode, isSsrBuild, command }) => {
       coverage: {
         provider: 'v8',
         include: ['src/**'],
-        // Test files cannot be counted: vitest adds test.include to coverage.exclude,
-        // and a negated pattern here would exclude every other file
+        // Test files cannot be included: vitest adds test.include to coverage.exclude.
+        // A negated pattern like '!**/*.test.ts' here would exclude every other file
         // see: https://github.com/vitest-dev/vitest/commit/b5268965
         exclude: ['**/{tmp,temp,-tmp,-temp}/**'],
         clean: true,

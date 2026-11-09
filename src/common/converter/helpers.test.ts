@@ -4,12 +4,12 @@ import { toConverterFrom, toConverterWithDefaultFrom } from './helpers'
 describe('toConverterFrom', () => {
   const converterDefault = { from: (to: number) => String(to) }
 
-  it('without converter', () => {
+  it('returns converterDefault when converter is null', () => {
     expect(toConverterFrom(null, converterDefault)).toBe(converterDefault)
     expect(toConverterFrom(undefined, converterDefault)).toBe(converterDefault)
   })
 
-  it('converter receives the default', () => {
+  it('converter.from receives converterDefault.from', () => {
     const converter = toConverterFrom<string, number>(
       { from: (to, convertDefault) => `${convertDefault(to)}!` },
       converterDefault,
@@ -24,7 +24,7 @@ describe('toConverterWithDefaultFrom', () => {
       `${convertDefault(to)}?`,
   }
 
-  it('without converter', () => {
+  it('returns converterDefault when converter is null', () => {
     expect(toConverterWithDefaultFrom(null, converterDefault)).toBe(
       converterDefault,
     )
@@ -33,7 +33,7 @@ describe('toConverterWithDefaultFrom', () => {
     )
   })
 
-  it('converter receives the default chain', () => {
+  it('chains converter.from → converterDefault.from → the default of the call', () => {
     const converter = toConverterWithDefaultFrom<string, number>(
       { from: (to, convertDefault) => `${convertDefault(to)}!` },
       converterDefault,

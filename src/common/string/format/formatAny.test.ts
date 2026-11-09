@@ -86,7 +86,7 @@ describe('formatAny', () => {
     test(new Set([1, 2, 3]), 'Set [1, 3]', { filter })
   })
 
-  it('paths seen by filter and customToString', () => {
+  it('path passed to filter and customToString', () => {
     function getPaths(value: unknown) {
       const paths: string[] = []
       formatAny(value, {
@@ -182,7 +182,7 @@ describe('formatAny', () => {
     test(error, `Error#${getObjectId(error)} Error: msg`, options)
   })
 
-  it('showObjectId of values that are not expanded', () => {
+  it('showObjectId for values printed without their contents', () => {
     const func = function func() {}
     test(func, `function func#${getObjectId(func)}`, {
       showObjectId: true,
@@ -253,7 +253,7 @@ describe('formatAny', () => {
     nested.child.value = 1
     test(nested, '{child: Object}', { maxDepth: 1 })
 
-    // The first occurrence is cut by maxDepth, so the id must appear there as well
+    // The first occurrence of shared is cut by maxDepth. It must show the id too
     test(
       [[shared], shared, shared],
       `[[#${sharedId}], #${sharedId} {b: 1}, #${sharedId}]`,
@@ -376,7 +376,7 @@ describe('formatAny', () => {
       })
     })
 
-    it('without expanding', () => {
+    it('properties are not printed at maxDepth and with dontExpandClassInstances', () => {
       const error = createError('msg')
       error.code = 5
       test(error, 'Error: msg', { maxDepth: 0 })
@@ -384,7 +384,7 @@ describe('formatAny', () => {
       test(error, 'Error: msg', { dontExpandClassInstances: true })
     })
 
-    it('what the text shows is not repeated', () => {
+    it('name, message and stack are not printed as properties', () => {
       const error = createError('msg')
       error.name = 'Custom'
       error.stack = 'Custom: msg'

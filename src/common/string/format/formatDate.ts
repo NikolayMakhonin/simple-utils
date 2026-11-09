@@ -1,8 +1,10 @@
 import { convertTimeZone } from 'src/common/time/timeZone'
 
 /**
- * YYYY-MM-DD{dateTimeSeparator}HH{timeSeparator}mm{timeSeparator}ss, or Invalid Date
- * Default timeZone is Local, dateTimeSeparator is a space, timeSeparator is a colon
+ * Formats the date in timeZone as `YYYY-MM-DD HH:mm:ss`.
+ * The dateTimeSeparator replaces the space, and timeSeparator replaces the colons.
+ * The default timeZone is Local.
+ * Returns 'Invalid Date' for an invalid date, also when timeZone moves it out of the range of Date.
  * Throws for a negative year
  */
 export function formatDate(
@@ -12,8 +14,8 @@ export function formatDate(
   timeSeparator?: null | string,
 ): string {
   date = convertTimeZone(date, 'UTC', timeZone)
-  // After the conversion: a valid date converts to an invalid one
-  // when its time in the time zone is outside of the range of Date
+  // Checked after convertTimeZone, because it also gives an invalid date
+  // when the time in timeZone is out of the range of Date
   if (Number.isNaN(date.getTime())) {
     return 'Invalid Date'
   }

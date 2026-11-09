@@ -116,7 +116,7 @@ describe('getObjectsDiff', () => {
     ).toEqual({ b: diff(3, 4) })
   })
 
-  it('special keys', () => {
+  it('__proto__ key stays a key in the diff, not the prototype', () => {
     function testProto(valueOld: string, valueNew: string, expected: unknown) {
       const result = getObjectsDiff(JSON.parse(valueOld), JSON.parse(valueNew))!
       expect(Object.getPrototypeOf(result)).toBe(Object.prototype)
@@ -131,7 +131,7 @@ describe('getObjectsDiff', () => {
     testProto('{}', '{"__proto__": 1}', diff(undefined, 1))
   })
 
-  it('inherited properties are absent keys', () => {
+  it('inherited properties count as absent keys', () => {
     test({ toString: 1 }, {}, { toString: diff(1, undefined) })
     test({}, { toString: 1 }, { toString: diff(undefined, 1) })
     test(

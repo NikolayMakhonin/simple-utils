@@ -15,7 +15,12 @@ const WORKER_SCRIPT = path.resolve(
 )
 const ENTRIES = ['common', 'node', 'browser']
 
-/** Runs in a plain Node.js process, because vitest would transform the bundle */
+/**
+ * Creates and terminates a worker with createWorkerVite of the built library
+ * in a new Node.js process. Returns the output of the process: 'terminated' on success.
+ * importCode is an expression that returns a promise of the library module.
+ * A new process, because vitest transforms the modules that a test imports
+ */
 async function createWorkerInNode(importCode: string): Promise<string> {
   const { stdout } = await execFileAsync(process.execPath, [
     '-e',

@@ -24,7 +24,7 @@ describe('formatDateFileName', () => {
     expect(() =>
       formatDateFileName(new Date('-000001-06-15T00:00:00.000Z'), 'UTC'),
     ).toThrow(/Negative year \(-1\)/)
-    // The year becomes negative in the requested time zone
+    // In New York, 0000-01-01 00:00 UTC is still in year -1
     expect(() =>
       formatDateFileName(
         new Date('0000-01-01T00:00:00.000Z'),
