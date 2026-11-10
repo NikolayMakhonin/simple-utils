@@ -325,6 +325,7 @@
 *.scm text eol=lf
 *.scss text eol=lf
 *.sh text eol=lf
+.husky/* text eol=lf
 *.sql text eol=lf
 *.styl text eol=lf
 *.tf text eol=lf
