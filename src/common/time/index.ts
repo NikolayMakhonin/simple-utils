@@ -1,3 +1,6 @@
 export * from './dateNowUnique'
 export * from './getDateInet'
 export * from './timeZone'
+export * from './time-controller'
+export * from './getPreciseNowOffset'
+export * from './updateTimeControllerOffset'

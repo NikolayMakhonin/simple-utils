@@ -10,7 +10,7 @@ import type { ConverterAsync, ConvertToAsync } from 'src/common/converter'
 import {
   type ITimeController,
   timeControllerDefault,
-} from '@flemist/time-controller'
+} from 'src/common/time/time-controller'
 import {
   type ILockerWithId,
   LockerWithId,

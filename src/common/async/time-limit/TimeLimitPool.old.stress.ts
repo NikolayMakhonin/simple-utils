@@ -1,7 +1,7 @@
 import { describe, it, assert } from 'vitest'
 import { delay } from 'src/common/async/wait/delay'
 import { priorityCreate } from 'src/common/async/priority/Priority'
-import { TimeControllerMock } from '@flemist/time-controller'
+import { TimeControllerMock } from 'src/common/time/time-controller'
 import { type IAbortSignalFast } from '@flemist/abort-controller-fast'
 import { createTestVariants } from '@flemist/test-variants'
 import { Pool } from 'src/common/async/pool/Pool'

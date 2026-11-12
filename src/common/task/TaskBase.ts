@@ -1,5 +1,5 @@
 import { type Listener } from 'src/common/rx'
-import type { ITimeController } from '@flemist/time-controller'
+import type { ITimeController } from 'src/common/time/time-controller'
 import { EMPTY_FUNC } from 'src/common/constants'
 import type { Unsubscribe } from 'src/common/types'
 import { LogLevel } from 'src/common/debug'

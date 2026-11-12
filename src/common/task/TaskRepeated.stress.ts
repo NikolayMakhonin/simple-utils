@@ -35,7 +35,7 @@
  */
 import { describe, it } from 'vitest'
 import { createTestVariants } from '@flemist/test-variants'
-import { TimeControllerMock } from '@flemist/time-controller'
+import { TimeControllerMock } from 'src/common/time/time-controller'
 import {
   type SuccessPredicateResult,
   type TaskRepeatStrategyBefore,

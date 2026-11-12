@@ -11,7 +11,7 @@ import type {
 import { deserializeError } from '../helpers'
 import { withTimeout } from 'src/common/async/timeout/withTimeout'
 import { combineAbortSignals } from 'src/common/async/abort/combineAbortSignals'
-import type { ITimeController } from '@flemist/time-controller'
+import type { ITimeController } from 'src/common/time/time-controller'
 
 let prevRequestId = 0
 

@@ -1,5 +1,5 @@
 import { waitMicrotasks } from './waitMicrotasks'
-import { type TimeControllerMock } from '@flemist/time-controller'
+import { type TimeControllerMock } from 'src/common/time/time-controller'
 import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
 import { promiseToAbortSignal } from 'src/common/async/abort/abortSignalToPromise'
 import { EMPTY_FUNC } from 'src/common/constants'

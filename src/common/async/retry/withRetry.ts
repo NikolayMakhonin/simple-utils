@@ -5,7 +5,7 @@ import {
   createTaskRepeated,
   type TaskOptionsRepeated,
 } from 'src/common/task/TaskRepeated'
-import { timeControllerDefault } from '@flemist/time-controller'
+import { timeControllerDefault } from 'src/common/time/time-controller'
 
 export type WithRetryFunc<T> = (
   options: TaskFuncOptions,

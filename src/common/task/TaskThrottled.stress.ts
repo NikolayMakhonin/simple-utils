@@ -25,7 +25,7 @@
  */
 import { describe, it } from 'vitest'
 import { createTestVariants } from '@flemist/test-variants'
-import { TimeControllerMock } from '@flemist/time-controller'
+import { TimeControllerMock } from 'src/common/time/time-controller'
 import { waitTimeControllerMock } from 'src/common/async/wait/waitTimeControllerMock'
 import { getRandomSeed, Random, randomItem } from 'src/common/random'
 import { createTaskThrottled, type ITaskThrottled } from './TaskThrottled'

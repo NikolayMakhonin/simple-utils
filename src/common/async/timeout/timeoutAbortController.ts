@@ -7,7 +7,7 @@ import {
 import {
   type ITimeController,
   timeControllerDefault,
-} from '@flemist/time-controller'
+} from 'src/common/time/time-controller'
 
 // TODO: write doc comments
 export type TimeoutArgs = {

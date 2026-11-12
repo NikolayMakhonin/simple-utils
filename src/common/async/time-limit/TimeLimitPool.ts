@@ -1,7 +1,7 @@
 import {
   type ITimeController,
   timeControllerDefault,
-} from '@flemist/time-controller'
+} from 'src/common/time/time-controller'
 import { delay } from 'src/common/async/wait/delay'
 import { PoolWrapper } from 'src/common/async/pool/PoolWrapper'
 import { type IPool } from 'src/common/async/pool/Pool'

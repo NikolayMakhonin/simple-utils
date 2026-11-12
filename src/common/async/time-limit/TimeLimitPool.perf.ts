@@ -1,6 +1,6 @@
 import { describe, it } from 'vitest'
 import { calcPerformanceAsync } from 'rdtsc'
-import { TimeControllerMock } from '@flemist/time-controller'
+import { TimeControllerMock } from 'src/common/time/time-controller'
 import { TimeLimitPool } from './TimeLimitPool'
 import { Pool } from 'src/common/async/pool/Pool'
 import { poolRunWait } from 'src/common/async/pool/poolRunWait'

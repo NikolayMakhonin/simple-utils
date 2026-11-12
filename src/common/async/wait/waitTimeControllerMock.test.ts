@@ -1,5 +1,5 @@
 import { describe, it, assert } from 'vitest'
-import { TimeControllerMock } from '@flemist/time-controller'
+import { TimeControllerMock } from 'src/common/time/time-controller'
 import { waitTimeControllerMock } from './waitTimeControllerMock'
 import { EMPTY_FUNC } from 'src/common/constants'
 

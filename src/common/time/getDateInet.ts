@@ -3,6 +3,11 @@ import {
   toAbortSignal,
 } from '@flemist/abort-controller-fast'
 
+export type GetDateInetOptions = {
+  url?: null | string
+  timeout?: null | number
+}
+
 /**
  * Returns the current time in milliseconds from the Date header of a web server response.
  * The result does not depend on the local clock. Its precision is 1 second
@@ -12,13 +17,9 @@ import {
  * Default: location.origin in pages and web workers, https://google.com elsewhere
  * @param options.timeout Milliseconds before the request is aborted. Default: no timeout
  */
-export async function getDateInet({
-  url,
-  timeout,
-}: {
-  url?: null | string
-  timeout?: null | number
-} = {}) {
+export async function getDateInet(options?: null | GetDateInetOptions) {
+  const timeout = options?.timeout
+  let url = options?.url
   if (!url) {
     url =
       typeof location !== 'undefined' ? location.origin : 'https://google.com'

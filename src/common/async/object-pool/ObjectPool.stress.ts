@@ -8,7 +8,7 @@ import {
 import { type IObjectPool, ObjectPool } from './ObjectPool'
 import { Pool } from 'src/common/async/pool/Pool'
 import { Pools } from 'src/common/async/pool/Pools'
-import { TimeControllerMock } from '@flemist/time-controller'
+import { TimeControllerMock } from 'src/common/time/time-controller'
 import { waitTimeControllerMock } from 'src/common/async/wait/waitTimeControllerMock'
 
 describe('object-pool > ObjectPool', () => {

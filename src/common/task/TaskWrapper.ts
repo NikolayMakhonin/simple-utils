@@ -1,6 +1,6 @@
 import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
 import { type Listener } from 'src/common/rx'
-import type { ITimeController } from '@flemist/time-controller'
+import type { ITimeController } from 'src/common/time/time-controller'
 import { EMPTY_FUNC } from 'src/common/constants'
 import { LogLevel } from 'src/common/debug'
 import type { Unsubscribe } from 'src/common/types'

@@ -10,7 +10,7 @@ import {
 import {
   type ITimeController,
   TimeControllerMock,
-} from '@flemist/time-controller'
+} from 'src/common/time/time-controller'
 import { delay } from '../wait'
 
 describe(

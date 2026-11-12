@@ -1,5 +1,5 @@
 import { type IObservable } from 'src/common/rx'
-import { type ITimeController } from '@flemist/time-controller'
+import { type ITimeController } from 'src/common/time/time-controller'
 import type {
   PromiseLikeOrValue,
   PromiseOrValue,

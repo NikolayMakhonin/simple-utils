@@ -4,7 +4,7 @@ import { priorityCreate } from 'src/common/async/priority/Priority'
 import {
   type ITimeController,
   TimeControllerMock,
-} from '@flemist/time-controller'
+} from 'src/common/time/time-controller'
 import { type IAbortSignalFast } from '@flemist/abort-controller-fast'
 import { createTestVariants } from '@flemist/test-variants'
 import { type IPool, Pool } from 'src/common/async/pool/Pool'

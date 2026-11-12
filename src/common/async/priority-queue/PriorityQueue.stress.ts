@@ -40,7 +40,7 @@ import {
   AbortError,
   type IAbortSignalFast,
 } from '@flemist/abort-controller-fast'
-import { TimeControllerMock } from '@flemist/time-controller'
+import { TimeControllerMock } from 'src/common/time/time-controller'
 import { delay } from 'src/common/async/wait/delay'
 import { waitTimeControllerMock } from 'src/common/async/wait/waitTimeControllerMock'
 import {
