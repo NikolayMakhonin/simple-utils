@@ -1,9 +1,6 @@
 import { type GetDateInetOptions, getDateInet } from './getDateInet'
 
-/**
- * Returns the milliseconds to add to Date.now() to get internet time,
- * with an error of up to half of 1 second plus the request time
- */
+/** Returns the milliseconds to add to Date.now() to get internet time */
 export async function getDateInetOffset(
   options?: null | GetDateInetOptions,
 ): Promise<number> {
