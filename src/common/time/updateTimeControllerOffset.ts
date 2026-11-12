@@ -5,7 +5,7 @@ import {
   timeControllerDefault,
 } from 'src/common/time/time-controller'
 import type { GetDateInetOptions } from './getDateInet'
-import { getPreciseNowOffset } from './getPreciseNowOffset'
+import { getDateInetOffset } from './getDateInetOffset'
 
 const STORAGE_KEY = 'timeControllerOffset'
 
@@ -49,7 +49,7 @@ export async function updateTimeControllerOffset(
     }
   }
 
-  const offset = await getPreciseNowOffset(options)
+  const offset = await getDateInetOffset(options)
   timeController.offset = offset
   await storage?.setItem(STORAGE_KEY, String(offset))
 }
