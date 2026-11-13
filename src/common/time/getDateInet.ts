@@ -1,11 +1,15 @@
 import {
-  AbortControllerFast,
+  type IAbortSignalFast,
   toAbortSignal,
 } from '@flemist/abort-controller-fast'
+import { timeoutAbortController } from 'src/common/async/timeout'
+import type { ITimeController } from 'src/common/time/time-controller'
 
 export type GetDateInetOptions = {
   url?: null | string
   timeout?: null | number
+  abortSignal?: null | IAbortSignalFast
+  timeController?: null | ITimeController
 }
 
 /**
@@ -16,27 +20,24 @@ export type GetDateInetOptions = {
  * origin must allow CORS and expose the Date header (Access-Control-Expose-Headers: Date).
  * Default: location.origin in pages and web workers, https://google.com elsewhere
  * @param options.timeout Milliseconds before the request is aborted. Default: no timeout
+ * @param options.abortSignal Aborts the request
+ * @param options.timeController Counts the timeout. Default: timeControllerDefault
  */
 export async function getDateInet(options?: null | GetDateInetOptions) {
-  const timeout = options?.timeout
   let url = options?.url
   if (!url) {
     url =
       typeof location !== 'undefined' ? location.origin : 'https://google.com'
   }
-  const abortController = new AbortControllerFast()
-  const timer = timeout
-    ? setTimeout(() => {
-        abortController.abort()
-      }, timeout)
-    : null
+  const timeoutController = timeoutAbortController(options)
+  const abortSignal = timeoutController?.signal ?? options?.abortSignal
   try {
     const response = await fetch(url, {
       method: 'HEAD',
       // Without it, the browser cache can return a response
       // with the old Date of the original response
       cache: 'no-store',
-      signal: toAbortSignal(abortController.signal),
+      signal: abortSignal == null ? null : toAbortSignal(abortSignal),
     })
     const dateStr = response.headers.get('date')
     if (!dateStr) {
@@ -52,8 +53,8 @@ export async function getDateInet(options?: null | GetDateInetOptions) {
     }
     return date
   } finally {
-    if (timer != null) {
-      clearTimeout(timer)
-    }
+    // Aborting the finished request clears the timer of the timeout
+    // and its subscription to options.abortSignal
+    timeoutController?.abort()
   }
 }

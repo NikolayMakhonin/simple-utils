@@ -5,6 +5,7 @@ import type {
   WorkerConnectRequest,
 } from '../types'
 import type { PromiseLikeOrValue } from 'src/common/types'
+import { timeControllerDefault } from 'src/common/time/time-controller'
 
 export type WorkerConnectPoolOptions = {
   /**
@@ -45,14 +46,14 @@ export function createWorkerConnectPool(
   return {
     async connect(connectionName: string, messagePort: IMessagePort) {
       const worker = await getWorker()
-      worker.postMessage(
-        {
-          type: 'connect',
-          connectionName,
-          messagePort,
-        } as WorkerConnectRequest,
-        [messagePort],
-      )
+      const request: WorkerConnectRequest = {
+        type: 'connect',
+        connectionName,
+        messagePort,
+        timeControllerOffset: timeControllerDefault.offset,
+        timeControllerOffsetDate: timeControllerDefault.offsetDate,
+      }
+      worker.postMessage(request, [messagePort])
     },
 
     async terminate() {

@@ -32,11 +32,12 @@ export function timeoutAbortController(
       ),
     )
   }, args.timeout)
-  abortController.signal.subscribe(() => {
-    clearTimeout(timer)
-  })
-  args.abortSignal?.subscribe(reason => {
+  const unsubscribe = args.abortSignal?.subscribe(reason => {
     abortController.abort(reason)
+  })
+  abortController.signal.subscribe(() => {
+    timeController.clearTimeout(timer)
+    unsubscribe?.()
   })
   return abortController
 }

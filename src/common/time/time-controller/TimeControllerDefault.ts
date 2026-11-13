@@ -11,7 +11,8 @@ export class TimeControllerDefault implements ITimeController {
   #offsetDate: number | null = null
 
   constructor(options?: null | TimeControllerDefaultOptions) {
-    this.setOffset(options?.offset ?? null, options?.offsetDate ?? null)
+    this.offset = options?.offset ?? null
+    this.offsetDate = options?.offsetDate ?? null
   }
 
   /**
@@ -22,29 +23,32 @@ export class TimeControllerDefault implements ITimeController {
     return this.#offset
   }
 
-  setOffset(offset: number | null, date?: null | number) {
+  set offset(offset: number | null) {
     if (offset != null && !Number.isFinite(offset)) {
       throw new Error(
-        `[TimeControllerDefault][setOffset] offset (${offset})` +
-          ' should be a finite number or null',
-      )
-    }
-    if (date != null && !Number.isFinite(date)) {
-      throw new Error(
-        `[TimeControllerDefault][setOffset] date (${date})` +
+        `[TimeControllerDefault][offset] offset (${offset})` +
           ' should be a finite number or null',
       )
     }
     this.#offset = offset
-    this.#offsetDate = offset == null ? null : (date ?? this.now())
   }
 
   /**
-   * Time of now() when the offset was changed.
+   * Time of now() when the offset was measured.
    * With null, the time of the measurement is unknown
    */
   get offsetDate(): number | null {
     return this.#offsetDate
+  }
+
+  set offsetDate(offsetDate: number | null) {
+    if (offsetDate != null && !Number.isFinite(offsetDate)) {
+      throw new Error(
+        `[TimeControllerDefault][offsetDate] offsetDate (${offsetDate})` +
+          ' should be a finite number or null',
+      )
+    }
+    this.#offsetDate = offsetDate
   }
 
   now(): number {

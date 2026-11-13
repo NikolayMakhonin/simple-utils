@@ -234,6 +234,14 @@ export type WorkerConnectRequest = {
   type: 'connect'
   connectionName: string
   messagePort: IMessagePort
+  /**
+   * Offset of timeControllerDefault in the connecting thread.
+   * The worker sets it on its own timeControllerDefault,
+   * so that now() in the worker matches now() in the connecting thread
+   */
+  timeControllerOffset: number | null
+  /** The offsetDate of timeControllerDefault in the connecting thread, set the same way */
+  timeControllerOffsetDate: number | null
 }
 
 export type WorkerServerHandler = (messagePort: IMessagePort) => void

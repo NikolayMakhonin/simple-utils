@@ -7,6 +7,7 @@ import { Subject } from 'src/common/rx/Subject'
 import type { Emit, IObservable } from 'src/common/rx/types'
 import { formatDateFileName } from 'src/common/string/format/formatDateFileName'
 import { EMPTY_FUNC } from 'src/common/constants'
+import { timeControllerDefault } from 'src/common/time/time-controller'
 
 function formatObject(obj: any, options?: null | FormatAnyOptions): string {
   return formatAny(obj, {
@@ -29,7 +30,7 @@ export type ConsoleMessage = {
 }
 
 export function consoleMessageToString(message: ConsoleMessage): string {
-  return `${formatDateFileName(new Date())} [${message.level.toUpperCase()}] ${consoleArgsToString(
+  return `${formatDateFileName(new Date(message.date))} [${message.level.toUpperCase()}] ${consoleArgsToString(
     message.args,
   ).join(' ')}`
 }
@@ -62,7 +63,7 @@ export function consoleIntercept() {
     ) {
       if (consoleMessagesEmit) {
         consoleMessagesEmit({
-          date: Date.now(),
+          date: timeControllerDefault.now(),
           level,
           args,
         })
