@@ -76,13 +76,17 @@ let prevCreateWorkerVitePromise: Promise<IWorker> | null = null
 /**
  * Starts a Node.js worker thread that runs the source file (TypeScript, etc)
  * through the Vite installed in the project, with the vite config of the project.
+ * Concurrent calls start their threads one after another.
  * Resolves after the file has been imported.
  * Rejects when the file throws, exits or posts a message during the import
  */
 export async function createWorkerVite(
   workerPathOrUrl: string | URL,
 ): Promise<IWorker> {
-  // Vite node workers cannot be created in parallel, otherwise there will be errors
+  // Starts the threads one after another: with Vite 6, threads that started Vite
+  // at the same time crashed the whole process in 5 of 12 attempts (heap corruption),
+  // one after another in none of 12.
+  // With Vite 8 none of 24 attempts crashed, but the peer dependency allows Vite 6
   if (prevCreateWorkerVitePromise) {
     prevCreateWorkerVitePromise = prevCreateWorkerVitePromise.then(
       () => _createWorkerVite(workerPathOrUrl),

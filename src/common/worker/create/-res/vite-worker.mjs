@@ -2,14 +2,15 @@ import { parentPort, workerData } from 'node:worker_threads'
 import { createServer, createServerModuleRunner } from 'vite'
 
 async function run() {
-  // create vite server
-  // middlewareMode prevents binding an HTTP port,
-  // so the worker exits cleanly when terminated
+  // With middlewareMode, Vite creates no HTTP server, which the thread does not use
   const server = await createServer({
     server: {
       middlewareMode: true,
       hmr: false,
       ws: false,
+      // The thread never reloads changed files, so it needs no file watcher.
+      // With the watcher, the start of a thread took about 4 s longer on Windows
+      watch: null,
     },
     optimizeDeps: {
       // Dependency optimization is for browsers, and no browser loads modules from this server
@@ -28,7 +29,6 @@ async function run() {
     hmr: false,
   })
 
-  // execute the file and wait for it to finish
   await runner.import(workerData.scriptPath)
 
   parentPort.postMessage('ready')

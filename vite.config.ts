@@ -1,6 +1,5 @@
 import { configDefaults, defineConfig } from 'vitest/config'
 import { createLogger, loadEnv } from 'vite'
-import dts from 'vite-plugin-dts'
 import path from 'path'
 import { builtinModules } from 'module'
 import pkg from './package.json' with { type: 'json' }
@@ -18,18 +17,24 @@ logger.warn = (message, ...args) => {
 export default defineConfig(({ mode, isSsrBuild, command }) => {
   return {
     plugins: [
-      dts({
-        // Without path.resolve of vite aliases the dts plugin will not work
-        rollupTypes: false,
-        include: ['src/**/*.ts'],
-        exclude: [
-          '**/*.{test,node,browser,chrome}.ts',
-          '**/*.e2e.{slow,long,manual}.ts',
-          '**/-test/**',
-        ],
-        insertTypesEntry: true,
-        staticImport: true,
-      }),
+      // The dts plugin works exclusively in builds.
+      // Its import took about 2 s at every load of this config,
+      // in every vitest run and in every thread of createWorkerVite
+      command === 'build' &&
+        import('vite-plugin-dts').then(({ default: dts }) =>
+          dts({
+            // Without path.resolve of vite aliases the dts plugin will not work
+            rollupTypes: false,
+            include: ['src/**/*.ts'],
+            exclude: [
+              '**/*.{test,node,browser,chrome}.ts',
+              '**/*.e2e.{slow,long,manual}.ts',
+              '**/-test/**',
+            ],
+            insertTypesEntry: true,
+            staticImport: true,
+          }),
+        ),
     ],
     resolve: {
       alias: {
