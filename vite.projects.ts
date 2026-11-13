@@ -28,6 +28,8 @@ export default defineConfig(env => {
                 '**/*.{long,stress,perf,manual}.{test,node}.{js,ts}',
                 'src/browser/**',
               ],
+              // A slow file can take a couple of minutes
+              testTimeout: 2 * 60 * 1000,
             },
           },
           {
@@ -58,6 +60,8 @@ export default defineConfig(env => {
                 '**/*.{long,stress,perf,manual}.{test,browser}.{js,ts}',
                 'src/node/**',
               ],
+              // A browser file can take a couple of minutes, as a slow file can
+              testTimeout: 2 * 60 * 1000,
               browser: createBrowserOptionsHeadless(4001),
             },
           },
@@ -158,6 +162,8 @@ export default defineConfig(env => {
               },
               include: ['**/*.chrome.{js,ts}'],
               exclude: ['src/node/**'],
+              // Tests of my Chrome share my Google login and Drive, so its files run one at a time
+              fileParallelism: false,
               browser: {
                 enabled: true,
                 provider: preview(),
