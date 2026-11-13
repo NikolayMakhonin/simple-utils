@@ -23,7 +23,8 @@ export default defineConfig(({ mode, isSsrBuild, command }) => {
         rollupTypes: false,
         include: ['src/**/*.ts'],
         exclude: [
-          '**/*.{test,node,browser,chrome,perf,manual,stress,api,e2e}.ts',
+          '**/*.{test,node,browser,chrome}.ts',
+          '**/*.e2e.{slow,long}.ts',
           '**/-test/**',
         ],
         insertTypesEntry: true,
@@ -84,7 +85,8 @@ export default defineConfig(({ mode, isSsrBuild, command }) => {
       // Exclusions are in exclude, not negated patterns here: vitest adds include
       // to coverage.exclude. In coverage.exclude, '!**/tmp/**' excludes every file outside tmp
       include: [
-        '**/*.{test,node,browser,chrome,perf,manual,stress,api,e2e}.{js,ts}',
+        '**/*.{test,node,browser,chrome}.{js,ts}',
+        '**/*.e2e.{slow,long}.{js,ts}',
       ],
       exclude: [
         ...configDefaults.exclude,

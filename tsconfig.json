@@ -33,7 +33,8 @@
   },
   "include": [
     "./global.d.ts",
-    "./vite.config",
+    "./vite.config.ts",
+    "./vite.projects.ts",
     "./src/**/*.js",
     "./src/**/*.ts",
     "./src/**/*.mts",
