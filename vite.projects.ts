@@ -25,7 +25,7 @@ export default defineConfig(env => {
               },
               include: ['**/*.{test,node}.{js,ts}'],
               exclude: [
-                '**/*.{long,stress,perf,api}.{test,node}.{js,ts}',
+                '**/*.{long,stress,perf,manual}.{test,node}.{js,ts}',
                 'src/browser/**',
               ],
             },
@@ -55,7 +55,7 @@ export default defineConfig(env => {
               },
               include: ['**/*.{test,browser}.{js,ts}'],
               exclude: [
-                '**/*.{long,stress,perf,api}.{test,browser}.{js,ts}',
+                '**/*.{long,stress,perf,manual}.{test,browser}.{js,ts}',
                 'src/node/**',
               ],
               browser: createBrowserOptionsHeadless(4001),
@@ -114,9 +114,9 @@ export default defineConfig(env => {
             },
             test: {
               name: {
-                label: 'node-api',
+                label: 'node-manual',
               },
-              include: ['**/*.api.{test,node}.{js,ts}'],
+              include: ['**/*.manual.{test,node}.{js,ts}'],
               exclude: ['src/browser/**'],
             },
           },
@@ -127,9 +127,9 @@ export default defineConfig(env => {
             },
             test: {
               name: {
-                label: 'browser-api',
+                label: 'browser-manual',
               },
-              include: ['**/*.api.{test,browser}.{js,ts}'],
+              include: ['**/*.manual.{test,browser}.{js,ts}'],
               exclude: ['src/node/**'],
               browser: createBrowserOptionsHeadless(4005),
             },
@@ -143,7 +143,7 @@ export default defineConfig(env => {
               name: {
                 label: 'e2e',
               },
-              include: ['**/*.e2e.{slow,long}.{js,ts}'],
+              include: ['**/*.e2e.{slow,long,manual}.{js,ts}'],
               exclude: ['src/browser/**'],
             },
           },

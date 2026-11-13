@@ -77,7 +77,7 @@ describe('build', { timeout: 2 * 60 * 1000 }, () => {
   it('contains no test files', async () => {
     const files = await fs.promises.readdir(OUT_DIR, { recursive: true })
     const testFiles = files.filter(o =>
-      /\.(test|node|browser|chrome)\.|\.e2e\.(slow|long)\.|[\\/]-test[\\/]/.test(
+      /\.(test|node|browser|chrome)\.|\.e2e\.(slow|long|manual)\.|[\\/]-test[\\/]/.test(
         o,
       ),
     )

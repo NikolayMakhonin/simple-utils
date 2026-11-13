@@ -4,6 +4,7 @@ import * as path from 'path'
 import { pathResolve } from './helpers'
 import { createMatchPath } from 'src/node/fs/glob/createMatchPath'
 
+// Walks the drives C:, D:, and E: of this machine; it changes nothing
 describe.skip('walkPaths', () => {
   it('pathResolve', async () => {
     expect(pathResolve('D:/')).toBe('D:\\')

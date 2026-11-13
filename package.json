@@ -81,7 +81,7 @@
     "========================= test =========================": "",
     "test:node": "vitest --run --config vite.projects.ts --project node --bail 3",
     "test:browser": "vitest --run --config vite.projects.ts --project browser --bail 3",
-    "test:chrome": "vitest --run --config vite.projects.ts --project browser --browser chromium --bail 3",
+    "test:chromium": "vitest --run --config vite.projects.ts --project browser --browser chromium --bail 3",
     "test:all": "vitest --run --config vite.projects.ts --project node --project browser --bail 3",
     "test": "run-s test:node test:browser",
     "========================= dev =========================": "",

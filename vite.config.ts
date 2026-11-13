@@ -24,7 +24,7 @@ export default defineConfig(({ mode, isSsrBuild, command }) => {
         include: ['src/**/*.ts'],
         exclude: [
           '**/*.{test,node,browser,chrome}.ts',
-          '**/*.e2e.{slow,long}.ts',
+          '**/*.e2e.{slow,long,manual}.ts',
           '**/-test/**',
         ],
         insertTypesEntry: true,
@@ -86,7 +86,7 @@ export default defineConfig(({ mode, isSsrBuild, command }) => {
       // to coverage.exclude. In coverage.exclude, '!**/tmp/**' excludes every file outside tmp
       include: [
         '**/*.{test,node,browser,chrome}.{js,ts}',
-        '**/*.e2e.{slow,long}.{js,ts}',
+        '**/*.e2e.{slow,long,manual}.{js,ts}',
       ],
       exclude: [
         ...configDefaults.exclude,
