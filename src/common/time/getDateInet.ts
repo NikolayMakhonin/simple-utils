@@ -15,8 +15,9 @@ export type GetDateInetOptions = {
 /**
  * Returns the current time in milliseconds from the Date header of a web server response.
  * The result does not depend on the local clock. Its precision is 1 second
- * @param options.url Any url that answers a HEAD request. Never use a url served by a CDN:
- * the Date of a response cached by a CDN can be hours old. In browsers, a url of another
+ * @param options.url Any url that answers a HEAD request. Never use a url whose CDN answers
+ * from its cache with the Date of the cached response, which can be hours old: check that
+ * the Date of a cache hit advances with real time. In browsers, a url of another
  * origin must allow CORS and expose the Date header (Access-Control-Expose-Headers: Date).
  * Default: location.origin in pages and web workers, https://google.com elsewhere
  * @param options.timeout Milliseconds before the request is aborted. Default: no timeout
