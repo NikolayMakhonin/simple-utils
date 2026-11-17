@@ -1,17 +1,10 @@
 import { describe, it, assert } from 'vitest'
 import { createTestVariants } from '@flemist/test-variants'
 import { delay } from 'src/common/async/wait/delay'
-import type { ITimeController } from './contracts'
-import { timeControllerDefault } from './TimeControllerDefault'
-import { TimeControllerMock } from './TimeControllerMock'
+import { DateTimeMock, dateTimeReal, type IDateTime } from '../date-time'
 
-describe('time-controller > TimeControllerMock', () => {
-  function test({
-    timeController,
-    times,
-    postDelay,
-    resolve,
-  }: TestOptions): number {
+describe('time > TimeMock', () => {
+  function test({ dateTime, times, postDelay, resolve }: TestOptions): number {
     const result: string[] = []
     let timeMax = 0
     for (let i = 0, len = times.length; i < len; i++) {
@@ -22,16 +15,16 @@ describe('time-controller > TimeControllerMock', () => {
       )
 
       function start() {
-        const handle = timeController.setTimeout(() => {
+        const handle = dateTime.time.setTimeout(() => {
           result.push(`completed: ${time.index}`)
         }, time.timeout)
 
         if (time.abort != null) {
           if (time.abort < 0) {
-            timeController.clearTimeout(handle)
+            dateTime.time.clearTimeout(handle)
           } else {
-            timeController.setTimeout(() => {
-              timeController.clearTimeout(handle)
+            dateTime.time.setTimeout(() => {
+              dateTime.time.clearTimeout(handle)
               result.push(`aborted: ${time.index}`)
             }, time.abort)
           }
@@ -41,11 +34,11 @@ describe('time-controller > TimeControllerMock', () => {
       if (time.start == null) {
         start()
       } else {
-        timeController.setTimeout(start, time.start)
+        dateTime.time.setTimeout(start, time.start)
       }
     }
 
-    timeController.setTimeout(() => {
+    dateTime.time.setTimeout(() => {
       resolve(result)
     }, timeMax + postDelay)
 
@@ -148,11 +141,11 @@ describe('time-controller > TimeControllerMock', () => {
     ({ times, step1, step2, step3, expectedResult }: TestVariantsArgs) => {
       const steps = [step1, step2, step3].filter(o => o != null)
 
-      const timeController = new TimeControllerMock()
+      const dateTime = new DateTimeMock()
 
       let result: string[] = null!
       let expectedTime = test({
-        timeController,
+        dateTime,
         times,
         postDelay: 0,
         resolve: o => {
@@ -163,9 +156,9 @@ describe('time-controller > TimeControllerMock', () => {
       for (let i = 0, len = steps.length; i < len; i++) {
         const step = steps[i]
         expectedTime -= step
-        timeController.addTime(step)
+        dateTime.time.addTime(step)
       }
-      timeController.addTime(Math.max(0, expectedTime))
+      dateTime.time.addTime(Math.max(0, expectedTime))
 
       assert.deepStrictEqual(result, expectedResult)
     },
@@ -179,7 +172,7 @@ describe('time-controller > TimeControllerMock', () => {
 
       const result = await new Promise<string[]>(resolve => {
         test({
-          timeController: timeControllerDefault,
+          dateTime: dateTimeReal,
           times,
           postDelay: 100,
           resolve,
@@ -206,7 +199,7 @@ describe('time-controller > TimeControllerMock', () => {
   })
 
   it(
-    'createExpectedResult matches timeControllerDefault',
+    'createExpectedResult matches timeReal',
     { timeout: 600000000 },
     async () => {
       await testVariantsExpectedResult({
@@ -271,7 +264,7 @@ type TestTime = {
 }
 
 type TestOptions = {
-  timeController: ITimeController
+  dateTime: IDateTime
   times: TestTime[]
   postDelay: number
   resolve: (result: string[]) => void

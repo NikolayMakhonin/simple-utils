@@ -2,16 +2,13 @@ import {
   type IAbortSignalFast,
   type IUnsubscribe,
 } from '@flemist/abort-controller-fast'
-import {
-  type ITimeController,
-  timeControllerDefault,
-} from 'src/common/time/time-controller'
+import { type IDateTime, dateTimeReal } from 'src/common/time/date-time'
 import { rejectAsResolve } from 'src/common/async/promise/rejectAsResolve'
 
 export function delay(
   milliseconds: number | null | undefined,
   abortSignal?: null | IAbortSignalFast,
-  timeController?: null | ITimeController,
+  dateTime?: null | IDateTime,
 ) {
   if (milliseconds == null) {
     return Promise.resolve()
@@ -36,12 +33,12 @@ export function delay(
       resolve()
     }
 
-    const _timeController = timeController || timeControllerDefault
-    const handle = _timeController.setTimeout(onResolve, milliseconds)
+    const _dateTime = dateTime ?? dateTimeReal
+    const handle = _dateTime.time.setTimeout(onResolve, milliseconds)
 
     if (abortSignal) {
       unsubscribe = abortSignal.subscribe(function abortListener(reason) {
-        _timeController.clearTimeout(handle)
+        _dateTime.time.clearTimeout(handle)
         rejectAsResolve(resolve, reason)
       })
     }

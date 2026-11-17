@@ -4,7 +4,7 @@ import type {
   WorkerServerHandler,
 } from './types'
 import { serializeError } from './helpers'
-import { nowReal } from 'src/common/time/now'
+import { dateReal } from 'src/common/time/date'
 
 const workerServerHandlers: Record<string, WorkerServerHandler> = {}
 
@@ -39,12 +39,12 @@ export function workerServerStart() {
       type,
       connectionName,
       messagePort,
-      nowRealOffset,
-      nowRealRealDateMinimum,
+      dateRealOffset,
+      dateRealRealDateMinimum,
     } = data
     if (type === 'connect') {
-      if (nowRealOffset != null) {
-        nowReal.updateOffset(nowRealOffset, nowRealRealDateMinimum)
+      if (dateRealOffset != null) {
+        dateReal.updateOffset(dateRealOffset, dateRealRealDateMinimum)
       }
       const handler = workerServerHandlers[connectionName]
       if (!handler) {

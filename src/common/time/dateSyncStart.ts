@@ -4,60 +4,60 @@ import { createTaskRepeated } from 'src/common/task/TaskRepeated'
 import type { Unsubscribe } from 'src/common/types'
 import type { GetDateInetOptions } from './getDateInet'
 import { getDateInetRange } from './getDateInetRange'
-import { type NowReal, nowReal as nowRealDefault } from './now'
+import { type DateReal, dateReal as dateRealDefault } from './date'
 
-// An hour: between syncs nowReal.now() drifts by a fraction of a second per hour.
+// An hour: between syncs dateReal.now() drifts by a fraction of a second per hour.
 // That is less than the 1-second precision of internet time
 const TIME_SYNC_INTERVAL = 60 * 60 * 1000
 
 // A minute: when the page ends without being hidden, such as on a crash,
 // the stored realDateMinimum lags the end of the page by at most a minute
-const NOW_REAL_SAVE_INTERVAL = 60 * 1000
+const DATE_REAL_SAVE_INTERVAL = 60 * 1000
 
-// A second: after a device clock set forward, nowReal.now() stays ahead
+// A second: after a device clock set forward, dateReal.now() stays ahead
 // for at most a second before a measurement starts
-const NOW_REAL_CHECK_INTERVAL = 1000
+const DATE_REAL_CHECK_INTERVAL = 1000
 
-/** The state that restores a NowReal after a restart */
-export type TimeSyncStored = {
+/** The state that restores a DateReal after a restart */
+export type DateSyncStored = {
   offset: number
   realDateMinimum: number | null
 }
 
-export type TimeSyncStartOptions = {
+export type DateSyncStartOptions = {
   dateInetOptions?: null | Omit<GetDateInetOptions, 'abortSignal'>
-  /** The widest accepted range of real time. A wider range still updates nowReal, and the measurement repeats */
+  /** The widest accepted range of real time. A wider range still updates dateReal, and the measurement repeats */
   rangeWidthMaximum: number
   /** Returns the state that save kept, or null */
-  load: () => TimeSyncStored | null
+  load: () => DateSyncStored | null
   /** Keeps the state for load to return after a restart */
-  save: (stored: TimeSyncStored) => void
+  save: (stored: DateSyncStored) => void
   /**
    * Called with null at start and after every successful measurement.
    * Called with the error of every failed measurement, also when its range is wider than rangeWidthMaximum
    */
   onUpdate?: null | ((error: unknown) => void)
   logFuncError?: TaskOptionsBase['logFuncError']
-  /** Default: nowReal */
-  nowReal?: null | NowReal
+  /** Default: dateReal */
+  dateReal?: null | DateReal
 }
 
 /**
- * Keeps nowReal on internet time,
+ * Keeps dateReal on internet time,
  * and keeps its state across restarts through load and save
  */
-export function timeSyncStart(options: TimeSyncStartOptions): Unsubscribe {
-  const nowReal = options.nowReal ?? nowRealDefault
+export function dateSyncStart(options: DateSyncStartOptions): Unsubscribe {
+  const dateReal = options.dateReal ?? dateRealDefault
   const stored = options.load()
   if (stored != null) {
-    nowReal.updateOffset(stored.offset, stored.realDateMinimum)
+    dateReal.updateOffset(stored.offset, stored.realDateMinimum)
   }
   options.onUpdate?.(null)
 
-  function saveNowReal() {
-    const offset = nowReal.offset
+  function saveDateReal() {
+    const offset = dateReal.offset
     if (offset != null) {
-      options.save({ offset, realDateMinimum: nowReal.realDateMinimum })
+      options.save({ offset, realDateMinimum: dateReal.realDateMinimum })
     }
   }
 
@@ -72,14 +72,14 @@ export function timeSyncStart(options: TimeSyncStartOptions): Unsubscribe {
           ...options.dateInetOptions,
           abortSignal,
         })
-        nowReal.updateRealDate(range)
+        dateReal.updateRealDate(range)
         const rangeWidth = range[1] - range[0]
         lastRangeWidth = rangeWidth
-        saveNowReal()
-        // A wider range has still updated nowReal, and the throw makes the task measure again
+        saveDateReal()
+        // A wider range has still updated dateReal, and the throw makes the task measure again
         if (rangeWidth > options.rangeWidthMaximum) {
           throw new Error(
-            `[timeSyncStart] range of internet time (${rangeWidth} ms) is wider than rangeWidthMaximum (${options.rangeWidthMaximum} ms)`,
+            `[dateSyncStart] range of internet time (${rangeWidth} ms) is wider than rangeWidthMaximum (${options.rangeWidthMaximum} ms)`,
           )
         }
         options.onUpdate?.(null)
@@ -121,7 +121,7 @@ export function timeSyncStart(options: TimeSyncStartOptions): Unsubscribe {
   if (typeof document !== 'undefined') {
     function onVisibilityChange() {
       if (document.hidden) {
-        saveNowReal()
+        saveDateReal()
       } else {
         syncTimeNow()
       }
@@ -139,32 +139,32 @@ export function timeSyncStart(options: TimeSyncStartOptions): Unsubscribe {
     })
   }
 
-  const nowRealSaveTimer = setInterval(saveNowReal, NOW_REAL_SAVE_INTERVAL)
+  const dateRealSaveTimer = setInterval(saveDateReal, DATE_REAL_SAVE_INTERVAL)
   unsubscribes.push(() => {
-    clearInterval(nowRealSaveTimer)
+    clearInterval(dateRealSaveTimer)
   })
 
   // After a sleep or a device clock set forward, Date.now() jumps ahead.
-  // The next reading of nowReal.now() adds the jump.
+  // The next reading of dateReal.now() adds the jump.
   // A jump past the range of the last measurement can come from a wrong device clock.
   // Only a measurement tells it from a sleep
-  const nowRealCheckTimer = setInterval(() => {
-    const realDateMinimum = nowReal.realDateMinimum
+  const dateRealCheckTimer = setInterval(() => {
+    const realDateMinimum = dateReal.realDateMinimum
     // After a failed measurement, the task repeats it after its own growing delay.
     // A measurement started here would cut that delay short.
     // The status of rerun counts every measurement. The status of repeated counts its whole loop as one run.
-    // The + 1 allows for nowReal.now() and realDateMinimum each rounded down to whole milliseconds
+    // The + 1 allows for dateReal.now() and realDateMinimum each rounded down to whole milliseconds
     if (
       !timeSyncTask.rerun.status.lastFailedRuns &&
       lastRangeWidth != null &&
       realDateMinimum != null &&
-      nowReal.now() - realDateMinimum > lastRangeWidth + 1
+      dateReal.now() - realDateMinimum > lastRangeWidth + 1
     ) {
       syncTimeNow()
     }
-  }, NOW_REAL_CHECK_INTERVAL)
+  }, DATE_REAL_CHECK_INTERVAL)
   unsubscribes.push(() => {
-    clearInterval(nowRealCheckTimer)
+    clearInterval(dateRealCheckTimer)
   })
 
   return () => {

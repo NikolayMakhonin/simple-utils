@@ -1,7 +1,4 @@
-import {
-  type ITimeController,
-  timeControllerDefault,
-} from 'src/common/time/time-controller'
+import { type IDateTime, dateTimeReal } from 'src/common/time/date-time'
 import { delay } from 'src/common/async/wait/delay'
 import { PoolWrapper } from 'src/common/async/pool/PoolWrapper'
 import { type IPool } from 'src/common/async/pool/Pool'
@@ -13,17 +10,17 @@ export interface ITimeLimitPool extends IPool {
 export type TimeLimitPoolParams = {
   pool: IPool
   time: number
-  timeController?: null | ITimeController
+  dateTime?: null | IDateTime
 }
 
 export class TimeLimitPool extends PoolWrapper implements ITimeLimitPool {
   private readonly _time: number
-  private readonly _timeController: ITimeController
+  private readonly _dateTime: IDateTime
 
-  constructor({ pool, time, timeController }: TimeLimitPoolParams) {
+  constructor({ pool, time, dateTime }: TimeLimitPoolParams) {
     super(pool)
     this._time = time
-    this._timeController = timeController || timeControllerDefault
+    this._dateTime = dateTime ?? dateTimeReal
   }
 
   get time(): number {
@@ -31,7 +28,7 @@ export class TimeLimitPool extends PoolWrapper implements ITimeLimitPool {
   }
 
   async release(count: number, dontThrow?: null | boolean): Promise<number> {
-    await delay(this._time, null, this._timeController)
+    await delay(this._time, null, this._dateTime)
     return await this._pool.release(count, dontThrow)
   }
 }

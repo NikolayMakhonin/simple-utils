@@ -5,7 +5,7 @@ import {
   createTaskRepeated,
   type TaskOptionsRepeated,
 } from 'src/common/task/TaskRepeated'
-import { timeControllerDefault } from 'src/common/time/time-controller'
+import { dateTimeReal } from 'src/common/time/date-time'
 
 export type WithRetryFunc<T> = (
   options: TaskFuncOptions,
@@ -24,8 +24,8 @@ export async function withRetry<T>(options: WithRetryOptions<T>): Promise<T> {
   if (options.repeatStrategy == null) {
     const abortSignal = options.abortSignal ?? new AbortControllerFast().signal
     abortSignal.throwIfAborted()
-    const timeController = options.timeController ?? timeControllerDefault
-    return options.func({ abortSignal, timeController, isFirst: true })
+    const dateTime = options.dateTime ?? dateTimeReal
+    return options.func({ abortSignal, dateTime, isFirst: true })
   }
 
   const { repeated } = createTaskRepeated<null, T>(

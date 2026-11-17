@@ -32,7 +32,7 @@ export function repeatStrategyRetry({
       (maxRetries != null && failedRuns > maxRetries) ||
       (maxTotalTime != null &&
         status.firstStart != null &&
-        status.timeController.now() - status.firstStart > maxTotalTime)
+        status.dateTime.time.time() - status.firstStart > maxTotalTime)
     ) {
       return { stop: true }
     }

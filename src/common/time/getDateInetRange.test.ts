@@ -1,19 +1,19 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
 import { getDateInetRange } from './getDateInetRange'
-import { DATE_JUMP_MINIMUM } from './now'
-import { TimeControllerMock } from './time-controller'
+import { DATE_JUMP_MINIMUM } from './date'
+import { DateTimeMock } from './date-time'
 
 const DATE_HEADER = 'Wed, 01 Jan 2020 00:00:00 GMT'
 const DATE_TIME = Date.UTC(2020, 0, 1)
 
 describe('getDateInetRange', () => {
-  let date = 0
+  let dateDevice = 0
   let performanceNow = 0
 
   beforeEach(() => {
-    date = 1_700_000_000_000
+    dateDevice = 1_700_000_000_000
     performanceNow = 1000
-    vi.spyOn(Date, 'now').mockImplementation(() => date)
+    vi.spyOn(Date, 'now').mockImplementation(() => dateDevice)
     vi.spyOn(performance, 'now').mockImplementation(() => performanceNow)
   })
 
@@ -26,7 +26,7 @@ describe('getDateInetRange', () => {
   // while Date.now() also jumps forward by dateJump
   function stubFetch(requestTime: number, dateJump: number) {
     vi.stubGlobal('fetch', async () => {
-      date += requestTime + dateJump
+      dateDevice += requestTime + dateJump
       performanceNow += requestTime
       return new Response(null, { headers: { date: DATE_HEADER } })
     })
@@ -64,14 +64,14 @@ describe('getDateInetRange', () => {
     ).toEqual([DATE_TIME, DATE_TIME + 1300 + DATE_JUMP_MINIMUM + 1])
   })
 
-  it('measures the request by options.timeController', async () => {
-    const timeController = new TimeControllerMock()
+  it('measures the request by options.dateTime', async () => {
+    const dateTime = new DateTimeMock()
     vi.stubGlobal('fetch', async () => {
-      timeController.addTime(300)
+      dateTime.time.addTime(300)
       return new Response(null, { headers: { date: DATE_HEADER } })
     })
     expect(
-      await getDateInetRange({ url: 'https://example.test/', timeController }),
+      await getDateInetRange({ url: 'https://example.test/', dateTime }),
     ).toEqual([DATE_TIME, DATE_TIME + 1300])
   })
 
@@ -80,7 +80,7 @@ describe('getDateInetRange', () => {
     await expect(
       getDateInetRange({ url: 'https://example.test/' }),
     ).rejects.toThrow(
-      /Date\.now\(\) got ahead of the time controller by 1001 ms/,
+      /Date\.now\(\) got ahead of dateTime\.time\.time\(\) by 1001 ms/,
     )
   })
 })

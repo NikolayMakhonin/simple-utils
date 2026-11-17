@@ -1,33 +1,33 @@
 import type { NumberRange } from 'src/common/types'
-import { type ITimeController, timeControllerDefault } from '../time-controller'
-import type { INow } from './contracts'
+import { type ITime, timeReal } from '../time'
+import type { IDate } from './contracts'
 
-export type NowRealOptions = {
-  /** Counts the time between updates. Default: timeControllerDefault */
-  timeController?: null | ITimeController
+export type DateRealOptions = {
+  /** Counts the time between updates. Default: timeReal */
+  time?: null | ITime
 }
 
 /** Like Date.now(), but can be corrected to real time */
-export class NowReal implements INow {
-  readonly #timeController: ITimeController
+export class DateReal implements IDate {
+  readonly #time: ITime
   #nowUnique: number = 0
-  /** The base of now(). now() returns #time plus the time counted since #timeMonotonic. Null before the first update */
-  #time: number | null = null
-  #timeMonotonic: number = 0
+  /** The base of now(). now() returns #dateBase plus the time counted since #timeBase. Null before the first update */
+  #dateBase: number | null = null
+  #timeBase: number = 0
   /** Date.now() at the last reading of now() or the last update */
-  #readingDate: number = 0
-  /** The value of timeController.now() at the same moment as #readingDate */
-  #readingMonotonic: number = 0
+  #dateReading: number = 0
+  /** The value of #time.time() at the same moment as #dateReading */
+  #timeReading: number = 0
   #realDateMinimum: number | null = null
-  #realDateMinimumMonotonic: number = 0
+  #realDateMinimumTime: number = 0
 
-  constructor(options?: null | NowRealOptions) {
-    this.#timeController = options?.timeController ?? timeControllerDefault
+  constructor(options?: null | DateRealOptions) {
+    this.#time = options?.time ?? timeReal
   }
 
   /** Milliseconds that now() adds to Date.now() at this moment, or null before the first update */
   get offset(): number | null {
-    if (this.#time == null) {
+    if (this.#dateBase == null) {
       return null
     }
     return this.now() - Date.now()
@@ -39,9 +39,7 @@ export class NowReal implements INow {
       return null
     }
     return Math.floor(
-      this.#realDateMinimum +
-        this.#timeController.now() -
-        this.#realDateMinimumMonotonic,
+      this.#realDateMinimum + this.#time.time() - this.#realDateMinimumTime,
     )
   }
 
@@ -56,7 +54,7 @@ export class NowReal implements INow {
     const now = this.now()
     this.#setNow(now < from || now > to ? (from + to) / 2 : now)
     this.#realDateMinimum = from
-    this.#realDateMinimumMonotonic = this.#timeController.now()
+    this.#realDateMinimumTime = this.#time.time()
   }
 
   /**
@@ -66,42 +64,39 @@ export class NowReal implements INow {
   updateOffset(offset: number, realDateMinimum: number | null): void {
     if (!Number.isFinite(offset)) {
       throw new Error(
-        `[NowReal][updateOffset] offset (${offset}) should be a finite number`,
+        `[DateReal][updateOffset] offset (${offset}) should be a finite number`,
       )
     }
     if (realDateMinimum != null && !Number.isFinite(realDateMinimum)) {
       throw new Error(
-        `[NowReal][updateOffset] realDateMinimum (${realDateMinimum}) should be a finite number or null`,
+        `[DateReal][updateOffset] realDateMinimum (${realDateMinimum}) should be a finite number or null`,
       )
     }
-    const time = Date.now() + offset
+    const now = Date.now() + offset
     this.#setNow(
-      realDateMinimum != null && time < realDateMinimum
-        ? realDateMinimum
-        : time,
+      realDateMinimum != null && now < realDateMinimum ? realDateMinimum : now,
     )
     this.#realDateMinimum = realDateMinimum
-    this.#realDateMinimumMonotonic = this.#timeController.now()
+    this.#realDateMinimumTime = this.#time.time()
   }
 
   now(): number {
-    if (this.#time == null) {
+    if (this.#dateBase == null) {
       return Date.now()
     }
-    const date = Date.now()
-    const monotonic = this.#timeController.now()
-    // Date.now() gets ahead of timeController.now() after a sleep that timeController.now() did not count.
+    const now = Date.now()
+    const time = this.#time.time()
+    // Date.now() gets ahead of #time.time() after a sleep that #time.time() did not count.
     // It also gets ahead after the device clock was set forward. now() cannot tell the two apart.
     // Taking the jump keeps the time of a sleep.
     // After a device clock set forward, the next updateRealDate() brings now() back to real time
-    const dateJump =
-      date - this.#readingDate - (monotonic - this.#readingMonotonic)
+    const dateJump = now - this.#dateReading - (time - this.#timeReading)
     if (dateJump > DATE_JUMP_MINIMUM) {
-      this.#time += dateJump
+      this.#dateBase += dateJump
     }
-    this.#readingDate = date
-    this.#readingMonotonic = monotonic
-    return Math.floor(this.#time + monotonic - this.#timeMonotonic)
+    this.#dateReading = now
+    this.#timeReading = time
+    return Math.floor(this.#dateBase + time - this.#timeBase)
   }
 
   /**
@@ -114,25 +109,25 @@ export class NowReal implements INow {
     return next
   }
 
-  /** Sets now() to the given time at this moment */
-  #setNow(time: number): void {
-    const monotonic = this.#timeController.now()
-    this.#time = time
-    this.#timeMonotonic = monotonic
-    this.#readingDate = Date.now()
-    this.#readingMonotonic = monotonic
+  /** Sets now() to the given value at this moment */
+  #setNow(now: number): void {
+    const time = this.#time.time()
+    this.#dateBase = now
+    this.#timeBase = time
+    this.#dateReading = Date.now()
+    this.#timeReading = time
     // After an update moves now() far back, nowUnique() restarts from now().
-    // Otherwise nowUnique() would stay above now() by the whole move for as long as this NowReal exists
-    if (this.#nowUnique - time > NOW_UNIQUE_AHEAD_MAXIMUM) {
+    // Otherwise nowUnique() would stay above now() by the whole move for as long as this DateReal exists
+    if (this.#nowUnique - now > NOW_UNIQUE_AHEAD_MAXIMUM) {
       console.warn(
-        `[NowReal][setNow] now() moved back below the last nowUnique() by ${this.#nowUnique - time} ms`,
+        `[DateReal][setNow] now() moved back below the last nowUnique() by ${this.#nowUnique - now} ms`,
       )
       this.#nowUnique = 0
     }
   }
 }
 
-export const nowReal = /* @__PURE__ */ new NowReal()
+export const dateReal = /* @__PURE__ */ new DateReal()
 
 // A second: far above the rounding of Date.now() and performance.now().
 // Ignoring a smaller jump leaves now() off by at most a second.

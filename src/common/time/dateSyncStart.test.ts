@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
-import { timeSyncStart, type TimeSyncStored } from './timeSyncStart'
-import { DATE_JUMP_MINIMUM, NowReal } from './now'
+import { dateSyncStart, type DateSyncStored } from './dateSyncStart'
+import { DATE_JUMP_MINIMUM, DateReal } from './date'
 
-describe('timeSyncStart', () => {
+describe('dateSyncStart', () => {
   // Real time, which exclusively the server reports
   let realTime = 0
   // How far the device clock, Date.now(), is ahead of real time
@@ -32,10 +32,10 @@ describe('timeSyncStart', () => {
       if (isOffline) {
         throw new TypeError('Failed to fetch')
       }
-      const date = new Date(realTime).toUTCString()
+      const dateStr = new Date(realTime).toUTCString()
       realTime += requestTime
       performanceNow += requestTime
-      return new Response(null, { headers: { date } })
+      return new Response(null, { headers: { date: dateStr } })
     })
   })
 
@@ -61,12 +61,12 @@ describe('timeSyncStart', () => {
     vi.advanceTimersByTime(time)
   }
 
-  // Starts the sync of a new NowReal and collects what it gives to save and onUpdate
-  function start(stored: TimeSyncStored | null) {
-    const nowReal = new NowReal()
-    const savedList: TimeSyncStored[] = []
+  // Starts the sync of a new DateReal and collects what it gives to save and onUpdate
+  function start(stored: DateSyncStored | null) {
+    const dateReal = new DateReal()
+    const savedList: DateSyncStored[] = []
     const updateErrors: unknown[] = []
-    const stop = timeSyncStart({
+    const stop = dateSyncStart({
       rangeWidthMaximum: 2500,
       load: () => stored,
       save: o => {
@@ -77,9 +77,9 @@ describe('timeSyncStart', () => {
       },
       // The tests check every error through onUpdate
       logFuncError: () => false,
-      nowReal,
+      dateReal,
     })
-    return { nowReal, savedList, updateErrors, stop }
+    return { dateReal, savedList, updateErrors, stop }
   }
 
   it('base', async () => {
@@ -89,7 +89,7 @@ describe('timeSyncStart', () => {
     expect(sync.updateErrors).toEqual([null])
     await wait(0)
     expect(fetchCount).toBe(1)
-    expect(sync.nowReal.offset).toBe(0)
+    expect(sync.dateReal.offset).toBe(0)
     expect(sync.savedList).toEqual([{ offset: 0, realDateMinimum: realTime }])
     expect(sync.updateErrors).toEqual([null, null])
     sync.stop()
@@ -98,18 +98,18 @@ describe('timeSyncStart', () => {
     dateOffset = 60 * 60 * 1000
     sync = start(null)
     await wait(0)
-    expect(sync.nowReal.now()).toBe(realTime + 500)
+    expect(sync.dateReal.now()).toBe(realTime + 500)
     sync.stop()
     dateOffset = -60 * 60 * 1000
     sync = start(null)
     await wait(0)
-    expect(sync.nowReal.now()).toBe(realTime + 500)
+    expect(sync.dateReal.now()).toBe(realTime + 500)
     sync.stop()
 
     // The stored state sets the time before the first measurement
     dateOffset = 0
     sync = start({ offset: 5000, realDateMinimum: null })
-    expect(sync.nowReal.now()).toBe(realTime + 5000)
+    expect(sync.dateReal.now()).toBe(realTime + 5000)
     sync.stop()
   })
 
@@ -147,15 +147,15 @@ describe('timeSyncStart', () => {
     expect(fetchCount).toBe(9)
     sync.stop()
 
-    // A range wider than rangeWidthMaximum updates nowReal and repeats after the same waits,
-    // also while nowReal.now() stands above realDateMinimum by more than rangeWidthMaximum
+    // A range wider than rangeWidthMaximum updates dateReal and repeats after the same waits,
+    // also while dateReal.now() stands above realDateMinimum by more than rangeWidthMaximum
     requestTime = 2000
     realTime += 900
     const syncSlow = start(null)
     await wait(0)
     expect(fetchCount).toBe(10)
-    expect(syncSlow.nowReal.now() - realTime).toBe(0)
-    expect(syncSlow.nowReal.now() - syncSlow.nowReal.realDateMinimum!).toBe(
+    expect(syncSlow.dateReal.now() - realTime).toBe(0)
+    expect(syncSlow.dateReal.now() - syncSlow.dateReal.realDateMinimum!).toBe(
       2900,
     )
     expect(syncSlow.updateErrors[1]).toBeInstanceOf(Error)
@@ -178,29 +178,29 @@ describe('timeSyncStart', () => {
     await wait(0)
     expect(fetchCount).toBe(1)
 
-    // A jump of Date.now() up to DATE_JUMP_MINIMUM leaves nowReal.now(), so no measurement starts
+    // A jump of Date.now() up to DATE_JUMP_MINIMUM leaves dateReal.now(), so no measurement starts
     dateOffset += DATE_JUMP_MINIMUM
     await wait(1000)
     expect(fetchCount).toBe(1)
 
-    // A device clock set forward moves nowReal.now() forward, and within a second a measurement takes it back
+    // A device clock set forward moves dateReal.now() forward, and within a second a measurement takes it back
     dateOffset += 60 * 60 * 1000
     await wait(1000)
     expect(fetchCount).toBe(2)
-    expect(sync.nowReal.now()).toBe(realTime + 500)
+    expect(sync.dateReal.now()).toBe(realTime + 500)
 
     // A sleep stops performance.now().
-    // After the wake nowReal.now() adds the sleep, and a measurement checks the time
+    // After the wake dateReal.now() adds the sleep, and a measurement checks the time
     realTime += 10 * 60 * 1000
     await wait(1000)
     expect(fetchCount).toBe(3)
 
-    // A call of updateOffset() with offset 0 moves nowReal.now() to the device clock, which is still ahead,
-    // and within a second a measurement takes nowReal.now() back
-    sync.nowReal.updateOffset(0, sync.nowReal.realDateMinimum)
+    // A call of updateOffset() with offset 0 moves dateReal.now() to the device clock, which is still ahead,
+    // and within a second a measurement takes dateReal.now() back
+    sync.dateReal.updateOffset(0, sync.dateReal.realDateMinimum)
     await wait(1000)
     expect(fetchCount).toBe(4)
-    expect(sync.nowReal.now()).toBe(realTime + 500)
+    expect(sync.dateReal.now()).toBe(realTime + 500)
 
     // While measurements fail after a jump, they repeat after the growing delays of the task, not every second
     isOffline = true

@@ -3,7 +3,7 @@ import {
   toAbortSignal,
 } from '@flemist/abort-controller-fast'
 import { timeoutAbortController } from 'src/common/async/timeout'
-import type { ITimeController } from 'src/common/time/time-controller'
+import type { IDateTime } from 'src/common/time/date-time'
 
 export type GetDateInetOptions = {
   /**
@@ -18,8 +18,8 @@ export type GetDateInetOptions = {
   /** Milliseconds before the request is aborted. Default: no timeout */
   timeout?: null | number
   abortSignal?: null | IAbortSignalFast
-  /** Counts the time of the request. Default: timeControllerDefault */
-  timeController?: null | ITimeController
+  /** Counts the time of the request. Default: dateTimeReal */
+  dateTime?: null | IDateTime
 }
 
 /**
@@ -50,13 +50,13 @@ export async function getDateInet(options?: null | GetDateInetOptions) {
         `[getDateInet] No date header in response from url (${url}); status: ${response.status}`,
       )
     }
-    const date = new Date(dateStr).getTime()
-    if (Number.isNaN(date)) {
+    const dateInet = new Date(dateStr).getTime()
+    if (Number.isNaN(dateInet)) {
       throw new Error(
         `[getDateInet] Invalid date header (${dateStr}) in response from url (${url}); status: ${response.status}`,
       )
     }
-    return date
+    return dateInet
   } finally {
     // Aborting the finished request clears the timer of the timeout
     // and its subscription to options.abortSignal

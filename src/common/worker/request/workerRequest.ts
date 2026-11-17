@@ -11,14 +11,14 @@ import type {
 import { deserializeError } from '../helpers'
 import { withTimeout } from 'src/common/async/timeout/withTimeout'
 import { combineAbortSignals } from 'src/common/async/abort/combineAbortSignals'
-import type { ITimeController } from 'src/common/time/time-controller'
+import type { IDateTime } from 'src/common/time/date-time'
 
 let prevRequestId = 0
 
 export type WorkerRequestOptions = {
   readonly abortSignal?: null | IAbortSignalFast
   readonly timeout?: null | number
-  readonly timeController?: null | ITimeController
+  readonly dateTime?: null | IDateTime
 }
 
 export function workerRequest<RequestData, ResponseData>(
@@ -57,7 +57,7 @@ export function workerRequest<RequestData, ResponseData>(
         options?.abortSignal,
       ),
       timeout: options?.timeout,
-      timeController: options?.timeController,
+      dateTime: options?.dateTime,
     },
   )
 }

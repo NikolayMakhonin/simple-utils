@@ -235,13 +235,13 @@ export type WorkerConnectRequest = {
   connectionName: string
   messagePort: IMessagePort
   /**
-   * The nowReal.offset of the thread that connects to the worker.
-   * The worker sets this value and nowRealRealDateMinimum on its own nowReal.
-   * Then nowReal.now() is the same in both threads, until either thread updates its nowReal
+   * The dateReal.offset of the thread that connects to the worker.
+   * The worker sets this value and dateRealRealDateMinimum on its own dateReal.
+   * Then dateReal.now() is the same in both threads, until either thread updates its dateReal
    */
-  nowRealOffset: number | null
-  /** The nowReal.realDateMinimum of the thread that connects to the worker */
-  nowRealRealDateMinimum: number | null
+  dateRealOffset: number | null
+  /** The dateReal.realDateMinimum of the thread that connects to the worker */
+  dateRealRealDateMinimum: number | null
 }
 
 export type WorkerServerHandler = (messagePort: IMessagePort) => void

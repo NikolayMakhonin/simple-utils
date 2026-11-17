@@ -1,14 +1,14 @@
 import { describe, it, assert } from 'vitest'
 import { delay } from 'src/common/async/wait/delay'
 import { priorityCreate } from 'src/common/async/priority/Priority'
-import { TimeControllerMock } from 'src/common/time/time-controller'
+import { DateTimeMock } from 'src/common/time/date-time'
 import { type IAbortSignalFast } from '@flemist/abort-controller-fast'
 import { createTestVariants } from '@flemist/test-variants'
 import { Pool } from 'src/common/async/pool/Pool'
 import { poolRunWait } from 'src/common/async/pool/poolRunWait'
 import { Pools } from 'src/common/async/pool/Pools'
 import { TimeLimitPool } from './TimeLimitPool'
-import { waitTimeControllerMock } from 'src/common/async/wait/waitTimeControllerMock'
+import { waitTimeMock } from 'src/common/async/wait/waitTimeMock'
 
 describe('time-limits > TimeLimits Old', { timeout: 300000 }, () => {
   type Mode = 'sync' | 'async' | 'random'
@@ -33,38 +33,38 @@ describe('time-limits > TimeLimits Old', { timeout: 300000 }, () => {
       maxCount: number
       timeMs: number
     }) => {
-      const timeController = new TimeControllerMock()
+      const dateTime = new DateTimeMock()
       const timeLimitPool = timeLimitsTree
         ? new Pools(
             new TimeLimitPool({
               pool: new Pool(maxCount),
               time: timeMs,
-              timeController,
+              dateTime,
             }),
             new Pools(
               new Pools(
                 new TimeLimitPool({
                   pool: new Pool(maxCount),
                   time: timeMs,
-                  timeController,
+                  dateTime,
                 }),
                 new TimeLimitPool({
                   pool: new Pool(maxCount),
                   time: timeMs,
-                  timeController,
+                  dateTime,
                 }),
               ),
               new TimeLimitPool({
                 pool: new Pool(maxCount),
                 time: timeMs,
-                timeController,
+                dateTime,
               }),
             ),
           )
         : new TimeLimitPool({
             pool: new Pool(maxCount),
             time: timeMs,
-            timeController,
+            dateTime,
           })
 
       let completedCount = 0
@@ -75,7 +75,7 @@ describe('time-limits > TimeLimits Old', { timeout: 300000 }, () => {
         abortSignal?: null | IAbortSignalFast,
       ) {
         if (delayMs) {
-          return delay(delayMs, abortSignal, timeController).then(() => {
+          return delay(delayMs, abortSignal, dateTime).then(() => {
             completedCount++
             return result
           })
@@ -109,10 +109,10 @@ describe('time-limits > TimeLimits Old', { timeout: 300000 }, () => {
         )
       }
 
-      // delay(0) returns Promise.resolve() without calling timeController.setTimeout, so releases propagate through microtasks;
-      // waitTimeControllerMock is still needed to advance mock time for async func delays (asyncTime)
+      // delay(0) returns Promise.resolve() without calling dateTime.time.setTimeout, so releases propagate through microtasks;
+      // waitTimeMock is still needed to advance mock time for async func delays (asyncTime)
       if (timeMs === 0) {
-        await waitTimeControllerMock(timeController, Promise.all(promises), {
+        await waitTimeMock(dateTime.time, Promise.all(promises), {
           awaitsPerIteration: 12,
         })
         assert.strictEqual(completedCount, maxCount * 3)
@@ -120,32 +120,32 @@ describe('time-limits > TimeLimits Old', { timeout: 300000 }, () => {
         await awaiter()
 
         if (mode === 'async' || mode === 'random') {
-          timeController.addTime(asyncTime)
+          dateTime.time.addTime(asyncTime)
         }
         await awaiter()
         await awaiter()
         assert.strictEqual(completedCount, maxCount)
 
-        timeController.addTime(timeMs)
+        dateTime.time.addTime(timeMs)
         await awaiter()
         if (mode === 'async' || mode === 'random') {
-          timeController.addTime(asyncTime)
+          dateTime.time.addTime(asyncTime)
           await awaiter()
         }
         assert.strictEqual(completedCount, maxCount * 2)
 
-        timeController.addTime(timeMs)
+        dateTime.time.addTime(timeMs)
         await awaiter()
         if (mode === 'async' || mode === 'random') {
-          timeController.addTime(asyncTime)
+          dateTime.time.addTime(asyncTime)
           await awaiter()
         }
         assert.strictEqual(completedCount, maxCount * 3)
 
-        timeController.addTime(timeMs)
+        dateTime.time.addTime(timeMs)
         await awaiter()
         if (mode === 'async' || mode === 'random') {
-          timeController.addTime(asyncTime)
+          dateTime.time.addTime(asyncTime)
           await awaiter()
         }
         assert.strictEqual(completedCount, maxCount * 3)

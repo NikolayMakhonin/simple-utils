@@ -1,4 +1,4 @@
-export interface INow {
+export interface IDate {
   /** Current Unix time in milliseconds, like Date.now() */
   now(): number
   /**

@@ -25,8 +25,8 @@
  */
 import { describe, it } from 'vitest'
 import { createTestVariants } from '@flemist/test-variants'
-import { TimeControllerMock } from 'src/common/time/time-controller'
-import { waitTimeControllerMock } from 'src/common/async/wait/waitTimeControllerMock'
+import { DateTimeMock } from 'src/common/time/date-time'
+import { waitTimeMock } from 'src/common/async/wait/waitTimeMock'
 import { getRandomSeed, Random, randomItem } from 'src/common/random'
 import { createTaskThrottled, type ITaskThrottled } from './TaskThrottled'
 
@@ -60,7 +60,7 @@ const testVariants = createTestVariants(async (args: TestVariantsArgs) => {
 
 type TestContext = {
   log: boolean
-  timeController: TimeControllerMock
+  dateTime: DateTimeMock
   task: ITaskThrottled<null, number>
   originTime: number
   timeStamps: { start: number; end: number }[]
@@ -75,18 +75,18 @@ async function generateContext(
   options: GenerateContextOptions,
 ): Promise<TestContext> {
   const { args, log } = options
-  const timeController = new TimeControllerMock()
-  const originTime = timeController.now()
+  const dateTime = new DateTimeMock()
+  const originTime = dateTime.time.time()
   const timeStamps: { start: number; end: number }[] = []
 
   let callCount = 0
   const { throttled: task } = createTaskThrottled(
     async () => {
-      const funcStart = timeController.now() - originTime
-      timeController.addTime(args.executionDuration)
+      const funcStart = dateTime.time.time() - originTime
+      dateTime.time.addTime(args.executionDuration)
       timeStamps.push({
         start: funcStart,
-        end: timeController.now() - originTime,
+        end: dateTime.time.time() - originTime,
       })
       return callCount++
     },
@@ -95,11 +95,11 @@ async function generateContext(
       throttleTime: args.throttleTime,
       throttleTimeMax: args.throttleTimeMax,
       throttleFromEnd: args.throttleFromEnd,
-      timeController,
+      dateTime,
     },
   )
 
-  return { log, timeController, task, originTime, timeStamps }
+  return { log, dateTime, task, originTime, timeStamps }
 }
 
 type TestOptions = {
@@ -110,7 +110,7 @@ type TestOptions = {
 
 async function test(options: TestOptions): Promise<void> {
   const { rnd, context, args } = options
-  const { timeController, task, timeStamps, log } = context
+  const { dateTime, task, timeStamps, log } = context
 
   let throttleFromEndState = args.throttleFromEnd
 
@@ -153,8 +153,8 @@ async function test(options: TestOptions): Promise<void> {
       )
     }
 
-    const result = await waitTimeControllerMock(
-      timeController,
+    const result = await waitTimeMock(
+      dateTime.time,
       Promise.resolve(
         task.run({
           throttleTime: runThrottleTime,

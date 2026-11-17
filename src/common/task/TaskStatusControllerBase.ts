@@ -2,10 +2,7 @@ import {
   AbortControllerReusable,
   type AbortControllerReusableOptions,
 } from '../async/abort/AbortControllerReusable'
-import {
-  type ITimeController,
-  timeControllerDefault,
-} from 'src/common/time/time-controller'
+import { type IDateTime, dateTimeReal } from 'src/common/time/date-time'
 import type {
   ITaskStatus,
   SuccessPredicateResult,
@@ -24,12 +21,12 @@ export interface ITaskStatusControllerBase<
   run(func: () => PromiseLikeOrValue<Result>): Promise<Result>
   abort(reason?: any): void
   readonly abortSignal: IAbortSignalFast
-  readonly timeController: ITimeController
+  readonly dateTime: IDateTime
 }
 
 export type TaskStatusControllerBaseOptions<Result = void> =
   AbortControllerReusableOptions & {
-    timeController?: null | ITimeController
+    dateTime?: null | IDateTime
     successPredicate?: null | TaskSuccessPredicate<
       Result,
       TaskStatusBase<Result>
@@ -53,7 +50,7 @@ export class TaskStatusControllerBase<
   readonly #options: undefined | null | TaskStatusControllerBaseOptions<Result>
   readonly #abortController: AbortControllerReusable = null!
   readonly #events: ISubject<Status>
-  readonly #timeController: ITimeController
+  readonly #dateTime: IDateTime
   #status: Status
 
   constructor(
@@ -75,17 +72,16 @@ export class TaskStatusControllerBase<
       | 'lastSuccessRuns'
       | 'lastFailedRuns'
       | 'abortSignal'
-      | 'timeController'
+      | 'dateTime'
     >,
     options: undefined | null | TaskStatusControllerBaseOptions<Result>,
   ) {
     this.#options = options
     this.#abortController = new AbortControllerReusable(this.#options)
-    this.#timeController =
-      this.#options?.timeController ?? timeControllerDefault
+    this.#dateTime = this.#options?.dateTime ?? dateTimeReal
     this.#status = {
       abortSignal: this.#abortController.signal,
-      timeController: this.#timeController,
+      dateTime: this.#dateTime,
       firstStart: null,
       isRunning: false,
       isAborted: false,
@@ -118,14 +114,14 @@ export class TaskStatusControllerBase<
   }
 
   protected onStart(): void {
-    const now = this.#timeController.now()
+    const time = this.#dateTime.time.time()
     this.#status = {
       ...this.#status,
       abortSignal: this.#abortController.signal,
       isRunning: true,
       isAborted: this.#abortController.signal.aborted,
-      firstStart: this.#status.firstStart ?? now,
-      lastStart: now,
+      firstStart: this.#status.firstStart ?? time,
+      lastStart: time,
       totalStarts: this.#status.totalStarts + 1,
     }
     this.#events.emit(this.#status)
@@ -137,7 +133,7 @@ export class TaskStatusControllerBase<
       isRunning: false,
       isAborted: this.#abortController.signal.aborted,
       lastStartCompleted: this.#status.lastStart,
-      lastEnd: this.#timeController.now(),
+      lastEnd: this.#dateTime.time.time(),
       lastHasError: false,
       lastError: undefined,
       lastResult: result,
@@ -151,7 +147,7 @@ export class TaskStatusControllerBase<
       isRunning: false,
       isAborted: this.#abortController.signal.aborted,
       lastStartCompleted: this.#status.lastStart,
-      lastEnd: this.#timeController.now(),
+      lastEnd: this.#dateTime.time.time(),
       lastHasError: true,
       lastError: error,
       lastResult: undefined,
@@ -204,7 +200,7 @@ export class TaskStatusControllerBase<
     return this.#abortController.signal
   }
 
-  get timeController(): ITimeController {
-    return this.#timeController
+  get dateTime(): IDateTime {
+    return this.#dateTime
   }
 }

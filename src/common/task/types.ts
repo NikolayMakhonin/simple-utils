@@ -1,5 +1,5 @@
 import { type IObservable } from 'src/common/rx'
-import { type ITimeController } from 'src/common/time/time-controller'
+import { type IDateTime } from 'src/common/time/date-time'
 import type {
   PromiseLikeOrValue,
   PromiseOrValue,
@@ -10,7 +10,7 @@ export type ArgsDefault = void | undefined | null
 
 export type TaskStatusBase<Result = any> = {
   readonly abortSignal: IAbortSignalFast
-  readonly timeController: ITimeController
+  readonly dateTime: IDateTime
   /**
    * true - task is currently running
    */
@@ -20,35 +20,35 @@ export type TaskStatusBase<Result = any> = {
    */
   readonly isAborted: boolean
   /**
-   * First start time by timeController.now()
+   * First start time by dateTime.time.time()
    * null - never started
    */
   readonly firstStart: null | number
   /**
-   * Previous start time by timeController.now() of last completed execution
+   * Previous start time by dateTime.time.time() of last completed execution
    * null - never started or only one start
    */
   readonly lastStartCompleted: null | number
   /**
-   * Last start time by timeController.now()
+   * Last start time by dateTime.time.time()
    * null - never started
    */
   readonly lastStart: null | number
   /**
-   * Last end time by timeController.now()
+   * Last end time by dateTime.time.time()
    * null - never ended
    * if lastEnd != null then at least lastResult or lastError is present
    */
   readonly lastEnd: null | number
   /**
-   * Last success time by timeController.now()
+   * Last success time by dateTime.time.time()
    * null - never succeeded
    * Determined by successPredicate, not by whether the execution threw
    * Can be non-null even if lastHasError is true
    */
   readonly lastSuccess: null | number
   /**
-   * Last failure time by timeController.now()
+   * Last failure time by dateTime.time.time()
    * null - never failed
    * Determined by successPredicate, not by whether the execution threw
    * Can be non-null even if lastHasError is false
@@ -251,7 +251,7 @@ export type TaskRepeatStrategy<
 
 export type TaskFuncOptions = {
   readonly abortSignal: IAbortSignalFast
-  readonly timeController: ITimeController
+  readonly dateTime: IDateTime
   readonly isFirst: boolean
 }
 

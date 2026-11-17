@@ -4,16 +4,13 @@ import {
   type IAbortControllerFast,
   type IAbortSignalFast,
 } from '@flemist/abort-controller-fast'
-import {
-  type ITimeController,
-  timeControllerDefault,
-} from 'src/common/time/time-controller'
+import { type IDateTime, dateTimeReal } from 'src/common/time/date-time'
 
 // TODO: write doc comments
 export type TimeoutArgs = {
   abortSignal?: null | IAbortSignalFast
   timeout?: null | number
-  timeController?: null | ITimeController
+  dateTime?: null | IDateTime
 }
 
 // TODO: write doc comments
@@ -24,8 +21,8 @@ export function timeoutAbortController(
     return null
   }
   const abortController = new AbortControllerFast()
-  const timeController = args.timeController ?? timeControllerDefault
-  const timer = timeController.setTimeout(() => {
+  const dateTime = args.dateTime ?? dateTimeReal
+  const timer = dateTime.time.setTimeout(() => {
     abortController.abort(
       new AbortError(
         `[timeoutAbortController] Timeout error: ${args.timeout}ms`,
@@ -36,7 +33,7 @@ export function timeoutAbortController(
     abortController.abort(reason)
   })
   abortController.signal.subscribe(() => {
-    timeController.clearTimeout(timer)
+    dateTime.time.clearTimeout(timer)
     unsubscribe?.()
   })
   return abortController

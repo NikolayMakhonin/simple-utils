@@ -1,17 +1,14 @@
 import { describe, it, assert } from 'vitest'
 import { delay } from 'src/common/async/wait/delay'
 import { priorityCreate } from 'src/common/async/priority/Priority'
-import {
-  type ITimeController,
-  TimeControllerMock,
-} from 'src/common/time/time-controller'
+import { type IDateTime, DateTimeMock } from 'src/common/time/date-time'
 import { type IAbortSignalFast } from '@flemist/abort-controller-fast'
 import { createTestVariants } from '@flemist/test-variants'
 import { type IPool, Pool } from 'src/common/async/pool/Pool'
 import { poolRunWait } from 'src/common/async/pool/poolRunWait'
 import { Pools } from 'src/common/async/pool/Pools'
 import { TimeLimitPool } from './TimeLimitPool'
-import { waitTimeControllerMock } from 'src/common/async/wait/waitTimeControllerMock'
+import { waitTimeMock } from 'src/common/async/wait/waitTimeMock'
 
 describe('time-limits > TimeLimits', () => {
   type Limit = {
@@ -27,19 +24,19 @@ describe('time-limits > TimeLimits', () => {
     abortSignal?: null | IAbortSignalFast,
   ) => Promise<number> | number
   type CheckedFuncContext = {
-    timeController: ITimeController
+    dateTime: IDateTime
     timeLog: number[]
     limits: Limit[]
     results: Result[]
   }
 
   function checkedFuncCheckTimeLimits({
-    timeController,
+    dateTime,
     limits,
     results,
     timeLog,
   }: CheckedFuncContext) {
-    const now = timeController.now()
+    const time = dateTime.time.time()
     let maxCountTotal = 0
     for (let i = 0; i < limits.length; i++) {
       const limit = limits[i]
@@ -48,7 +45,7 @@ describe('time-limits > TimeLimits', () => {
       }
       if (timeLog.length >= limit.maxCount) {
         const prevTime = timeLog[timeLog.length - limit.maxCount]
-        const elapsedTime = now - prevTime
+        const elapsedTime = time - prevTime
         if (elapsedTime < limit.timeMs) {
           results.push(
             `ERROR: elapsedTime(${elapsedTime}) < limit.timeMs(${limit.timeMs})`,
@@ -68,23 +65,23 @@ describe('time-limits > TimeLimits', () => {
   }
 
   function checkedFuncOnCompleted(context: CheckedFuncContext) {
-    const now = context.timeController.now()
-    context.timeLog.push(now)
+    const time = context.dateTime.time.time()
+    context.timeLog.push(time)
   }
 
   function createCheckedFunc({
     func,
-    timeController,
+    dateTime,
     limits,
     results,
   }: {
     func: Func
-    timeController: ITimeController
+    dateTime: IDateTime
     limits: Limit[]
     results: Result[]
   }) {
     const context: CheckedFuncContext = {
-      timeController,
+      dateTime,
       limits,
       results,
       timeLog: [],
@@ -122,7 +119,7 @@ describe('time-limits > TimeLimits', () => {
       maxCount2: number
       maxCount3: number
     }) => {
-      const timeController = new TimeControllerMock()
+      const dateTime = new DateTimeMock()
       const abortSignal: IAbortSignalFast | null = null
 
       const timeLimits: {
@@ -140,7 +137,7 @@ describe('time-limits > TimeLimits', () => {
         const pool = new TimeLimitPool({
           pool: new Pool(maxCount),
           time: timeMs,
-          timeController,
+          dateTime,
         })
         timeLimits.push({
           pool,
@@ -234,7 +231,7 @@ describe('time-limits > TimeLimits', () => {
               ? async abortSignal => {
                   values.push(order)
                   if (runTime) {
-                    await delay(runTime, abortSignal, timeController)
+                    await delay(runTime, abortSignal, dateTime)
                   }
                   return order
                 }
@@ -244,11 +241,11 @@ describe('time-limits > TimeLimits', () => {
                 },
             limits: timeLimit.limits,
             results: results,
-            timeController,
+            dateTime,
           })
 
           if (startTime) {
-            timeController.setTimeout(() => {
+            dateTime.time.setTimeout(() => {
               checkPromiseResults.push(order)
               promises.push(
                 poolRunWait({
@@ -276,7 +273,7 @@ describe('time-limits > TimeLimits', () => {
       }
 
       async function run() {
-        await waitTimeControllerMock(timeController, null, {
+        await waitTimeMock(dateTime.time, null, {
           timeout:
             countPerTimeLimit *
               (Math.max(timeLimit1, timeLimit2, timeLimit3) + 3) +

@@ -35,14 +35,14 @@
  */
 import { describe, it } from 'vitest'
 import { createTestVariants } from '@flemist/test-variants'
-import { TimeControllerMock } from 'src/common/time/time-controller'
+import { DateTimeMock } from 'src/common/time/date-time'
 import {
   type SuccessPredicateResult,
   type TaskRepeatStrategyBefore,
   type TaskStatusBase,
 } from './types'
 import { LogLevel } from 'src/common/debug'
-import { waitTimeControllerMock } from 'src/common/async/wait/waitTimeControllerMock'
+import { waitTimeMock } from 'src/common/async/wait/waitTimeMock'
 import { getRandomSeed, Random, randomInt } from 'src/common/random'
 import { createTaskRepeated, type ITaskRepeated } from './TaskRepeated'
 import { EMPTY_FUNC } from '../constants'
@@ -112,7 +112,7 @@ type GeneratedDelayPlan = {
 
 type TestContext = {
   log: boolean
-  timeController: TimeControllerMock
+  dateTime: DateTimeMock
   task: ITaskRepeated<null, number>
   originTime: number
   execRecords: ExecRecord[]
@@ -188,8 +188,8 @@ async function generateContext(
   options: GenerateContextOptions,
 ): Promise<TestContext> {
   const { rnd, args, log } = options
-  const timeController = new TimeControllerMock()
-  const originTime = timeController.now()
+  const dateTime = new DateTimeMock()
+  const originTime = dateTime.time.time()
   const execRecords: ExecRecord[] = []
   const delayCallRecords: DelayCallRecord[] = []
 
@@ -200,9 +200,9 @@ async function generateContext(
 
   const { repeated: task } = createTaskRepeated<null, number>(
     async () => {
-      const funcStart = timeController.now() - originTime
-      timeController.addTime(args.executionDuration)
-      const funcEnd = timeController.now() - originTime
+      const funcStart = dateTime.time.time() - originTime
+      dateTime.time.addTime(args.executionDuration)
+      const funcEnd = dateTime.time.time() - originTime
       const execIdx = callCount++
       const shouldThrow = plan.errorExecIndices.has(execIdx)
       execRecords.push({
@@ -223,7 +223,7 @@ async function generateContext(
     },
     null,
     {
-      timeController,
+      dateTime,
       logLevel: LogLevel.none,
       successPredicate: args.useCustomSuccessPredicate
         ? (status: TaskStatusBase<number>): true | SuccessPredicateResult => {
@@ -283,7 +283,7 @@ async function generateContext(
 
   return {
     log,
-    timeController,
+    dateTime,
     task,
     originTime,
     execRecords,
@@ -301,8 +301,7 @@ type TestOptions = {
 
 async function test(options: TestOptions): Promise<void> {
   const { context, args } = options
-  const { timeController, task, execRecords, delayCallRecords, plan, log } =
-    context
+  const { dateTime, task, execRecords, delayCallRecords, plan, log } = context
 
   if (context.useImmediate) {
     const runPromise = task.run().catch(EMPTY_FUNC)
@@ -311,7 +310,7 @@ async function test(options: TestOptions): Promise<void> {
 
     const maxTime =
       (plan.iterations + 1) * (args.executionDuration + args.delayTimeMax + 10)
-    await waitTimeControllerMock(timeController, null, { timeout: maxTime })
+    await waitTimeMock(dateTime.time, null, { timeout: maxTime })
     await runPromise
 
     if (log) {
@@ -348,7 +347,7 @@ async function test(options: TestOptions): Promise<void> {
       },
     )
 
-    await waitTimeControllerMock(timeController, null, { timeout: 100 })
+    await waitTimeMock(dateTime.time, null, { timeout: 100 })
 
     if (log) {
       console.log(
@@ -381,7 +380,7 @@ async function test(options: TestOptions): Promise<void> {
 
   const maxTime =
     (plan.iterations + 1) * (args.executionDuration + args.delayTimeMax + 10)
-  await waitTimeControllerMock(timeController, null, {
+  await waitTimeMock(dateTime.time, null, {
     timeout: maxTime,
   })
   await runPromise
