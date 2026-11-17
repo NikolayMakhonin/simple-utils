@@ -140,7 +140,7 @@ export const nowReal = /* @__PURE__ */ new NowReal()
 /** When Date.now() gets ahead of the elapsed time by more than this, it counts as a sleep or a device clock set forward */
 export const DATE_JUMP_MINIMUM = 1000
 
-// Ten minutes. An update that moves now() back by more means a wrong device clock, not drift.
+// Ten minutes: an update that moves now() back by more means a wrong device clock, not drift.
 // After a smaller move back, nowUnique() stays strictly increasing
 /** How far nowUnique() can stay ahead of now() after an update. Beyond it, nowUnique() restarts from now() */
 const NOW_UNIQUE_AHEAD_MAXIMUM = 10 * 60 * 1000

@@ -6,7 +6,7 @@ import type { GetDateInetOptions } from './getDateInet'
 import { getDateInetRange } from './getDateInetRange'
 import { type NowReal, nowReal as nowRealDefault } from './now'
 
-// An hour. Between syncs nowReal.now() drifts by a fraction of a second per hour.
+// An hour: between syncs nowReal.now() drifts by a fraction of a second per hour.
 // That is less than the 1-second precision of internet time
 const TIME_SYNC_INTERVAL = 60 * 60 * 1000
 
@@ -168,6 +168,8 @@ export function timeSyncStart(options: TimeSyncStartOptions): Unsubscribe {
   })
 
   return () => {
-    unsubscribes.forEach(o => o())
+    for (let i = 0, len = unsubscribes.length; i < len; i++) {
+      unsubscribes[i]()
+    }
   }
 }

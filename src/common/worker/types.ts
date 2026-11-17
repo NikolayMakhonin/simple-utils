@@ -236,8 +236,8 @@ export type WorkerConnectRequest = {
   messagePort: IMessagePort
   /**
    * The nowReal.offset of the thread that connects to the worker.
-   * The worker sets this value and nowRealRealDateMinimum on its own nowReal,
-   * so that nowReal.now() is the same in both threads
+   * The worker sets this value and nowRealRealDateMinimum on its own nowReal.
+   * Then nowReal.now() is the same in both threads, until either thread updates its nowReal
    */
   nowRealOffset: number | null
   /** The nowReal.realDateMinimum of the thread that connects to the worker */
