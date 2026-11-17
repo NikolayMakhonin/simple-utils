@@ -26,15 +26,15 @@ export type TimeSyncStored = {
 
 export type TimeSyncStartOptions = {
   dateInetOptions?: null | GetDateInetOptions
-  /** The widest accepted range of real time; a measurement with a wider range updates nowReal and repeats */
+  /** The widest accepted range of real time. A wider range still updates nowReal, and the measurement repeats */
   rangeWidthMaximum: number
   /** Returns the state that save kept, or null */
   load: () => TimeSyncStored | null
   /** Keeps the state for load to return after a restart */
   save: (stored: TimeSyncStored) => void
   /**
-   * Called with null at start and after every successful measurement,
-   * and with the error of every failed one, such as one with a range wider than rangeWidthMaximum
+   * Called with null at start and after every successful measurement.
+   * Called with the error of every failed measurement, also when its range is wider than rangeWidthMaximum
    */
   onUpdate?: null | ((error: unknown) => void)
   logFuncError?: TaskOptionsBase['logFuncError']
@@ -144,14 +144,18 @@ export function timeSyncStart(options: TimeSyncStartOptions): Unsubscribe {
     clearInterval(nowRealSaveTimer)
   })
 
-  // When Date.now() jumps ahead, after a sleep or a device clock set forward,
-  // the next reading of nowReal.now() adds the jump.
-  // A jump that moves nowReal.now() past the range of the last measurement
-  // can be a wrong device clock, which exclusively a measurement tells from a sleep
+  // After a sleep or a device clock set forward, Date.now() jumps ahead.
+  // The next reading of nowReal.now() adds the jump.
+  // A jump past the range of the last measurement can come from a wrong device clock.
+  // Only a measurement tells it from a sleep
   const nowRealCheckTimer = setInterval(() => {
     const realDateMinimum = nowReal.realDateMinimum
+    // After a failed measurement the task repeats it after its own growing delay,
+    // and a measurement started here would cut that delay short.
+    // The status of rerun counts every measurement, while the status of repeated counts its whole loop as one run.
     // The + 1 allows for nowReal.now() and realDateMinimum each rounded down to whole milliseconds
     if (
+      !timeSyncTask.rerun.status.lastFailedRuns &&
       lastRangeWidth != null &&
       realDateMinimum != null &&
       nowReal.now() - realDateMinimum > lastRangeWidth + 1

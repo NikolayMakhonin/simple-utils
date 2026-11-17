@@ -201,6 +201,18 @@ describe('timeSyncStart', () => {
     await wait(1000)
     expect(fetchCount).toBe(4)
     expect(sync.nowReal.now()).toBe(realTime + 500)
+
+    // While measurements fail after a jump, they repeat after the growing delays of the task, not every second
+    isOffline = true
+    dateOffset += 60 * 60 * 1000
+    await wait(1000)
+    expect(fetchCount).toBe(5)
+    await wait(1000)
+    expect(fetchCount).toBe(6)
+    await wait(1000)
+    expect(fetchCount).toBe(6)
+    await wait(1000)
+    expect(fetchCount).toBe(7)
     sync.stop()
   })
 

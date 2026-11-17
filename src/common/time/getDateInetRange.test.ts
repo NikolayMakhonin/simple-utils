@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
 import { getDateInetRange } from './getDateInetRange'
 import { DATE_JUMP_MINIMUM } from './now'
+import { TimeControllerMock } from './time-controller'
 
 const DATE_HEADER = 'Wed, 01 Jan 2020 00:00:00 GMT'
 const DATE_TIME = Date.UTC(2020, 0, 1)
@@ -45,7 +46,7 @@ describe('getDateInetRange', () => {
   })
 
   it('jumps of Date.now()', async () => {
-    // The range follows the request time, whatever Date.now() does
+    // The range follows the request time when Date.now() jumps forward by up to DATE_JUMP_MINIMUM or jumps back
     stubFetch(300, DATE_JUMP_MINIMUM)
     expect(await getDateInetRange({ url: 'https://example.test/' })).toEqual([
       DATE_TIME,
@@ -63,12 +64,23 @@ describe('getDateInetRange', () => {
     ).toEqual([DATE_TIME, DATE_TIME + 1300 + DATE_JUMP_MINIMUM + 1])
   })
 
+  it('measures the request by options.timeController', async () => {
+    const timeController = new TimeControllerMock()
+    vi.stubGlobal('fetch', async () => {
+      timeController.addTime(300)
+      return new Response(null, { headers: { date: DATE_HEADER } })
+    })
+    expect(
+      await getDateInetRange({ url: 'https://example.test/', timeController }),
+    ).toEqual([DATE_TIME, DATE_TIME + 1300])
+  })
+
   it('errors', async () => {
     stubFetch(300, DATE_JUMP_MINIMUM + 1)
     await expect(
       getDateInetRange({ url: 'https://example.test/' }),
     ).rejects.toThrow(
-      /Date\.now\(\) got ahead of performance\.now\(\) by 1001 ms/,
+      /Date\.now\(\) got ahead of the time controller by 1001 ms/,
     )
   })
 })

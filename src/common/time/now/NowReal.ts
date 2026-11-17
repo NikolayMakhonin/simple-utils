@@ -90,8 +90,8 @@ export class NowReal implements INow {
     }
     const date = Date.now()
     const monotonic = this.#timeController.now()
-    // Date.now() gets ahead of timeController.now() after a device sleep that timeController.now() did not count,
-    // or after the device clock was set forward, and now() cannot tell the two apart.
+    // Date.now() gets ahead of timeController.now() after a sleep that timeController.now() did not count.
+    // It also gets ahead after the device clock was set forward. now() cannot tell the two apart.
     // Taking the jump keeps the time of a sleep.
     // After a device clock set forward, the next updateRealDate() brings now() back to real time
     const dateJump =
@@ -121,8 +121,8 @@ export class NowReal implements INow {
     this.#timeMonotonic = monotonic
     this.#readingDate = Date.now()
     this.#readingMonotonic = monotonic
-    // After an update that moves now() far back, nowUnique() restarts from now(), so that
-    // nowUnique() does not stay above now() by the whole move for as long as this NowReal exists
+    // After an update moves now() far back, nowUnique() restarts from now().
+    // Otherwise nowUnique() would stay above now() by the whole move for as long as this NowReal exists
     if (this.#nowUnique - time > NOW_UNIQUE_AHEAD_MAXIMUM) {
       console.warn(
         `[NowReal][setNow] now() moved back below the last nowUnique() by ${this.#nowUnique - time} ms`,
@@ -135,8 +135,9 @@ export class NowReal implements INow {
 export const nowReal = /* @__PURE__ */ new NowReal()
 
 // A second: far above the rounding of Date.now() and performance.now().
-// A smaller jump, which now() ignores, leaves now() off by at most a second, the precision of internet time
-/** Date.now() getting ahead of the elapsed time by more than this counts as a sleep or a device clock set forward */
+// Ignoring a smaller jump leaves now() off by at most a second.
+// That is the precision of internet time
+/** When Date.now() gets ahead of the elapsed time by more than this, it counts as a sleep or a device clock set forward */
 export const DATE_JUMP_MINIMUM = 1000
 
 // Ten minutes: an update that moves now() back by more means a wrong device clock rather than drift.

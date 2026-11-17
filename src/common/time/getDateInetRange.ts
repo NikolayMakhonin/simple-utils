@@ -1,5 +1,6 @@
 import { type GetDateInetOptions, getDateInet } from './getDateInet'
 import { DATE_JUMP_MINIMUM } from './now'
+import { timeControllerDefault } from './time-controller'
 import type { NumberRange } from 'src/common/types'
 
 export type GetDateInetRangeOptions = GetDateInetOptions & {
@@ -18,23 +19,24 @@ export type GetDateInetRangeOptions = GetDateInetOptions & {
 export async function getDateInetRange(
   options?: null | GetDateInetRangeOptions,
 ): Promise<NumberRange> {
-  const performanceStart = performance.now()
+  const timeController = options?.timeController ?? timeControllerDefault
+  const monotonicStart = timeController.now()
   const dateStart = Date.now()
   const date = await getDateInet(options)
-  const duration = performance.now() - performanceStart
+  const duration = timeController.now() - monotonicStart
   const dateJump = Date.now() - dateStart - duration
   let durationMaximum = duration
   if (dateJump > DATE_JUMP_MINIMUM) {
     if (!options?.dontThrow) {
       throw new Error(
-        `[getDateInetRange] Date.now() got ahead of performance.now() by ${dateJump} ms during the request, so performance.now() may have missed a sleep`,
+        `[getDateInetRange] Date.now() got ahead of the time controller by ${dateJump} ms during the request, so the time controller may have missed a sleep`,
       )
     }
-    // A sleep that performance.now() missed makes the request as long as Date.now() counted it
+    // A sleep that the time controller missed makes the request as long as Date.now() counted it
     durationMaximum += dateJump
   }
-  // The server truncates the Date header to whole seconds and sets it
-  // between the request and the response, so real time at the response
-  // lies between date and date + 1 second + the longest duration of the request
+  // The server truncates the Date header to whole seconds.
+  // It sets the header between the request and the response.
+  // So at the response, real time lies between date and date + 1 second + the longest duration of the request
   return [date, date + 1000 + durationMaximum]
 }
