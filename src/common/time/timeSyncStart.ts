@@ -6,8 +6,8 @@ import type { GetDateInetOptions } from './getDateInet'
 import { getDateInetRange } from './getDateInetRange'
 import { type NowReal, nowReal as nowRealDefault } from './now'
 
-// An hour: between syncs nowReal.now() drifts by a fraction of a second
-// per hour, less than the 1-second precision of internet time
+// An hour. Between syncs nowReal.now() drifts by a fraction of a second per hour.
+// That is less than the 1-second precision of internet time
 const TIME_SYNC_INTERVAL = 60 * 60 * 1000
 
 // A minute: when the page ends without being hidden, such as on a crash,
@@ -25,7 +25,7 @@ export type TimeSyncStored = {
 }
 
 export type TimeSyncStartOptions = {
-  dateInetOptions?: null | GetDateInetOptions
+  dateInetOptions?: null | Omit<GetDateInetOptions, 'abortSignal'>
   /** The widest accepted range of real time. A wider range still updates nowReal, and the measurement repeats */
   rangeWidthMaximum: number
   /** Returns the state that save kept, or null */
@@ -92,16 +92,16 @@ export function timeSyncStart(options: TimeSyncStartOptions): Unsubscribe {
     },
     null,
     {
-      // Each attempt is a run of this task, never a retry inside a run (withRetry):
-      // run() called during a run returns the promise of that run,
-      // so syncTimeNow() could not cut short the wait between retries inside a run
+      // Each attempt is a run of this task, never a retry inside a run (withRetry).
+      // run() called during a run returns the promise of that run.
+      // So syncTimeNow() could not cut short the wait between retries inside a run
       repeatStrategy: () => ({
         delay: status => {
           if (!status.lastFailedRuns) {
             return TIME_SYNC_INTERVAL
           }
-          // Doubling from 1 second, for a short failure of the network, up to 10 seconds,
-          // so that the next measurement comes within 10 seconds after the network returns
+          // The delay doubles from 1 second, for a short failure of the network, up to 10 seconds.
+          // So the next measurement comes within 10 seconds after the network returns
           return Math.min(1000 * 2 ** (status.lastFailedRuns - 1), 10_000)
         },
       }),
@@ -150,9 +150,9 @@ export function timeSyncStart(options: TimeSyncStartOptions): Unsubscribe {
   // Only a measurement tells it from a sleep
   const nowRealCheckTimer = setInterval(() => {
     const realDateMinimum = nowReal.realDateMinimum
-    // After a failed measurement the task repeats it after its own growing delay,
-    // and a measurement started here would cut that delay short.
-    // The status of rerun counts every measurement, while the status of repeated counts its whole loop as one run.
+    // After a failed measurement, the task repeats it after its own growing delay.
+    // A measurement started here would cut that delay short.
+    // The status of rerun counts every measurement. The status of repeated counts its whole loop as one run.
     // The + 1 allows for nowReal.now() and realDateMinimum each rounded down to whole milliseconds
     if (
       !timeSyncTask.rerun.status.lastFailedRuns &&

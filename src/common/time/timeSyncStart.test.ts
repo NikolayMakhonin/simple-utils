@@ -53,8 +53,8 @@ describe('timeSyncStart', () => {
   }
 
   // Real time passes while no measurement starts.
-  // Unlike in wait(), the timers run without a yield to promises after each of them,
-  // because an hour of the once-a-second check would take thousands of yields
+  // Unlike in wait(), the timers run without a yield to promises after each of them.
+  // An hour of the once-a-second check would take thousands of yields
   function waitSynchronously(time: number) {
     realTime += time
     performanceNow += time

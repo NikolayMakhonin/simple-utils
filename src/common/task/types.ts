@@ -20,35 +20,35 @@ export type TaskStatusBase<Result = any> = {
    */
   readonly isAborted: boolean
   /**
-   * First start date in milliseconds
+   * First start time by timeController.now()
    * null - never started
    */
   readonly firstStart: null | number
   /**
-   * Previous start date in milliseconds of last completed execution
+   * Previous start time by timeController.now() of last completed execution
    * null - never started or only one start
    */
   readonly lastStartCompleted: null | number
   /**
-   * Last start date in milliseconds
+   * Last start time by timeController.now()
    * null - never started
    */
   readonly lastStart: null | number
   /**
-   * Last end date in milliseconds
+   * Last end time by timeController.now()
    * null - never ended
    * if lastEnd != null then at least lastResult or lastError is present
    */
   readonly lastEnd: null | number
   /**
-   * Last success date in milliseconds
+   * Last success time by timeController.now()
    * null - never succeeded
    * Determined by successPredicate, not by whether the execution threw
    * Can be non-null even if lastHasError is true
    */
   readonly lastSuccess: null | number
   /**
-   * Last failure date in milliseconds
+   * Last failure time by timeController.now()
    * null - never failed
    * Determined by successPredicate, not by whether the execution threw
    * Can be non-null even if lastHasError is false

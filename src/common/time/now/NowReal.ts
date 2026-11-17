@@ -11,7 +11,7 @@ export type NowRealOptions = {
 export class NowReal implements INow {
   readonly #timeController: ITimeController
   #nowUnique: number = 0
-  /** The base of now(): now() returns #time plus the time counted since #timeMonotonic; null before the first update */
+  /** The base of now(). now() returns #time plus the time counted since #timeMonotonic. Null before the first update */
   #time: number | null = null
   #timeMonotonic: number = 0
   /** Date.now() at the last reading of now() or the last update */
@@ -140,7 +140,7 @@ export const nowReal = /* @__PURE__ */ new NowReal()
 /** When Date.now() gets ahead of the elapsed time by more than this, it counts as a sleep or a device clock set forward */
 export const DATE_JUMP_MINIMUM = 1000
 
-// Ten minutes: an update that moves now() back by more means a wrong device clock rather than drift.
-// After a smaller move back nowUnique() stays strictly increasing
-/** How far nowUnique() can stay ahead of now() after an update before nowUnique() restarts from now() */
+// Ten minutes. An update that moves now() back by more means a wrong device clock, not drift.
+// After a smaller move back, nowUnique() stays strictly increasing
+/** How far nowUnique() can stay ahead of now() after an update. Beyond it, nowUnique() restarts from now() */
 const NOW_UNIQUE_AHEAD_MAXIMUM = 10 * 60 * 1000
