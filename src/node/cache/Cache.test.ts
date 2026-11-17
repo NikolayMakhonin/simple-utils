@@ -29,8 +29,8 @@ const DIR_CACHE_TMP = DIR_TMP + '/tmp'
 describe('Cache', () => {
   describe('getOrCreate', () => {
     it('base', async () => {
-      const t = createTestOptions()
-      const cache = createCache(t)
+      const testOptions = createTestOptions()
+      const cache = createCache(testOptions)
 
       let callCount = 0
       const result = await cache.getOrCreate('key1', input => {
@@ -41,11 +41,11 @@ describe('Cache', () => {
       expect(result).toBe('value1')
       expect(callCount).toBe(1)
 
-      expect(Array.from(t.storages.value.data.entries())).toEqual([
+      expect(Array.from(testOptions.storages.value.data.entries())).toEqual([
         ['key1', 'value1'],
       ])
-      expect(Array.from(t.storages.error.data.entries())).toEqual([])
-      const stat = t.storages.stat.data.get('key1')!
+      expect(Array.from(testOptions.storages.error.data.entries())).toEqual([])
+      const stat = testOptions.storages.stat.data.get('key1')!
       expect(stat.size).toBe('value1'.length + 1)
       expect(stat.hasError).toBeUndefined()
       expect(stat.dateModified).toBe(stat.dateUsed)
@@ -67,14 +67,14 @@ describe('Cache', () => {
       expect(result3).toBe('value2')
       expect(callCount).toBe(2)
 
-      expect(t.storages.value.data.size).toBe(2)
-      expect(t.storages.error.data.size).toBe(0)
-      expect(t.storages.stat.data.size).toBe(2)
+      expect(testOptions.storages.value.data.size).toBe(2)
+      expect(testOptions.storages.error.data.size).toBe(0)
+      expect(testOptions.storages.stat.data.size).toBe(2)
     })
 
     it('caches errors', async () => {
-      const t = createTestOptions()
-      const cache = createCache(t)
+      const testOptions = createTestOptions()
+      const cache = createCache(testOptions)
 
       // Use string error for proper size tracking in memory storage
       let callCount = 0
@@ -97,38 +97,40 @@ describe('Cache', () => {
       expect(callCount).toBe(1)
 
       // Verify error is stored, value is not
-      expect(t.storages.value.data.has('key1')).toBe(false)
-      expect(t.storages.error.data.has('key1')).toBe(true)
-      expect(t.storages.error.data.get('key1')).toBe('test-error-string')
+      expect(testOptions.storages.value.data.has('key1')).toBe(false)
+      expect(testOptions.storages.error.data.has('key1')).toBe(true)
+      expect(testOptions.storages.error.data.get('key1')).toBe(
+        'test-error-string',
+      )
 
-      const stat = t.storages.stat.data.get('key1')!
+      const stat = testOptions.storages.stat.data.get('key1')!
       expect(stat.hasError).toBe(true)
       expect(stat.size).toBe('test-error-string'.length + 1)
     })
 
     it('updates dateUsed on cache hit', async () => {
-      const tc = new NowMock()
-      tc.setTime(1000)
-      const t = createTestOptions({ now: tc })
-      const cache = createCache(t)
+      const nowMock = new NowMock()
+      nowMock.setTime(1000)
+      const testOptions = createTestOptions({ now: nowMock })
+      const cache = createCache(testOptions)
 
       await cache.getOrCreate('key1', () => 'value1')
-      const statAfterCreate = t.storages.stat.data.get('key1')!
+      const statAfterCreate = testOptions.storages.stat.data.get('key1')!
       expect(statAfterCreate.dateModified).toBe(1000)
       expect(statAfterCreate.dateUsed).toBe(1000)
 
-      tc.setTime(2000)
+      nowMock.setTime(2000)
       await cache.getOrCreate('key1', () => 'value1-new')
-      const statAfterHit = t.storages.stat.data.get('key1')!
+      const statAfterHit = testOptions.storages.stat.data.get('key1')!
       expect(statAfterHit.dateModified).toBe(1000)
       expect(statAfterHit.dateUsed).toBe(2000)
     })
 
     it('updates dateUsed on cached error hit', async () => {
-      const tc = new NowMock()
-      tc.setTime(1000)
-      const t = createTestOptions({ now: tc })
-      const cache = createCache(t)
+      const nowMock = new NowMock()
+      nowMock.setTime(1000)
+      const testOptions = createTestOptions({ now: nowMock })
+      const cache = createCache(testOptions)
 
       await expect(
         cache.getOrCreate('key1', () => {
@@ -136,24 +138,24 @@ describe('Cache', () => {
         }),
       ).rejects.toBe('cached-error')
 
-      tc.setTime(2000)
+      nowMock.setTime(2000)
       await expect(cache.getOrCreate('key1', () => 'value1')).rejects.toBe(
         'cached-error',
       )
-      const stat = t.storages.stat.data.get('key1')!
+      const stat = testOptions.storages.stat.data.get('key1')!
       expect(stat.dateModified).toBe(1000)
       expect(stat.dateUsed).toBe(2000)
       expect(stat.hasError).toBe(true)
     })
 
     it('re-computes when stat exists but stored data is missing', async () => {
-      const t = createTestOptions()
-      const cache = createCache(t)
+      const testOptions = createTestOptions()
+      const cache = createCache(testOptions)
 
       await cache.getOrCreate('key1', () => 'value1')
 
       // Simulate corrupt state: stat exists but value deleted externally
-      t.storages.value.data.delete('key1')
+      testOptions.storages.value.data.delete('key1')
 
       let callCount = 0
       const result = await cache.getOrCreate('key1', () => {
@@ -165,8 +167,8 @@ describe('Cache', () => {
     })
 
     it('re-computes when stat exists with hasError but error data is missing', async () => {
-      const t = createTestOptions()
-      const cache = createCache(t)
+      const testOptions = createTestOptions()
+      const cache = createCache(testOptions)
 
       await expect(
         cache.getOrCreate('key1', () => {
@@ -175,7 +177,7 @@ describe('Cache', () => {
       ).rejects.toBe('some-error')
 
       // Simulate corrupt state: stat with hasError but error deleted externally
-      t.storages.error.data.delete('key1')
+      testOptions.storages.error.data.delete('key1')
 
       let callCount = 0
       const result = await cache.getOrCreate('key1', () => {
@@ -187,10 +189,10 @@ describe('Cache', () => {
     })
 
     it('func receives original input when converterInput is set', async () => {
-      const t = createTestOptions()
-      t.options.converterInput = ((input: string) =>
+      const testOptions = createTestOptions()
+      testOptions.options.converterInput = ((input: string) =>
         'converted-' + input) as ConvertToAsync<string, string>
-      const cache = createCache(t)
+      const cache = createCache(testOptions)
 
       const receivedInputs: string[] = []
       await cache.getOrCreate('original', input => {
@@ -200,15 +202,17 @@ describe('Cache', () => {
       expect(receivedInputs).toEqual(['original'])
 
       // Verify stored under converted key
-      expect(t.storages.value.data.has('converted-original')).toBe(true)
-      expect(t.storages.value.data.has('original')).toBe(false)
+      expect(testOptions.storages.value.data.has('converted-original')).toBe(
+        true,
+      )
+      expect(testOptions.storages.value.data.has('original')).toBe(false)
     })
 
     it('converterInput maps different inputs to same key', async () => {
-      const t = createTestOptions()
-      t.options.converterInput = ((input: string) =>
+      const testOptions = createTestOptions()
+      testOptions.options.converterInput = ((input: string) =>
         input.toLowerCase()) as ConvertToAsync<string, string>
-      const cache = createCache(t)
+      const cache = createCache(testOptions)
 
       let callCount = 0
       await cache.getOrCreate('ABC', () => {
@@ -221,31 +225,31 @@ describe('Cache', () => {
       })
       expect(result).toBe('value1')
       expect(callCount).toBe(1)
-      expect(t.storages.value.data.size).toBe(1)
+      expect(testOptions.storages.value.data.size).toBe(1)
     })
 
     it('converterValue transforms stored values', async () => {
-      const t = createTestOptions()
-      t.options.converterValue = {
+      const testOptions = createTestOptions()
+      testOptions.options.converterValue = {
         to: (value: string) => 'stored:' + value,
         from: (stored: string) => stored.replace('stored:', ''),
       }
-      const cache = createCache(t)
+      const cache = createCache(testOptions)
 
       await cache.getOrCreate('key1', () => 'value1')
-      expect(t.storages.value.data.get('key1')).toBe('stored:value1')
+      expect(testOptions.storages.value.data.get('key1')).toBe('stored:value1')
 
       const result = await cache.getOrCreate('key1', () => 'value2')
       expect(result).toBe('value1')
     })
 
     it('converterError transforms stored errors', async () => {
-      const t = createTestOptions()
-      t.options.converterError = {
+      const testOptions = createTestOptions()
+      testOptions.options.converterError = {
         to: (error: any) => 'stored-error:' + String(error),
         from: (stored: string) => stored.replace('stored-error:', ''),
       }
-      const cache = createCache(t)
+      const cache = createCache(testOptions)
 
       await expect(
         cache.getOrCreate('key1', () => {
@@ -253,7 +257,7 @@ describe('Cache', () => {
         }),
       ).rejects.toBe('original-err')
 
-      expect(t.storages.error.data.get('key1')).toBe(
+      expect(testOptions.storages.error.data.get('key1')).toBe(
         'stored-error:original-err',
       )
 
@@ -264,18 +268,18 @@ describe('Cache', () => {
     })
 
     it('stat.size includes both data size and stat overhead', async () => {
-      const t = createTestOptions()
-      const cache = createCache(t)
+      const testOptions = createTestOptions()
+      const cache = createCache(testOptions)
 
       await cache.getOrCreate('key1', () => 'hello') // value 5 + stat 1 = 6
-      expect(t.storages.stat.data.get('key1')!.size).toBe(6)
+      expect(testOptions.storages.stat.data.get('key1')!.size).toBe(6)
 
       await expect(
         cache.getOrCreate('key2', () => {
           throw 'err'
         }),
       ).rejects.toBe('err')
-      const errStat = t.storages.stat.data.get('key2')!
+      const errStat = testOptions.storages.stat.data.get('key2')!
       expect(errStat.size).toBe(4) // error 'err' = 3 + stat 1 = 4
       expect(errStat.hasError).toBe(true)
     })
@@ -294,7 +298,7 @@ describe('Cache', () => {
     })
 
     function createCacheCorruptible() {
-      const t = createTestOptions()
+      const testOptions = createTestOptions()
       const converter = {
         to: (value: string) => value,
         from: (stored: string) => {
@@ -304,18 +308,18 @@ describe('Cache', () => {
           return stored
         },
       }
-      t.options.converterValue = converter
-      t.options.converterError = converter
-      return { t, cache: createCache(t) }
+      testOptions.options.converterValue = converter
+      testOptions.options.converterError = converter
+      return { testOptions, cache: createCache(testOptions) }
     }
 
     it('a corrupted value is recalculated', async () => {
-      const { t, cache } = createCacheCorruptible()
+      const { testOptions, cache } = createCacheCorruptible()
       await cache.getOrCreate('key1', () => 'value1')
-      t.storages.value.data.set('key1', CORRUPTED)
+      testOptions.storages.value.data.set('key1', CORRUPTED)
 
       expect(await cache.getOrCreate('key1', () => 'value2')).toBe('value2')
-      expect(t.storages.value.data.get('key1')).toBe('value2')
+      expect(testOptions.storages.value.data.get('key1')).toBe('value2')
       expect(consoleWarn).toHaveBeenCalledTimes(1)
 
       // The recalculated value is cached again
@@ -324,32 +328,34 @@ describe('Cache', () => {
     })
 
     it('a corrupted error is recalculated', async () => {
-      const { t, cache } = createCacheCorruptible()
+      const { testOptions, cache } = createCacheCorruptible()
       await expect(
         cache.getOrCreate('key1', () => {
           throw 'error1'
         }),
       ).rejects.toBe('error1')
-      t.storages.error.data.set('key1', CORRUPTED)
+      testOptions.storages.error.data.set('key1', CORRUPTED)
 
       expect(await cache.getOrCreate('key1', () => 'value1')).toBe('value1')
-      expect(t.storages.error.data.has('key1')).toBe(false)
-      expect(t.storages.stat.data.get('key1')!.hasError).toBeUndefined()
+      expect(testOptions.storages.error.data.has('key1')).toBe(false)
+      expect(
+        testOptions.storages.stat.data.get('key1')!.hasError,
+      ).toBeUndefined()
       expect(consoleWarn).toHaveBeenCalledTimes(1)
     })
 
     it('when recalculation throws, the error replaces the corrupted value', async () => {
-      const { t, cache } = createCacheCorruptible()
+      const { testOptions, cache } = createCacheCorruptible()
       await cache.getOrCreate('key1', () => 'value1')
-      t.storages.value.data.set('key1', CORRUPTED)
+      testOptions.storages.value.data.set('key1', CORRUPTED)
 
       await expect(
         cache.getOrCreate('key1', () => {
           throw 'error1'
         }),
       ).rejects.toBe('error1')
-      expect(t.storages.value.data.has('key1')).toBe(false)
-      expect(t.storages.error.data.get('key1')).toBe('error1')
+      expect(testOptions.storages.value.data.has('key1')).toBe(false)
+      expect(testOptions.storages.error.data.get('key1')).toBe('error1')
     })
 
     it('an error thrown by func is returned from the cache, not treated as unreadable', async () => {
@@ -368,23 +374,23 @@ describe('Cache', () => {
 
   describe('expiration', () => {
     it('re-computes expired entries', async () => {
-      const tc = new NowMock()
-      tc.setTime(1000)
-      const t = createTestOptions({
-        now: tc,
-        isExpired: stat => tc.now() - stat.dateModified > 500,
+      const nowMock = new NowMock()
+      nowMock.setTime(1000)
+      const testOptions = createTestOptions({
+        now: nowMock,
+        isExpired: stat => nowMock.now() - stat.dateModified > 500,
       })
-      const cache = createCache(t)
+      const cache = createCache(testOptions)
 
       await cache.getOrCreate('key1', () => 'value1')
 
       // Not expired yet
-      tc.setTime(1400)
+      nowMock.setTime(1400)
       const result1 = await cache.getOrCreate('key1', () => 'value2')
       expect(result1).toBe('value1')
 
       // Expired
-      tc.setTime(1600)
+      nowMock.setTime(1600)
       let callCount = 0
       const result2 = await cache.getOrCreate('key1', () => {
         callCount++
@@ -393,17 +399,17 @@ describe('Cache', () => {
       expect(result2).toBe('value3')
       expect(callCount).toBe(1)
 
-      expect(t.storages.value.data.get('key1')).toBe('value3')
+      expect(testOptions.storages.value.data.get('key1')).toBe('value3')
     })
 
     it('cleans up old storage entries on expiration', async () => {
-      const tc = new NowMock()
-      tc.setTime(1000)
-      const t = createTestOptions({
-        now: tc,
-        isExpired: stat => tc.now() - stat.dateModified > 500,
+      const nowMock = new NowMock()
+      nowMock.setTime(1000)
+      const testOptions = createTestOptions({
+        now: nowMock,
+        isExpired: stat => nowMock.now() - stat.dateModified > 500,
       })
-      const cache = createCache(t)
+      const cache = createCache(testOptions)
 
       // Store an error
       await expect(
@@ -412,26 +418,28 @@ describe('Cache', () => {
         }),
       ).rejects.toBe('old-error')
 
-      expect(t.storages.error.data.has('key1')).toBe(true)
+      expect(testOptions.storages.error.data.has('key1')).toBe(true)
 
       // Expire and re-compute with a value
-      tc.setTime(2000)
+      nowMock.setTime(2000)
       await cache.getOrCreate('key1', () => 'new-value')
 
       // Error storage should be cleaned, value should be set
-      expect(t.storages.error.data.has('key1')).toBe(false)
-      expect(t.storages.value.data.get('key1')).toBe('new-value')
-      expect(t.storages.stat.data.get('key1')!.hasError).toBeUndefined()
+      expect(testOptions.storages.error.data.has('key1')).toBe(false)
+      expect(testOptions.storages.value.data.get('key1')).toBe('new-value')
+      expect(
+        testOptions.storages.stat.data.get('key1')!.hasError,
+      ).toBeUndefined()
     })
 
     it('expired error entry gets re-computed', async () => {
-      const tc = new NowMock()
-      tc.setTime(1000)
-      const t = createTestOptions({
-        now: tc,
-        isExpired: stat => tc.now() - stat.dateModified > 500,
+      const nowMock = new NowMock()
+      nowMock.setTime(1000)
+      const testOptions = createTestOptions({
+        now: nowMock,
+        isExpired: stat => nowMock.now() - stat.dateModified > 500,
       })
-      const cache = createCache(t)
+      const cache = createCache(testOptions)
 
       await expect(
         cache.getOrCreate('key1', () => {
@@ -439,29 +447,29 @@ describe('Cache', () => {
         }),
       ).rejects.toBe('old-error')
 
-      tc.setTime(2000)
+      nowMock.setTime(2000)
       const result = await cache.getOrCreate('key1', () => 'fresh-value')
       expect(result).toBe('fresh-value')
     })
 
     it('expiration checks dateModified not dateUsed', async () => {
-      const tc = new NowMock()
-      tc.setTime(1000)
-      const t = createTestOptions({
-        now: tc,
-        isExpired: stat => tc.now() - stat.dateModified > 500,
+      const nowMock = new NowMock()
+      nowMock.setTime(1000)
+      const testOptions = createTestOptions({
+        now: nowMock,
+        isExpired: stat => nowMock.now() - stat.dateModified > 500,
       })
-      const cache = createCache(t)
+      const cache = createCache(testOptions)
 
       await cache.getOrCreate('key1', () => 'value1')
 
       // Access at now=1400 to update dateUsed
-      tc.setTime(1400)
+      nowMock.setTime(1400)
       await cache.getOrCreate('key1', () => 'should-not-compute')
-      expect(t.storages.stat.data.get('key1')!.dateUsed).toBe(1400)
+      expect(testOptions.storages.stat.data.get('key1')!.dateUsed).toBe(1400)
 
       // At now=1600, dateModified=1000, age=600 > 500, expired despite recent access
-      tc.setTime(1600)
+      nowMock.setTime(1600)
       let callCount = 0
       await cache.getOrCreate('key1', () => {
         callCount++
@@ -473,64 +481,64 @@ describe('Cache', () => {
 
   describe('totalSize and LRU eviction', () => {
     it('evicts LRU entries and cleans down to min', async () => {
-      const tc = new NowMock()
-      tc.setTime(1000)
+      const nowMock = new NowMock()
+      nowMock.setTime(1000)
       // min=20 prevents over-eviction: after evicting key1, totalSize=22
       // removing key2 (size 11) would bring total to 11 < 20, so stop
-      const t = createTestOptions({
-        now: tc,
+      const testOptions = createTestOptions({
+        now: nowMock,
         totalSize: [20, 30],
       })
-      const cache = createCache(t)
+      const cache = createCache(testOptions)
 
-      tc.setTime(1000)
+      nowMock.setTime(1000)
       await cache.getOrCreate('key1', () => 'aaaaaaaaaa') // size 11, total 11
-      tc.setTime(2000)
+      nowMock.setTime(2000)
       await cache.getOrCreate('key2', () => 'bbbbbbbbbb') // size 11, total 22
 
-      expect(t.storages.value.data.size).toBe(2)
+      expect(testOptions.storages.value.data.size).toBe(2)
 
       // Adding key3: 22 + 11 = 33 > 30
       // Evict key1 (LRU dateUsed=1000): totalSize=22
       // key2: 22-11=11 < 20, stop
-      tc.setTime(3000)
+      nowMock.setTime(3000)
       await cache.getOrCreate('key3', () => 'cccccccccc')
 
-      expect(t.storages.value.data.has('key1')).toBe(false)
-      expect(t.storages.value.data.has('key2')).toBe(true)
-      expect(t.storages.value.data.has('key3')).toBe(true)
-      expect(t.storages.stat.data.has('key1')).toBe(false)
+      expect(testOptions.storages.value.data.has('key1')).toBe(false)
+      expect(testOptions.storages.value.data.has('key2')).toBe(true)
+      expect(testOptions.storages.value.data.has('key3')).toBe(true)
+      expect(testOptions.storages.stat.data.has('key1')).toBe(false)
     })
 
     it('aggressively evicts down to min when min is low', async () => {
-      const tc = new NowMock()
-      tc.setTime(1000)
-      const t = createTestOptions({
-        now: tc,
+      const nowMock = new NowMock()
+      nowMock.setTime(1000)
+      const testOptions = createTestOptions({
+        now: nowMock,
         totalSize: [0, 30],
       })
-      const cache = createCache(t)
+      const cache = createCache(testOptions)
 
-      tc.setTime(1000)
+      nowMock.setTime(1000)
       await cache.getOrCreate('key1', () => 'aaaaaaaaaa') // size 11, total 11
-      tc.setTime(2000)
+      nowMock.setTime(2000)
       await cache.getOrCreate('key2', () => 'bbbbbbbbbb') // size 11, total 22
 
       // Adding key3: total 33 > 30
       // Evict key1: totalSize=22, 22-11=11 > 0, evict key2 too
       // key2 evicted: totalSize=11, 11-11=0 NOT > 0, stop
-      tc.setTime(3000)
+      nowMock.setTime(3000)
       await cache.getOrCreate('key3', () => 'cccccccccc')
 
-      expect(t.storages.value.data.has('key1')).toBe(false)
-      expect(t.storages.value.data.has('key2')).toBe(false)
-      expect(t.storages.value.data.has('key3')).toBe(true)
-      expect(t.storages.stat.data.size).toBe(1)
+      expect(testOptions.storages.value.data.has('key1')).toBe(false)
+      expect(testOptions.storages.value.data.has('key2')).toBe(false)
+      expect(testOptions.storages.value.data.has('key3')).toBe(true)
+      expect(testOptions.storages.stat.data.size).toBe(1)
     })
 
     it('throws when single entry exceeds totalSize max', async () => {
-      const t = createTestOptions({ totalSize: [0, 5] })
-      const cache = createCache(t)
+      const testOptions = createTestOptions({ totalSize: [0, 5] })
+      const cache = createCache(testOptions)
 
       // value 'abcdef' = 6 chars + stat 1 = 7 > 5
       await expect(cache.getOrCreate('key1', () => 'abcdef')).rejects.toThrow(
@@ -538,190 +546,190 @@ describe('Cache', () => {
       )
 
       // Storage should remain clean after failed insertion
-      expect(t.storages.value.data.size).toBe(0)
-      expect(t.storages.stat.data.size).toBe(0)
+      expect(testOptions.storages.value.data.size).toBe(0)
+      expect(testOptions.storages.stat.data.size).toBe(0)
     })
 
     it('respects totalSize minimum during eviction', async () => {
-      const tc = new NowMock()
-      tc.setTime(1000)
-      const t = createTestOptions({
-        now: tc,
+      const nowMock = new NowMock()
+      nowMock.setTime(1000)
+      const testOptions = createTestOptions({
+        now: nowMock,
         totalSize: [15, 25],
       })
-      const cache = createCache(t)
+      const cache = createCache(testOptions)
 
-      tc.setTime(1000)
+      nowMock.setTime(1000)
       await cache.getOrCreate('key1', () => 'aaaaaaaaa') // size 10, total 10
-      tc.setTime(2000)
+      nowMock.setTime(2000)
       await cache.getOrCreate('key2', () => 'bbbbbbbbb') // size 10, total 20
 
       // Adding key3 (size 10): total 30 > 25
       // Evict key1 (LRU): totalSize=20, 20-10=10 < 15, stop
       // key2 survives
-      tc.setTime(3000)
+      nowMock.setTime(3000)
       await cache.getOrCreate('key3', () => 'ccccccccc')
 
-      expect(t.storages.value.data.has('key1')).toBe(false)
-      expect(t.storages.value.data.has('key2')).toBe(true)
-      expect(t.storages.value.data.has('key3')).toBe(true)
+      expect(testOptions.storages.value.data.has('key1')).toBe(false)
+      expect(testOptions.storages.value.data.has('key2')).toBe(true)
+      expect(testOptions.storages.value.data.has('key3')).toBe(true)
     })
 
     it('condition 1 priority: evicts below min when necessary to fit new entry', async () => {
-      const tc = new NowMock()
-      tc.setTime(1000)
+      const nowMock = new NowMock()
+      nowMock.setTime(1000)
       // Entry sizes are 11 each, max=15
       // After storing key1 (11), storing key2 (11) makes total 22 > 15
       // Evicting key1 (11) makes total 11, and 11-11=0 < 10, but 11 <= 15
       // So eviction stops after key1 (condition 1 satisfied: 11 <= 15)
-      const t = createTestOptions({
-        now: tc,
+      const testOptions = createTestOptions({
+        now: nowMock,
         totalSize: [10, 15],
       })
-      const cache = createCache(t)
+      const cache = createCache(testOptions)
 
-      tc.setTime(1000)
+      nowMock.setTime(1000)
       await cache.getOrCreate('key1', () => 'aaaaaaaaaa') // size 11
 
-      tc.setTime(2000)
+      nowMock.setTime(2000)
       await cache.getOrCreate('key2', () => 'bbbbbbbbbb') // size 11, total 22 > 15
 
       // key1 evicted, only key2 remains
-      expect(t.storages.value.data.has('key1')).toBe(false)
-      expect(t.storages.value.data.has('key2')).toBe(true)
+      expect(testOptions.storages.value.data.has('key1')).toBe(false)
+      expect(testOptions.storages.value.data.has('key2')).toBe(true)
     })
 
     it('evicts by dateUsed then by size then by dateModified then by key', async () => {
-      const tc = new NowMock()
-      tc.setTime(1000)
+      const nowMock = new NowMock()
+      nowMock.setTime(1000)
       // min=35: prevents evicting key-large after key-small and key-medium are gone
-      const t = createTestOptions({
-        now: tc,
+      const testOptions = createTestOptions({
+        now: nowMock,
         totalSize: [35, 50],
       })
-      const cache = createCache(t)
+      const cache = createCache(testOptions)
 
-      tc.setTime(1000)
+      nowMock.setTime(1000)
       await cache.getOrCreate('key-large', () => 'x'.repeat(14)) // size 15
       await cache.getOrCreate('key-small', () => 'x'.repeat(4)) // size 5
       await cache.getOrCreate('key-medium', () => 'x'.repeat(9)) // size 10
 
       // All dateUsed=1000, sort by size ascending: small(5), medium(10), large(15)
-      tc.setTime(2000)
+      nowMock.setTime(2000)
       await cache.getOrCreate('key-new', () => 'x'.repeat(24)) // size 25, total 30+25=55
 
       // Evict small(5): 50, medium(10): 40, large(15): 40-15=25 < 35, stop
-      expect(t.storages.value.data.has('key-small')).toBe(false)
-      expect(t.storages.value.data.has('key-medium')).toBe(false)
-      expect(t.storages.value.data.has('key-large')).toBe(true)
-      expect(t.storages.value.data.has('key-new')).toBe(true)
+      expect(testOptions.storages.value.data.has('key-small')).toBe(false)
+      expect(testOptions.storages.value.data.has('key-medium')).toBe(false)
+      expect(testOptions.storages.value.data.has('key-large')).toBe(true)
+      expect(testOptions.storages.value.data.has('key-new')).toBe(true)
     })
 
     it('LRU access updates eviction priority', async () => {
-      const tc = new NowMock()
-      tc.setTime(1000)
-      const t = createTestOptions({
-        now: tc,
+      const nowMock = new NowMock()
+      nowMock.setTime(1000)
+      const testOptions = createTestOptions({
+        now: nowMock,
         totalSize: [20, 30],
       })
-      const cache = createCache(t)
+      const cache = createCache(testOptions)
 
-      tc.setTime(1000)
+      nowMock.setTime(1000)
       await cache.getOrCreate('key1', () => 'aaaaaaaaaa') // size 11, dateUsed=1000
-      tc.setTime(2000)
+      nowMock.setTime(2000)
       await cache.getOrCreate('key2', () => 'bbbbbbbbbb') // size 11, dateUsed=2000
 
       // Access key1 to update its dateUsed to 3000
-      tc.setTime(3000)
+      nowMock.setTime(3000)
       await cache.getOrCreate('key1', () => 'should-not-compute')
-      expect(t.storages.stat.data.get('key1')!.dateUsed).toBe(3000)
+      expect(testOptions.storages.stat.data.get('key1')!.dateUsed).toBe(3000)
 
       // Now key2 is LRU (dateUsed=2000 < key1 dateUsed=3000)
-      tc.setTime(4000)
+      nowMock.setTime(4000)
       await cache.getOrCreate('key3', () => 'cccccccccc')
 
       // key2 evicted (LRU), key1 and key3 survive
-      expect(t.storages.value.data.has('key1')).toBe(true)
-      expect(t.storages.value.data.has('key2')).toBe(false)
-      expect(t.storages.value.data.has('key3')).toBe(true)
+      expect(testOptions.storages.value.data.has('key1')).toBe(true)
+      expect(testOptions.storages.value.data.has('key2')).toBe(false)
+      expect(testOptions.storages.value.data.has('key3')).toBe(true)
     })
 
     it('skips current key during eviction', async () => {
-      const tc = new NowMock()
-      tc.setTime(1000)
-      const t = createTestOptions({
-        now: tc,
+      const nowMock = new NowMock()
+      nowMock.setTime(1000)
+      const testOptions = createTestOptions({
+        now: nowMock,
         totalSize: [0, 25],
-        isExpired: stat => tc.now() - stat.dateModified > 500,
+        isExpired: stat => nowMock.now() - stat.dateModified > 500,
       })
-      const cache = createCache(t)
+      const cache = createCache(testOptions)
 
-      tc.setTime(1000)
+      nowMock.setTime(1000)
       await cache.getOrCreate('key1', () => 'aaaaaaaaaa') // size 11
 
       // Expire and re-compute with larger value
       // freeUpSpace receives currentKey='key1', skips it in eviction
-      tc.setTime(2000)
+      nowMock.setTime(2000)
       await cache.getOrCreate('key1', () => 'x'.repeat(14)) // size 15
 
-      expect(t.storages.value.data.has('key1')).toBe(true)
-      expect(t.storages.value.data.get('key1')).toBe('x'.repeat(14))
+      expect(testOptions.storages.value.data.has('key1')).toBe(true)
+      expect(testOptions.storages.value.data.get('key1')).toBe('x'.repeat(14))
     })
 
     it('evicts error entries too', async () => {
-      const tc = new NowMock()
-      tc.setTime(1000)
-      const t = createTestOptions({
-        now: tc,
+      const nowMock = new NowMock()
+      nowMock.setTime(1000)
+      const testOptions = createTestOptions({
+        now: nowMock,
         totalSize: [10, 30],
       })
-      const cache = createCache(t)
+      const cache = createCache(testOptions)
 
-      tc.setTime(1000)
+      nowMock.setTime(1000)
       await expect(
         cache.getOrCreate('key1', () => {
           throw 'cached-err'
         }),
       ).rejects.toBe('cached-err')
-      const key1Size = t.storages.stat.data.get('key1')!.size
+      const key1Size = testOptions.storages.stat.data.get('key1')!.size
       expect(key1Size).toBe('cached-err'.length + 1)
 
-      tc.setTime(2000)
+      nowMock.setTime(2000)
       await cache.getOrCreate('key2', () => 'bbbbbbbbbb') // size 11
 
       // Adding key3 triggers eviction, key1 is LRU
-      tc.setTime(3000)
+      nowMock.setTime(3000)
       await cache.getOrCreate('key3', () => 'cccccccccc')
 
-      expect(t.storages.stat.data.has('key1')).toBe(false)
-      expect(t.storages.error.data.has('key1')).toBe(false)
+      expect(testOptions.storages.stat.data.has('key1')).toBe(false)
+      expect(testOptions.storages.error.data.has('key1')).toBe(false)
     })
 
     it('no eviction when totalSize is null', async () => {
-      const t = createTestOptions({ totalSize: null })
-      const cache = createCache(t)
+      const testOptions = createTestOptions({ totalSize: null })
+      const cache = createCache(testOptions)
 
       for (let i = 0; i < 100; i++) {
         await cache.getOrCreate(`key${i}`, () => 'x'.repeat(1000))
       }
-      expect(t.storages.value.data.size).toBe(100)
+      expect(testOptions.storages.value.data.size).toBe(100)
     })
 
     it('handles replacing cached value with error accounting for size', async () => {
-      const tc = new NowMock()
-      tc.setTime(1000)
-      const t = createTestOptions({
-        now: tc,
-        isExpired: stat => tc.now() - stat.dateModified > 500,
+      const nowMock = new NowMock()
+      nowMock.setTime(1000)
+      const testOptions = createTestOptions({
+        now: nowMock,
+        isExpired: stat => nowMock.now() - stat.dateModified > 500,
         totalSize: [0, 30],
       })
-      const cache = createCache(t)
+      const cache = createCache(testOptions)
 
-      tc.setTime(1000)
+      nowMock.setTime(1000)
       await cache.getOrCreate('key1', () => 'aaaaaaaaaa') // value 10 + stat 1 = 11
 
       // Expire and store error instead
-      tc.setTime(2000)
+      nowMock.setTime(2000)
       const errStr = 'x'.repeat(9) // 9 chars + stat 1 = 10
       await expect(
         cache.getOrCreate('key1', () => {
@@ -729,27 +737,27 @@ describe('Cache', () => {
         }),
       ).rejects.toBe(errStr)
 
-      const stat = t.storages.stat.data.get('key1')!
+      const stat = testOptions.storages.stat.data.get('key1')!
       expect(stat.hasError).toBe(true)
       expect(stat.size).toBe(10)
-      expect(t.storages.value.data.has('key1')).toBe(false)
-      expect(t.storages.error.data.get('key1')).toBe(errStr)
+      expect(testOptions.storages.value.data.has('key1')).toBe(false)
+      expect(testOptions.storages.error.data.get('key1')).toBe(errStr)
     })
   })
 
   describe('delete', () => {
     it('removes value entry and allows re-computation', async () => {
-      const t = createTestOptions()
-      const cache = createCache(t)
+      const testOptions = createTestOptions()
+      const cache = createCache(testOptions)
 
       await cache.getOrCreate('key1', () => 'value1')
-      expect(t.storages.value.data.has('key1')).toBe(true)
+      expect(testOptions.storages.value.data.has('key1')).toBe(true)
 
       await cache.delete('key1')
 
-      expect(t.storages.value.data.has('key1')).toBe(false)
-      expect(t.storages.error.data.has('key1')).toBe(false)
-      expect(t.storages.stat.data.has('key1')).toBe(false)
+      expect(testOptions.storages.value.data.has('key1')).toBe(false)
+      expect(testOptions.storages.error.data.has('key1')).toBe(false)
+      expect(testOptions.storages.stat.data.has('key1')).toBe(false)
 
       let callCount = 0
       const result = await cache.getOrCreate('key1', () => {
@@ -761,8 +769,8 @@ describe('Cache', () => {
     })
 
     it('removes error entry and allows re-computation', async () => {
-      const t = createTestOptions()
-      const cache = createCache(t)
+      const testOptions = createTestOptions()
+      const cache = createCache(testOptions)
 
       await expect(
         cache.getOrCreate('key1', () => {
@@ -777,38 +785,38 @@ describe('Cache', () => {
     })
 
     it('delete non-existent key does not throw', async () => {
-      const t = createTestOptions()
-      const cache = createCache(t)
+      const testOptions = createTestOptions()
+      const cache = createCache(testOptions)
 
       await cache.delete('non-existent')
     })
 
     it('uses converterInput for key resolution', async () => {
-      const t = createTestOptions()
-      t.options.converterInput = ((input: string) =>
+      const testOptions = createTestOptions()
+      testOptions.options.converterInput = ((input: string) =>
         input.toUpperCase()) as ConvertToAsync<string, string>
-      const cache = createCache(t)
+      const cache = createCache(testOptions)
 
       await cache.getOrCreate('abc', () => 'value1')
-      expect(t.storages.value.data.has('ABC')).toBe(true)
+      expect(testOptions.storages.value.data.has('ABC')).toBe(true)
 
       await cache.delete('abc')
-      expect(t.storages.value.data.has('ABC')).toBe(false)
-      expect(t.storages.stat.data.has('ABC')).toBe(false)
+      expect(testOptions.storages.value.data.has('ABC')).toBe(false)
+      expect(testOptions.storages.stat.data.has('ABC')).toBe(false)
     })
 
     it('does not affect other entries', async () => {
-      const t = createTestOptions()
-      const cache = createCache(t)
+      const testOptions = createTestOptions()
+      const cache = createCache(testOptions)
 
       await cache.getOrCreate('key1', () => 'value1')
       await cache.getOrCreate('key2', () => 'value2')
 
       await cache.delete('key1')
 
-      expect(t.storages.value.data.has('key1')).toBe(false)
-      expect(t.storages.value.data.has('key2')).toBe(true)
-      expect(t.storages.stat.data.has('key2')).toBe(true)
+      expect(testOptions.storages.value.data.has('key1')).toBe(false)
+      expect(testOptions.storages.value.data.has('key2')).toBe(true)
+      expect(testOptions.storages.stat.data.has('key2')).toBe(true)
 
       // key2 still cached
       let callCount = 0
@@ -823,8 +831,8 @@ describe('Cache', () => {
 
   describe('clear', () => {
     it('removes all entries', async () => {
-      const t = createTestOptions()
-      const cache = createCache(t)
+      const testOptions = createTestOptions()
+      const cache = createCache(testOptions)
 
       await cache.getOrCreate('key1', () => 'value1')
       await cache.getOrCreate('key2', () => 'value2')
@@ -836,14 +844,14 @@ describe('Cache', () => {
 
       await cache.clear()
 
-      expect(t.storages.value.data.size).toBe(0)
-      expect(t.storages.error.data.size).toBe(0)
-      expect(t.storages.stat.data.size).toBe(0)
+      expect(testOptions.storages.value.data.size).toBe(0)
+      expect(testOptions.storages.error.data.size).toBe(0)
+      expect(testOptions.storages.stat.data.size).toBe(0)
     })
 
     it('after clear, getOrCreate re-computes all entries', async () => {
-      const t = createTestOptions()
-      const cache = createCache(t)
+      const testOptions = createTestOptions()
+      const cache = createCache(testOptions)
 
       await cache.getOrCreate('key1', () => 'value1')
       await cache.getOrCreate('key2', () => 'value2')
@@ -866,8 +874,8 @@ describe('Cache', () => {
 
   describe('concurrency', () => {
     it('serializes concurrent getOrCreate for same key', async () => {
-      const t = createTestOptions()
-      const cache = createCache(t)
+      const testOptions = createTestOptions()
+      const cache = createCache(testOptions)
 
       const callOrder: number[] = []
       let resolveFirst: (value: string) => void = null!
@@ -900,8 +908,8 @@ describe('Cache', () => {
     })
 
     it('parallel getOrCreate for different keys runs concurrently', async () => {
-      const t = createTestOptions()
-      const cache = createCache(t)
+      const testOptions = createTestOptions()
+      const cache = createCache(testOptions)
 
       let key1Running = false
       let key2StartedWhileKey1Running = false
@@ -928,8 +936,8 @@ describe('Cache', () => {
     })
 
     it('concurrent getOrCreate with error and value for same key', async () => {
-      const t = createTestOptions()
-      const cache = createCache(t)
+      const testOptions = createTestOptions()
+      const cache = createCache(testOptions)
 
       let resolveError: () => void = null!
 
@@ -954,8 +962,8 @@ describe('Cache', () => {
     })
 
     it('delete serialized with getOrCreate for same key', async () => {
-      const t = createTestOptions()
-      const cache = createCache(t)
+      const testOptions = createTestOptions()
+      const cache = createCache(testOptions)
 
       let resolveFunc: (value: string) => void = null!
 
@@ -977,8 +985,8 @@ describe('Cache', () => {
       await deletePromise
 
       // After delete, key1 should be gone
-      expect(t.storages.value.data.has('key1')).toBe(false)
-      expect(t.storages.stat.data.has('key1')).toBe(false)
+      expect(testOptions.storages.value.data.has('key1')).toBe(false)
+      expect(testOptions.storages.stat.data.has('key1')).toBe(false)
 
       // Re-computation works
       let callCount = 0
@@ -991,17 +999,17 @@ describe('Cache', () => {
     })
 
     it('multiple concurrent getOrCreate for same key after expiration', async () => {
-      const tc = new NowMock()
-      tc.setTime(1000)
-      const t = createTestOptions({
-        now: tc,
-        isExpired: stat => tc.now() - stat.dateModified > 500,
+      const nowMock = new NowMock()
+      nowMock.setTime(1000)
+      const testOptions = createTestOptions({
+        now: nowMock,
+        isExpired: stat => nowMock.now() - stat.dateModified > 500,
       })
-      const cache = createCache(t)
+      const cache = createCache(testOptions)
 
       await cache.getOrCreate('key1', () => 'value1')
 
-      tc.setTime(2000) // expired
+      nowMock.setTime(2000) // expired
       let resolveFunc: (value: string) => void = null!
       let callCount = 0
 
@@ -1567,8 +1575,8 @@ function createTestOptions(
   }
 }
 
-function createCache(t: ReturnType<typeof createTestOptions>) {
-  return new Cache(t.options)
+function createCache(testOptions: ReturnType<typeof createTestOptions>) {
+  return new Cache(testOptions.options)
 }
 
 async function readDirFlat(dir: string): Promise<string[]> {
