@@ -6,23 +6,27 @@ import { timeoutAbortController } from 'src/common/async/timeout'
 import type { ITimeController } from 'src/common/time/time-controller'
 
 export type GetDateInetOptions = {
+  /**
+   * Every answer of the url must carry its sending time in the Date header,
+   * also an answer from the cache of a CDN.
+   * In browsers, a url of another origin must expose this header.
+   * Default: location.origin in pages and web workers, https://google.com elsewhere
+   */
   url?: null | string
+  /** Default: HEAD */
+  method?: null | 'HEAD' | 'GET'
+  /** Milliseconds before the request is aborted. Default: no timeout */
   timeout?: null | number
   abortSignal?: null | IAbortSignalFast
+  /** Counts the timeout. Default: timeControllerDefault */
   timeController?: null | ITimeController
 }
 
 /**
- * Returns the current time in milliseconds from the Date header of a web server response.
- * The result does not depend on the local clock. Its precision is 1 second
- * @param options.url Any url that answers a HEAD request. Never use a url whose CDN answers
- * from its cache with the Date of the cached response, which can be hours old: check that
- * the Date of a cache hit advances with real time. In browsers, a url of another
- * origin must allow CORS and expose the Date header (Access-Control-Expose-Headers: Date).
- * Default: location.origin in pages and web workers, https://google.com elsewhere
- * @param options.timeout Milliseconds before the request is aborted. Default: no timeout
- * @param options.abortSignal Aborts the request
- * @param options.timeController Counts the timeout. Default: timeControllerDefault
+ * Returns the time of the Date header of a web server response, in milliseconds.
+ * The server writes this time in whole seconds while it answers.
+ * So at the moment of the return, real time is later by up to 1 second plus the duration of the request.
+ * The result does not depend on the device clock
  */
 export async function getDateInet(options?: null | GetDateInetOptions) {
   let url = options?.url
@@ -34,7 +38,7 @@ export async function getDateInet(options?: null | GetDateInetOptions) {
   const abortSignal = timeoutController?.signal ?? options?.abortSignal
   try {
     const response = await fetch(url, {
-      method: 'HEAD',
+      method: options?.method ?? 'HEAD',
       // Without it, the browser cache can return a response
       // with the old Date of the original response
       cache: 'no-store',

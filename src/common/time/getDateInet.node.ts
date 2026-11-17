@@ -32,6 +32,12 @@ describe('getDateInet', () => {
     expect(init.cache).toBe('no-store')
   })
 
+  it('sends a GET request with options.method GET', async () => {
+    const fetchStub = stubFetch(DATE_HEADER)
+    await getDateInet({ url: 'https://example.test/', method: 'GET' })
+    expect(fetchStub.mock.calls[0][1].method).toBe('GET')
+  })
+
   it('default url is https://google.com without location', async () => {
     const fetchStub = stubFetch(DATE_HEADER)
     await getDateInet()

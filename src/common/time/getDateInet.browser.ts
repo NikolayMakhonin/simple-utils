@@ -28,7 +28,7 @@ function getDateInetInWorker(): Promise<number> {
 }
 
 describe('getDateInet', () => {
-  // The test server runs on the same machine, so its date is close to the local clock
+  // The test server runs on the same machine, so its date is close to the device clock
   function test(date: number) {
     expect(Math.abs(date - Date.now())).toBeLessThan(60 * 1000)
   }

@@ -235,13 +235,13 @@ export type WorkerConnectRequest = {
   connectionName: string
   messagePort: IMessagePort
   /**
-   * Offset of timeControllerDefault in the connecting thread.
-   * The worker sets it on its own timeControllerDefault,
-   * so that now() in the worker matches now() in the connecting thread
+   * The nowReal.offset of the thread that connects to the worker.
+   * The worker sets this value and nowRealRealDateMinimum on its own nowReal,
+   * so that nowReal.now() is the same in both threads
    */
-  timeControllerOffset: number | null
-  /** The offsetDate of timeControllerDefault in the connecting thread, set the same way */
-  timeControllerOffsetDate: number | null
+  nowRealOffset: number | null
+  /** The nowReal.realDateMinimum of the thread that connects to the worker */
+  nowRealRealDateMinimum: number | null
 }
 
 export type WorkerServerHandler = (messagePort: IMessagePort) => void

@@ -7,10 +7,7 @@ import type {
   IStorageDb,
 } from './types'
 import type { ConverterAsync, ConvertToAsync } from 'src/common/converter'
-import {
-  type ITimeController,
-  timeControllerDefault,
-} from 'src/common/time/time-controller'
+import { type INow, nowReal } from 'src/common/time/now'
 import {
   type ILockerWithId,
   LockerWithId,
@@ -54,7 +51,7 @@ export type CacheOptions<
     stat: () => number
   }
   isExpired?: null | ((stat: Stat) => boolean)
-  timeController?: null | ITimeController
+  now?: null | INow
 }
 
 /** Compare function for LRU eviction strategy */
@@ -97,7 +94,7 @@ export class Cache<
     ErrorStored,
     StatStored
   >
-  readonly #timeController: ITimeController
+  readonly #now: INow
   readonly #locker: ILockerWithId<Key>
   readonly #stats: ICacheStats<Key, CacheStat>
 
@@ -114,7 +111,7 @@ export class Cache<
     >,
   ) {
     this.#options = options
-    this.#timeController = options.timeController ?? timeControllerDefault
+    this.#now = options.now ?? nowReal
     this.#locker = new LockerWithId()
     this.#stats = new CacheStats({
       storage: options.storages.stat,
@@ -240,7 +237,7 @@ export class Cache<
           this.#options.storages.error?.get(key),
         ])
 
-        const now = this.#timeController.now()
+        const now = this.#now.now()
 
         // When readStored returns null, func below recalculates the value
         // and replaces the unreadable data. Without the recalculation,
@@ -299,7 +296,7 @@ export class Cache<
           this.#options.storages.error.set(key, storedError),
           this.#options.storages.value.delete(key),
         ])
-        const now = this.#timeController.now()
+        const now = this.#now.now()
         const statNew: CacheStat = {
           dateModified: now,
           dateUsed: now,
@@ -320,7 +317,7 @@ export class Cache<
         this.#options.storages.value.set(key, storedValue),
         this.#options.storages.error?.delete(key),
       ])
-      const now = this.#timeController.now()
+      const now = this.#now.now()
       const statNew: CacheStat = {
         dateModified: now,
         dateUsed: now,

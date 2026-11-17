@@ -15,9 +15,8 @@ import * as fs from 'fs'
 import * as path from 'path'
 import type { NumberRange } from 'src/common/types/common'
 import type { ConvertToAsync } from 'src/common/converter/types'
-import { TimeControllerMock } from 'src/common/time/time-controller'
+import { NowMock } from 'src/common/time/now'
 import { waitMicrotasks } from 'src/common/async/wait/waitMicrotasks'
-import { waitTimeControllerMock } from 'src/common/async/wait/waitTimeControllerMock'
 import {
   decompressGzip,
   isGzipCompressed,
@@ -108,9 +107,9 @@ describe('Cache', () => {
     })
 
     it('updates dateUsed on cache hit', async () => {
-      const tc = new TimeControllerMock()
+      const tc = new NowMock()
       tc.setTime(1000)
-      const t = createTestOptions({ timeController: tc })
+      const t = createTestOptions({ now: tc })
       const cache = createCache(t)
 
       await cache.getOrCreate('key1', () => 'value1')
@@ -126,9 +125,9 @@ describe('Cache', () => {
     })
 
     it('updates dateUsed on cached error hit', async () => {
-      const tc = new TimeControllerMock()
+      const tc = new NowMock()
       tc.setTime(1000)
-      const t = createTestOptions({ timeController: tc })
+      const t = createTestOptions({ now: tc })
       const cache = createCache(t)
 
       await expect(
@@ -369,10 +368,10 @@ describe('Cache', () => {
 
   describe('expiration', () => {
     it('re-computes expired entries', async () => {
-      const tc = new TimeControllerMock()
+      const tc = new NowMock()
       tc.setTime(1000)
       const t = createTestOptions({
-        timeController: tc,
+        now: tc,
         isExpired: stat => tc.now() - stat.dateModified > 500,
       })
       const cache = createCache(t)
@@ -398,10 +397,10 @@ describe('Cache', () => {
     })
 
     it('cleans up old storage entries on expiration', async () => {
-      const tc = new TimeControllerMock()
+      const tc = new NowMock()
       tc.setTime(1000)
       const t = createTestOptions({
-        timeController: tc,
+        now: tc,
         isExpired: stat => tc.now() - stat.dateModified > 500,
       })
       const cache = createCache(t)
@@ -426,10 +425,10 @@ describe('Cache', () => {
     })
 
     it('expired error entry gets re-computed', async () => {
-      const tc = new TimeControllerMock()
+      const tc = new NowMock()
       tc.setTime(1000)
       const t = createTestOptions({
-        timeController: tc,
+        now: tc,
         isExpired: stat => tc.now() - stat.dateModified > 500,
       })
       const cache = createCache(t)
@@ -446,10 +445,10 @@ describe('Cache', () => {
     })
 
     it('expiration checks dateModified not dateUsed', async () => {
-      const tc = new TimeControllerMock()
+      const tc = new NowMock()
       tc.setTime(1000)
       const t = createTestOptions({
-        timeController: tc,
+        now: tc,
         isExpired: stat => tc.now() - stat.dateModified > 500,
       })
       const cache = createCache(t)
@@ -474,12 +473,12 @@ describe('Cache', () => {
 
   describe('totalSize and LRU eviction', () => {
     it('evicts LRU entries and cleans down to min', async () => {
-      const tc = new TimeControllerMock()
+      const tc = new NowMock()
       tc.setTime(1000)
       // min=20 prevents over-eviction: after evicting key1, totalSize=22
       // removing key2 (size 11) would bring total to 11 < 20, so stop
       const t = createTestOptions({
-        timeController: tc,
+        now: tc,
         totalSize: [20, 30],
       })
       const cache = createCache(t)
@@ -504,10 +503,10 @@ describe('Cache', () => {
     })
 
     it('aggressively evicts down to min when min is low', async () => {
-      const tc = new TimeControllerMock()
+      const tc = new NowMock()
       tc.setTime(1000)
       const t = createTestOptions({
-        timeController: tc,
+        now: tc,
         totalSize: [0, 30],
       })
       const cache = createCache(t)
@@ -544,10 +543,10 @@ describe('Cache', () => {
     })
 
     it('respects totalSize minimum during eviction', async () => {
-      const tc = new TimeControllerMock()
+      const tc = new NowMock()
       tc.setTime(1000)
       const t = createTestOptions({
-        timeController: tc,
+        now: tc,
         totalSize: [15, 25],
       })
       const cache = createCache(t)
@@ -569,14 +568,14 @@ describe('Cache', () => {
     })
 
     it('condition 1 priority: evicts below min when necessary to fit new entry', async () => {
-      const tc = new TimeControllerMock()
+      const tc = new NowMock()
       tc.setTime(1000)
       // Entry sizes are 11 each, max=15
       // After storing key1 (11), storing key2 (11) makes total 22 > 15
       // Evicting key1 (11) makes total 11, and 11-11=0 < 10, but 11 <= 15
       // So eviction stops after key1 (condition 1 satisfied: 11 <= 15)
       const t = createTestOptions({
-        timeController: tc,
+        now: tc,
         totalSize: [10, 15],
       })
       const cache = createCache(t)
@@ -593,11 +592,11 @@ describe('Cache', () => {
     })
 
     it('evicts by dateUsed then by size then by dateModified then by key', async () => {
-      const tc = new TimeControllerMock()
+      const tc = new NowMock()
       tc.setTime(1000)
       // min=35: prevents evicting key-large after key-small and key-medium are gone
       const t = createTestOptions({
-        timeController: tc,
+        now: tc,
         totalSize: [35, 50],
       })
       const cache = createCache(t)
@@ -619,10 +618,10 @@ describe('Cache', () => {
     })
 
     it('LRU access updates eviction priority', async () => {
-      const tc = new TimeControllerMock()
+      const tc = new NowMock()
       tc.setTime(1000)
       const t = createTestOptions({
-        timeController: tc,
+        now: tc,
         totalSize: [20, 30],
       })
       const cache = createCache(t)
@@ -648,10 +647,10 @@ describe('Cache', () => {
     })
 
     it('skips current key during eviction', async () => {
-      const tc = new TimeControllerMock()
+      const tc = new NowMock()
       tc.setTime(1000)
       const t = createTestOptions({
-        timeController: tc,
+        now: tc,
         totalSize: [0, 25],
         isExpired: stat => tc.now() - stat.dateModified > 500,
       })
@@ -670,10 +669,10 @@ describe('Cache', () => {
     })
 
     it('evicts error entries too', async () => {
-      const tc = new TimeControllerMock()
+      const tc = new NowMock()
       tc.setTime(1000)
       const t = createTestOptions({
-        timeController: tc,
+        now: tc,
         totalSize: [10, 30],
       })
       const cache = createCache(t)
@@ -709,10 +708,10 @@ describe('Cache', () => {
     })
 
     it('handles replacing cached value with error accounting for size', async () => {
-      const tc = new TimeControllerMock()
+      const tc = new NowMock()
       tc.setTime(1000)
       const t = createTestOptions({
-        timeController: tc,
+        now: tc,
         isExpired: stat => tc.now() - stat.dateModified > 500,
         totalSize: [0, 30],
       })
@@ -992,10 +991,10 @@ describe('Cache', () => {
     })
 
     it('multiple concurrent getOrCreate for same key after expiration', async () => {
-      const tc = new TimeControllerMock()
+      const tc = new NowMock()
       tc.setTime(1000)
       const t = createTestOptions({
-        timeController: tc,
+        now: tc,
         isExpired: stat => tc.now() - stat.dateModified > 500,
       })
       const cache = createCache(t)
@@ -1013,8 +1012,8 @@ describe('Cache', () => {
         })
       })
 
-      // Flush microtasks with time controller context to reach func()
-      await waitTimeControllerMock(tc)
+      // Flush microtasks to reach func()
+      await waitMicrotasks()
 
       const promise2 = cache.getOrCreate('key1', () => {
         callCount++
@@ -1532,7 +1531,7 @@ function createTestOptions(
   options?: null | {
     totalSize?: null | NumberRange
     isExpired?: null | ((stat: CacheStat) => boolean)
-    timeController?: null | TimeControllerMock
+    now?: null | NowMock
   },
 ): {
   options: CacheOptions<
@@ -1563,7 +1562,7 @@ function createTestOptions(
         stat: () => 1,
       },
       isExpired: options?.isExpired,
-      timeController: options?.timeController,
+      now: options?.now,
     },
   }
 }

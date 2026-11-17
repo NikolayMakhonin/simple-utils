@@ -19,7 +19,6 @@ export class TimeControllerMock
 {
   readonly #timers: PairingHeap<TimeControllerMockTimer>
   #now: number = 1
-  #nowUnique: number = 0
   #nextId: number = 0
 
   constructor() {
@@ -62,13 +61,7 @@ export class TimeControllerMock
   }
 
   now(): number {
-    return Math.max(this.#nowUnique, this.#now)
-  }
-
-  nowUnique(): number {
-    const next = this.now() + 1
-    this.#nowUnique = next
-    return next
+    return this.#now
   }
 
   setTimeout(
