@@ -4,7 +4,7 @@ import { DATE_JUMP_MINIMUM, DateReal } from './date'
 
 describe('dateSyncStart', () => {
   // Real time, which exclusively the server reports
-  let realTime = 0
+  let realDate = 0
   // How far the device clock, Date.now(), is ahead of real time
   let dateOffset = 0
   // The value of performance.now(), which stands still while the device sleeps
@@ -15,7 +15,7 @@ describe('dateSyncStart', () => {
   let fetchCount = 0
 
   beforeEach(() => {
-    realTime = 1_700_000_000_000
+    realDate = 1_700_000_000_000
     dateOffset = 0
     performanceNow = 1000
     requestTime = 0
@@ -24,7 +24,7 @@ describe('dateSyncStart', () => {
     vi.useFakeTimers({
       toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'],
     })
-    vi.spyOn(Date, 'now').mockImplementation(() => realTime + dateOffset)
+    vi.spyOn(Date, 'now').mockImplementation(() => realDate + dateOffset)
     vi.spyOn(performance, 'now').mockImplementation(() => performanceNow)
     // The server stamps its Date header with whole seconds of real time
     vi.stubGlobal('fetch', async () => {
@@ -32,8 +32,8 @@ describe('dateSyncStart', () => {
       if (isOffline) {
         throw new TypeError('Failed to fetch')
       }
-      const dateStr = new Date(realTime).toUTCString()
-      realTime += requestTime
+      const dateStr = new Date(realDate).toUTCString()
+      realDate += requestTime
       performanceNow += requestTime
       return new Response(null, { headers: { date: dateStr } })
     })
@@ -47,7 +47,7 @@ describe('dateSyncStart', () => {
 
   // Real time passes while the device is awake
   async function wait(time: number) {
-    realTime += time
+    realDate += time
     performanceNow += time
     await vi.advanceTimersByTimeAsync(time)
   }
@@ -56,7 +56,7 @@ describe('dateSyncStart', () => {
   // Unlike in wait(), the timers run without a yield to promises after each of them.
   // An hour of the once-a-second check would take thousands of yields
   function waitSynchronously(time: number) {
-    realTime += time
+    realDate += time
     performanceNow += time
     vi.advanceTimersByTime(time)
   }
@@ -90,7 +90,7 @@ describe('dateSyncStart', () => {
     await wait(0)
     expect(fetchCount).toBe(1)
     expect(sync.dateReal.offset).toBe(0)
-    expect(sync.savedList).toEqual([{ offset: 0, realDateMinimum: realTime }])
+    expect(sync.savedList).toEqual([{ offset: 0, realDateMinimum: realDate }])
     expect(sync.updateErrors).toEqual([null, null])
     sync.stop()
 
@@ -98,18 +98,18 @@ describe('dateSyncStart', () => {
     dateOffset = 60 * 60 * 1000
     sync = start(null)
     await wait(0)
-    expect(sync.dateReal.now()).toBe(realTime + 500)
+    expect(sync.dateReal.now()).toBe(realDate + 500)
     sync.stop()
     dateOffset = -60 * 60 * 1000
     sync = start(null)
     await wait(0)
-    expect(sync.dateReal.now()).toBe(realTime + 500)
+    expect(sync.dateReal.now()).toBe(realDate + 500)
     sync.stop()
 
     // The stored state sets the time before the first measurement
     dateOffset = 0
     sync = start({ offset: 5000, realDateMinimum: null })
-    expect(sync.dateReal.now()).toBe(realTime + 5000)
+    expect(sync.dateReal.now()).toBe(realDate + 5000)
     sync.stop()
   })
 
@@ -150,11 +150,11 @@ describe('dateSyncStart', () => {
     // A range wider than rangeWidthMaximum updates dateReal and repeats after the same waits,
     // also while dateReal.now() stands above realDateMinimum by more than rangeWidthMaximum
     requestTime = 2000
-    realTime += 900
+    realDate += 900
     const syncSlow = start(null)
     await wait(0)
     expect(fetchCount).toBe(10)
-    expect(syncSlow.dateReal.now() - realTime).toBe(0)
+    expect(syncSlow.dateReal.now() - realDate).toBe(0)
     expect(syncSlow.dateReal.now() - syncSlow.dateReal.realDateMinimum!).toBe(
       2900,
     )
@@ -187,11 +187,11 @@ describe('dateSyncStart', () => {
     dateOffset += 60 * 60 * 1000
     await wait(1000)
     expect(fetchCount).toBe(2)
-    expect(sync.dateReal.now()).toBe(realTime + 500)
+    expect(sync.dateReal.now()).toBe(realDate + 500)
 
     // A sleep stops performance.now().
     // After the wake dateReal.now() adds the sleep, and a measurement checks the time
-    realTime += 10 * 60 * 1000
+    realDate += 10 * 60 * 1000
     await wait(1000)
     expect(fetchCount).toBe(3)
 
@@ -200,7 +200,7 @@ describe('dateSyncStart', () => {
     sync.dateReal.updateOffset(0, sync.dateReal.realDateMinimum)
     await wait(1000)
     expect(fetchCount).toBe(4)
-    expect(sync.dateReal.now()).toBe(realTime + 500)
+    expect(sync.dateReal.now()).toBe(realDate + 500)
 
     // While measurements fail after a jump, they repeat after the growing delays of the task, not every second
     isOffline = true

@@ -8,7 +8,7 @@ import { type DateReal, dateReal as dateRealDefault } from './date'
 
 // An hour: between syncs dateReal.now() drifts by a fraction of a second per hour.
 // That is less than the 1-second precision of internet time
-const TIME_SYNC_INTERVAL = 60 * 60 * 1000
+const DATE_SYNC_INTERVAL = 60 * 60 * 1000
 
 // A minute: when the page ends without being hidden, such as on a crash,
 // the stored realDateMinimum lags the end of the page by at most a minute
@@ -63,9 +63,9 @@ export function dateSyncStart(options: DateSyncStartOptions): Unsubscribe {
 
   let lastRangeWidth: number | null = null
 
-  const timeSyncAbortController = new AbortControllerFast()
+  const dateSyncAbortController = new AbortControllerFast()
 
-  const timeSyncTask = createTaskRepeated(
+  const dateSyncTask = createTaskRepeated(
     async (_, { abortSignal }) => {
       try {
         const range = await getDateInetRange({
@@ -94,36 +94,36 @@ export function dateSyncStart(options: DateSyncStartOptions): Unsubscribe {
     {
       // Each attempt is a run of this task, never a retry inside a run (withRetry).
       // run() called during a run returns the promise of that run.
-      // So syncTimeNow() could not cut short the wait between retries inside a run
+      // So syncDateNow() could not cut short the wait between retries inside a run
       repeatStrategy: () => ({
         delay: status => {
           if (!status.lastFailedRuns) {
-            return TIME_SYNC_INTERVAL
+            return DATE_SYNC_INTERVAL
           }
           // The delay doubles from 1 second, for a short failure of the network, up to 10 seconds.
           // So the next measurement comes within 10 seconds after the network returns
           return Math.min(1000 * 2 ** (status.lastFailedRuns - 1), 10_000)
         },
       }),
-      abortSignal: timeSyncAbortController.signal,
+      abortSignal: dateSyncAbortController.signal,
       logFuncError: options.logFuncError,
     },
   )
 
-  void timeSyncTask.repeated.run()
+  void dateSyncTask.repeated.run()
 
-  function syncTimeNow() {
-    void timeSyncTask.repeated.run({ immediate: true })
+  function syncDateNow() {
+    void dateSyncTask.repeated.run({ immediate: true })
   }
 
-  const unsubscribes: Unsubscribe[] = [() => timeSyncAbortController.abort()]
+  const unsubscribes: Unsubscribe[] = [() => dateSyncAbortController.abort()]
 
   if (typeof document !== 'undefined') {
     function onVisibilityChange() {
       if (document.hidden) {
         saveDateReal()
       } else {
-        syncTimeNow()
+        syncDateNow()
       }
     }
     document.addEventListener('visibilitychange', onVisibilityChange)
@@ -133,9 +133,9 @@ export function dateSyncStart(options: DateSyncStartOptions): Unsubscribe {
   }
 
   if (typeof globalThis.addEventListener !== 'undefined') {
-    globalThis.addEventListener('online', syncTimeNow)
+    globalThis.addEventListener('online', syncDateNow)
     unsubscribes.push(() => {
-      globalThis.removeEventListener('online', syncTimeNow)
+      globalThis.removeEventListener('online', syncDateNow)
     })
   }
 
@@ -155,12 +155,12 @@ export function dateSyncStart(options: DateSyncStartOptions): Unsubscribe {
     // The status of rerun counts every measurement. The status of repeated counts its whole loop as one run.
     // The + 1 allows for dateReal.now() and realDateMinimum each rounded down to whole milliseconds
     if (
-      !timeSyncTask.rerun.status.lastFailedRuns &&
+      !dateSyncTask.rerun.status.lastFailedRuns &&
       lastRangeWidth != null &&
       realDateMinimum != null &&
       dateReal.now() - realDateMinimum > lastRangeWidth + 1
     ) {
-      syncTimeNow()
+      syncDateNow()
     }
   }, DATE_REAL_CHECK_INTERVAL)
   unsubscribes.push(() => {

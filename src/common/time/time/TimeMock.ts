@@ -27,7 +27,7 @@ export class TimeMock implements ITime<PairingNode<TimeMockTimer>> {
     return this.#queue.size
   }
 
-  get nextQueuedTime(): number | null {
+  get timeNextQueued(): number | null {
     return this.#queue.getMin()?.time ?? null
   }
 

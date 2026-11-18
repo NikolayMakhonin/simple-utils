@@ -62,7 +62,7 @@ type TestContext = {
   log: boolean
   dateTime: DateTimeMock
   task: ITaskThrottled<null, number>
-  originTime: number
+  timeOrigin: number
   timeStamps: { start: number; end: number }[]
 }
 
@@ -76,17 +76,17 @@ async function generateContext(
 ): Promise<TestContext> {
   const { args, log } = options
   const dateTime = new DateTimeMock()
-  const originTime = dateTime.time.time()
+  const timeOrigin = dateTime.time.time()
   const timeStamps: { start: number; end: number }[] = []
 
   let callCount = 0
   const { throttled: task } = createTaskThrottled(
     async () => {
-      const funcStart = dateTime.time.time() - originTime
+      const funcStart = dateTime.time.time() - timeOrigin
       dateTime.time.addTime(args.executionDuration)
       timeStamps.push({
         start: funcStart,
-        end: dateTime.time.time() - originTime,
+        end: dateTime.time.time() - timeOrigin,
       })
       return callCount++
     },
@@ -99,7 +99,7 @@ async function generateContext(
     },
   )
 
-  return { log, dateTime, task, originTime, timeStamps }
+  return { log, dateTime, task, timeOrigin, timeStamps }
 }
 
 type TestOptions = {

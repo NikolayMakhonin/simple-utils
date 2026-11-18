@@ -20,50 +20,50 @@ export type TaskStatusBase<Result = any> = {
    */
   readonly isAborted: boolean
   /**
-   * First start time by dateTime.time.time()
+   * First start time
    * null - never started
    */
-  readonly firstStart: null | number
+  readonly timeFirstStart: null | number
   /**
-   * Previous start time by dateTime.time.time() of last completed execution
-   * null - never started or only one start
+   * Start time of the last completed execution
+   * null - no execution has completed yet
    */
-  readonly lastStartCompleted: null | number
+  readonly timeLastStartCompleted: null | number
   /**
-   * Last start time by dateTime.time.time()
+   * Last start time
    * null - never started
    */
-  readonly lastStart: null | number
+  readonly timeLastStart: null | number
   /**
-   * Last end time by dateTime.time.time()
+   * Last end time
    * null - never ended
-   * if lastEnd != null then at least lastResult or lastError is present
+   * if timeLastEnd != null then at least lastResult or lastError is present
    */
-  readonly lastEnd: null | number
+  readonly timeLastEnd: null | number
   /**
-   * Last success time by dateTime.time.time()
+   * Last success time
    * null - never succeeded
    * Determined by successPredicate, not by whether the execution threw
    * Can be non-null even if lastHasError is true
    */
-  readonly lastSuccess: null | number
+  readonly timeLastSuccess: null | number
   /**
-   * Last failure time by dateTime.time.time()
+   * Last failure time
    * null - never failed
    * Determined by successPredicate, not by whether the execution threw
    * Can be non-null even if lastHasError is false
    */
-  readonly lastFailed: null | number
+  readonly timeLastFailed: null | number
   /**
    * Reason for last failure from successPredicate
    */
   readonly lastFailedReason: any
 
   /**
-   * When lastEnd != null:
+   * When timeLastEnd != null:
    * true - lastError is set and lastResult is undefined
    * false - lastError is undefined and lastResult is set
-   * When lastEnd == null: always false (initial state, no execution completed)
+   * When timeLastEnd == null: always false (initial state, no execution completed)
    */
   readonly lastHasError: boolean
   /**

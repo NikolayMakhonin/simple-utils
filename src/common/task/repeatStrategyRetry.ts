@@ -31,8 +31,8 @@ export function repeatStrategyRetry({
     if (
       (maxRetries != null && failedRuns > maxRetries) ||
       (maxTotalTime != null &&
-        status.firstStart != null &&
-        status.dateTime.time.time() - status.firstStart > maxTotalTime)
+        status.timeFirstStart != null &&
+        status.dateTime.time.time() - status.timeFirstStart > maxTotalTime)
     ) {
       return { stop: true }
     }

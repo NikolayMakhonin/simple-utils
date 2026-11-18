@@ -19,8 +19,8 @@ describe('Random', () => {
       dispersion: 0,
     }
     const rnd = new Random(0)
-    const startTime = Date.now()
-    while (Date.now() - startTime < 1000) {
+    const dateStart = Date.now()
+    while (Date.now() - dateStart < 1000) {
       for (let i = 0; i < 1000; i++) {
         const valueActual = rnd.next()
         statsActual.sum += valueActual

@@ -99,7 +99,7 @@ export class TaskRepeated<
   }
 
   private result(): Result {
-    if (this.statusInner.lastEnd == null) {
+    if (this.statusInner.timeLastEnd == null) {
       this.abortSignal.throwIfAborted()
       throw new AbortError('Task stopped before first execution')
     }

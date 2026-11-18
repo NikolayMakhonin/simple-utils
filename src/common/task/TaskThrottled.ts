@@ -67,9 +67,9 @@ export class TaskThrottled<
 {
   readonly #options: null | TaskOptionsThrottled<Result>
   #timerAbortController: IAbortControllerFast | null = null
-  #timerTargetTime: number | null = null
-  #nextCallTime: number | null = null
-  #lastCallTime: number | null = null
+  #timeTimerTarget: number | null = null
+  #timeNextCall: number | null = null
+  #timeLastCall: number | null = null
   #throttleTimeCurrent: number | null = null
   #throttleTimeMaxCurrent: number | null = null
   #throttleFromEnd: boolean = false
@@ -103,31 +103,31 @@ export class TaskThrottled<
           : _throttleTimeMax
   }
 
-  private updateNextCallTime(): void {
+  private updateTimeNextCall(): void {
     if (this.#throttleTimeCurrent == null) {
       return
     }
     const time = this.dateTime.time.time()
-    let newNextCallTime =
-      this.#lastCallTime == null
+    let newTimeNextCall =
+      this.#timeLastCall == null
         ? time
-        : this.#lastCallTime + this.#throttleTimeCurrent
+        : this.#timeLastCall + this.#throttleTimeCurrent
     if (this.#throttleTimeMaxCurrent != null) {
-      const lastCallTime = this.#lastCallTime ?? time
-      newNextCallTime = Math.min(
-        newNextCallTime,
-        lastCallTime + this.#throttleTimeMaxCurrent,
+      const timeLastCall = this.#timeLastCall ?? time
+      newTimeNextCall = Math.min(
+        newTimeNextCall,
+        timeLastCall + this.#throttleTimeMaxCurrent,
       )
     }
-    this.#nextCallTime = newNextCallTime
+    this.#timeNextCall = newTimeNextCall
     if (
-      this.#timerTargetTime != null &&
+      this.#timeTimerTarget != null &&
       this.#timerAbortController != null &&
-      this.#nextCallTime <= this.#timerTargetTime
+      this.#timeNextCall <= this.#timeTimerTarget
     ) {
       this.#timerAbortController.abort()
       this.#timerAbortController = null
-      this.#timerTargetTime = null
+      this.#timeTimerTarget = null
     }
   }
 
@@ -140,26 +140,26 @@ export class TaskThrottled<
       this.#throttleFromEnd = throttleFromEnd
     }
     this.updateThrottleTime(throttleTime, _throttleTimeMax)
-    this.updateNextCallTime()
+    this.updateTimeNextCall()
   }
 
-  private getCallTime(time: number): number | null {
+  private getTimeCall(time: number): number | null {
     if (this.#throttleTimeCurrent == null) {
       return null
     }
 
-    let callTime = this.#nextCallTime ?? 0
+    let timeCall = this.#timeNextCall ?? 0
 
-    const lastCallTime = this.#lastCallTime ?? time
-    const callTimeMax =
+    const timeLastCall = this.#timeLastCall ?? time
+    const timeCallMax =
       this.#throttleTimeMaxCurrent == null
         ? null
         : time +
-          Math.max(0, this.#throttleTimeMaxCurrent - (time - lastCallTime))
-    if (callTimeMax != null) {
-      callTime = Math.min(callTime, callTimeMax)
+          Math.max(0, this.#throttleTimeMaxCurrent - (time - timeLastCall))
+    if (timeCallMax != null) {
+      timeCall = Math.min(timeCall, timeCallMax)
     }
-    return callTime
+    return timeCall
   }
 
   #processPromise: Promise<void> | null = null
@@ -171,9 +171,9 @@ export class TaskThrottled<
           this.abortSignal.throwIfAborted()
 
           const time = this.dateTime.time.time()
-          this.#timerTargetTime = this.getCallTime(time)
+          this.#timeTimerTarget = this.getTimeCall(time)
 
-          if (this.#timerTargetTime == null || this.#timerTargetTime <= time) {
+          if (this.#timeTimerTarget == null || this.#timeTimerTarget <= time) {
             break
           }
 
@@ -183,31 +183,31 @@ export class TaskThrottled<
             this.abortSignal,
           )
           await delay(
-            this.#timerTargetTime - time,
+            this.#timeTimerTarget - time,
             timerAbortSignal,
             this.dateTime,
           ).catch(EMPTY_FUNC)
           this.abortDelay()
         }
 
-        if (this.#timerTargetTime == null) {
+        if (this.#timeTimerTarget == null) {
           break
         }
 
-        this.#timerTargetTime = null
+        this.#timeTimerTarget = null
         this.#throttleTimeCurrent = null
-        this.#nextCallTime = null
+        this.#timeNextCall = null
 
         if (!this.#throttleFromEnd) {
-          this.#lastCallTime = this.dateTime.time.time()
+          this.#timeLastCall = this.dateTime.time.time()
         }
         try {
           await super.runInternal()
         } finally {
           if (this.#throttleFromEnd) {
-            this.#lastCallTime = this.dateTime.time.time()
+            this.#timeLastCall = this.dateTime.time.time()
           }
-          this.updateNextCallTime()
+          this.updateTimeNextCall()
         }
       }
     } finally {
@@ -230,7 +230,7 @@ export class TaskThrottled<
   }
 
   skipDelay(): void {
-    this.#nextCallTime = 0
+    this.#timeNextCall = 0
     this.abortDelay()
   }
 

@@ -36,7 +36,7 @@ export type TaskStatusControllerBaseOptions<Result = void> =
 export function taskSuccessPredicateDefault<T>(
   status: TaskStatusBase<T>,
 ): true | SuccessPredicateResult {
-  if (status.lastEnd != null && !status.lastHasError) {
+  if (status.timeLastEnd != null && !status.lastHasError) {
     return true
   }
   return { reason: status.lastError }
@@ -56,14 +56,14 @@ export class TaskStatusControllerBase<
   constructor(
     initialStatus: Omit<
       Status,
-      | 'firstStart'
+      | 'timeFirstStart'
       | 'isRunning'
       | 'isAborted'
-      | 'lastStartCompleted'
-      | 'lastStart'
-      | 'lastEnd'
-      | 'lastSuccess'
-      | 'lastFailed'
+      | 'timeLastStartCompleted'
+      | 'timeLastStart'
+      | 'timeLastEnd'
+      | 'timeLastSuccess'
+      | 'timeLastFailed'
       | 'lastFailedReason'
       | 'lastHasError'
       | 'totalStarts'
@@ -82,14 +82,14 @@ export class TaskStatusControllerBase<
     this.#status = {
       abortSignal: this.#abortController.signal,
       dateTime: this.#dateTime,
-      firstStart: null,
+      timeFirstStart: null,
       isRunning: false,
       isAborted: false,
-      lastStartCompleted: null,
-      lastStart: null,
-      lastEnd: null,
-      lastSuccess: null,
-      lastFailed: null,
+      timeLastStartCompleted: null,
+      timeLastStart: null,
+      timeLastEnd: null,
+      timeLastSuccess: null,
+      timeLastFailed: null,
       lastFailedReason: undefined,
       lastHasError: false,
       totalStarts: 0,
@@ -120,8 +120,8 @@ export class TaskStatusControllerBase<
       abortSignal: this.#abortController.signal,
       isRunning: true,
       isAborted: this.#abortController.signal.aborted,
-      firstStart: this.#status.firstStart ?? time,
-      lastStart: time,
+      timeFirstStart: this.#status.timeFirstStart ?? time,
+      timeLastStart: time,
       totalStarts: this.#status.totalStarts + 1,
     }
     this.#events.emit(this.#status)
@@ -132,8 +132,8 @@ export class TaskStatusControllerBase<
       ...this.#status,
       isRunning: false,
       isAborted: this.#abortController.signal.aborted,
-      lastStartCompleted: this.#status.lastStart,
-      lastEnd: this.#dateTime.time.time(),
+      timeLastStartCompleted: this.#status.timeLastStart,
+      timeLastEnd: this.#dateTime.time.time(),
       lastHasError: false,
       lastError: undefined,
       lastResult: result,
@@ -146,8 +146,8 @@ export class TaskStatusControllerBase<
       ...this.#status,
       isRunning: false,
       isAborted: this.#abortController.signal.aborted,
-      lastStartCompleted: this.#status.lastStart,
-      lastEnd: this.#dateTime.time.time(),
+      timeLastStartCompleted: this.#status.timeLastStart,
+      timeLastEnd: this.#dateTime.time.time(),
       lastHasError: true,
       lastError: error,
       lastResult: undefined,
@@ -162,7 +162,7 @@ export class TaskStatusControllerBase<
     if (result === true || result.success === true) {
       this.#status = {
         ...this.#status,
-        lastSuccess: this.#status.lastEnd!,
+        timeLastSuccess: this.#status.timeLastEnd!,
         lastFailedReason: undefined,
         lastSuccessRuns: (this.#status.lastSuccessRuns ?? 0) + 1,
         lastFailedRuns: 0,
@@ -170,7 +170,7 @@ export class TaskStatusControllerBase<
     } else {
       this.#status = {
         ...this.#status,
-        lastFailed: this.#status.lastEnd!,
+        timeLastFailed: this.#status.timeLastEnd!,
         lastFailedReason: result.reason,
         lastSuccessRuns: 0,
         lastFailedRuns: (this.#status.lastFailedRuns ?? 0) + 1,

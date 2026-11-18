@@ -19,7 +19,7 @@ export class DateReal implements IDate {
   /** The value of #time.time() at the same moment as #dateReading */
   #timeReading: number = 0
   #realDateMinimum: number | null = null
-  #realDateMinimumTime: number = 0
+  #timeRealDateMinimum: number = 0
 
   constructor(options?: null | DateRealOptions) {
     this.#time = options?.time ?? timeReal
@@ -39,7 +39,7 @@ export class DateReal implements IDate {
       return null
     }
     return Math.floor(
-      this.#realDateMinimum + this.#time.time() - this.#realDateMinimumTime,
+      this.#realDateMinimum + this.#time.time() - this.#timeRealDateMinimum,
     )
   }
 
@@ -54,7 +54,7 @@ export class DateReal implements IDate {
     const now = this.now()
     this.#setNow(now < from || now > to ? (from + to) / 2 : now)
     this.#realDateMinimum = from
-    this.#realDateMinimumTime = this.#time.time()
+    this.#timeRealDateMinimum = this.#time.time()
   }
 
   /**
@@ -77,7 +77,7 @@ export class DateReal implements IDate {
       realDateMinimum != null && now < realDateMinimum ? realDateMinimum : now,
     )
     this.#realDateMinimum = realDateMinimum
-    this.#realDateMinimumTime = this.#time.time()
+    this.#timeRealDateMinimum = this.#time.time()
   }
 
   now(): number {

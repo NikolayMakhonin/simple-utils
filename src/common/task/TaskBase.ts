@@ -110,7 +110,7 @@ export class TaskBase<
       return this.#runPromise
     }
 
-    const isFirst = this.#statusController.status.firstStart == null
+    const isFirst = this.#statusController.status.timeFirstStart == null
 
     this.#runPromise = this.#statusController
       .run(() =>

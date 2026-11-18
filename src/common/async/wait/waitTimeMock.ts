@@ -40,7 +40,7 @@ export async function waitTimeMock<T = any>(
     abortSignal = abortSignalOrPromise
   }
 
-  const endTime =
+  const timeEnd =
     options?.timeout == null ? null : timeMock.time() + options.timeout
   while (true) {
     if (options?.awaitsPerIteration != null) {
@@ -56,18 +56,18 @@ export async function waitTimeMock<T = any>(
     if (abortSignal?.aborted) {
       break
     }
-    if (endTime != null && timeMock.time() >= endTime) {
+    if (timeEnd != null && timeMock.time() >= timeEnd) {
       break
     }
-    let nextTime = timeMock.nextQueuedTime
-    if (nextTime == null && !promise) {
+    let timeNext = timeMock.timeNextQueued
+    if (timeNext == null && !promise) {
       break
     }
-    if (nextTime == null || (endTime != null && nextTime > endTime)) {
-      nextTime = endTime
+    if (timeNext == null || (timeEnd != null && timeNext > timeEnd)) {
+      timeNext = timeEnd
     }
-    if (nextTime != null) {
-      timeMock.setTime(nextTime)
+    if (timeNext != null) {
+      timeMock.setTime(timeNext)
     }
   }
 

@@ -62,13 +62,13 @@ export function waitPageStable(page: Page, options: WaitPageStableOptions) {
   return page.evaluate(
     ({ stableTime, timeout, mutation, resource }) => {
       return new Promise<void>((resolve, reject) => {
-        let lastChangeTime = Date.now()
+        let dateLastChange = Date.now()
         let stableTimer: ReturnType<typeof setTimeout> | null = null
         let timeoutTimer: ReturnType<typeof setTimeout> | null = null
         const unsubscribes: (() => void)[] = []
 
         function onChange() {
-          lastChangeTime = Date.now()
+          dateLastChange = Date.now()
         }
 
         function cleanup() {
@@ -86,7 +86,7 @@ export function waitPageStable(page: Page, options: WaitPageStableOptions) {
         }
 
         function check() {
-          const remaining = stableTime - (Date.now() - lastChangeTime)
+          const remaining = stableTime - (Date.now() - dateLastChange)
           if (remaining <= 0) {
             cleanup()
             resolve()
