@@ -7,7 +7,7 @@ export interface ITimeLimitPool extends IPool {
   readonly time: number
 }
 
-export type TimeLimitPoolParams = {
+export type TimeLimitPoolOptions = {
   pool: IPool
   time: number
   dateTime?: null | IDateTime
@@ -17,7 +17,7 @@ export class TimeLimitPool extends PoolWrapper implements ITimeLimitPool {
   private readonly _time: number
   private readonly _dateTime: IDateTime
 
-  constructor({ pool, time, dateTime }: TimeLimitPoolParams) {
+  constructor({ pool, time, dateTime }: TimeLimitPoolOptions) {
     super(pool)
     this._time = time
     this._dateTime = dateTime ?? dateTimeReal

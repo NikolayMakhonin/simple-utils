@@ -44,8 +44,8 @@ describe('time-limits > TimeLimits', () => {
         maxCountTotal = limit.maxCount
       }
       if (timeLog.length >= limit.maxCount) {
-        const prevTime = timeLog[timeLog.length - limit.maxCount]
-        const elapsedTime = time - prevTime
+        const timePrev = timeLog[timeLog.length - limit.maxCount]
+        const elapsedTime = time - timePrev
         if (elapsedTime < limit.timeMs) {
           results.push(
             `ERROR: elapsedTime(${elapsedTime}) < limit.timeMs(${limit.timeMs})`,

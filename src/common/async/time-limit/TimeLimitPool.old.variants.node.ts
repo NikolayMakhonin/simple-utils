@@ -162,16 +162,6 @@ describe('time-limits > TimeLimits Old', { timeout: 300000 }, () => {
     },
   )
 
-  it.skip('custom', async () => {
-    await testVariants({
-      mode: ['async'],
-      maxCount: [1],
-      timeLimitsTree: [false],
-      asyncTime: [500],
-      timeMs: [1000],
-    })()
-  })
-
   it('variants', async () => {
     await testVariants({
       timeLimitsTree: [false, true],
