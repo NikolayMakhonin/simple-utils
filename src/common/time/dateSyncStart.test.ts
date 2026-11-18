@@ -83,7 +83,7 @@ describe('dateSyncStart', () => {
   }
 
   it('base', async () => {
-    // A right device clock: the measurement keeps the time
+    // A right device clock: the measurement keeps clockDateReal.value()
     let sync = start(null)
     // The sync calls onUpdate at start, before any measurement
     expect(sync.updateErrors).toEqual([null])
@@ -94,7 +94,7 @@ describe('dateSyncStart', () => {
     expect(sync.updateErrors).toEqual([null, null])
     sync.stop()
 
-    // A device clock ahead or behind: the time moves to the middle of the range of real time
+    // A device clock ahead or behind: clockDateReal.value() moves to the middle of the range of real time
     dateOffset = 60 * 60 * 1000
     sync = start(null)
     await wait(0)
@@ -106,7 +106,7 @@ describe('dateSyncStart', () => {
     expect(sync.clockDateReal.value()).toBe(date + 500)
     sync.stop()
 
-    // The stored state sets the time before the first measurement
+    // The stored state sets clockDateReal.value() before the first measurement
     dateOffset = 0
     sync = start({ offset: 5000, dateMinimum: null })
     expect(sync.clockDateReal.value()).toBe(date + 5000)
@@ -190,7 +190,7 @@ describe('dateSyncStart', () => {
     expect(sync.clockDateReal.value()).toBe(date + 500)
 
     // A sleep stops performance.now().
-    // After the wake clockDateReal.value() adds the sleep, and a measurement checks the time
+    // After the wake clockDateReal.value() adds the sleep, and a measurement checks clockDateReal.value()
     date += 10 * 60 * 1000
     await wait(1000)
     expect(fetchCount).toBe(3)

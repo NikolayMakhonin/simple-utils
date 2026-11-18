@@ -39,16 +39,16 @@ describe('ClockDateReal', () => {
     test(clockDateReal, dateDevice, null, null)
     clockDateReal.updateOffset(500, null)
     test(clockDateReal, dateDevice + 500, 500, null)
-    // The time advances with real time
+    // The date advances with real time
     wait(1000)
     test(clockDateReal, dateDevice + 500, 500, null)
-    // The time is never below dateMinimum
+    // The date is never below dateMinimum
     clockDateReal.updateOffset(0, dateDevice + 2000)
     test(clockDateReal, dateDevice + 2000, 2000, dateDevice + 2000)
-    // A range that holds the time keeps it
+    // A range that holds the date keeps it
     clockDateReal.updateDate([dateDevice + 1000, dateDevice + 3000])
     test(clockDateReal, dateDevice + 2000, 2000, dateDevice + 1000)
-    // A range that misses the time moves it to the middle of the range
+    // A range that misses the date moves it to the middle of the range
     clockDateReal.updateDate([dateDevice + 5000, dateDevice + 6000])
     test(clockDateReal, dateDevice + 5500, 5500, dateDevice + 5000)
   })
@@ -57,10 +57,10 @@ describe('ClockDateReal', () => {
     const clockDateReal = new ClockDateReal({ clockTime: clockTimeMock })
     clockDateReal.updateOffset(0, dateDevice)
     const date = dateDevice
-    // A jump up to DATE_JUMP_MINIMUM leaves the time
+    // A jump up to DATE_JUMP_MINIMUM leaves the date
     dateDevice += DATE_JUMP_MINIMUM
     test(clockDateReal, date, date - dateDevice, date)
-    // A larger forward jump, a sleep or a device clock set forward, moves the time forward
+    // A larger forward jump, a sleep or a device clock set forward, moves the date forward
     dateDevice += DATE_JUMP_MINIMUM + 1
     test(
       clockDateReal,
@@ -68,7 +68,7 @@ describe('ClockDateReal', () => {
       date + DATE_JUMP_MINIMUM + 1 - dateDevice,
       date,
     )
-    // A backward change of Date.now() leaves the time
+    // A backward change of Date.now() leaves the date
     dateDevice -= 60 * 60 * 1000
     test(
       clockDateReal,
@@ -90,7 +90,7 @@ describe('ClockDateReal', () => {
     test(clockDateReal, dateDevice + 5000, 5000, dateDevice + 5000)
   })
 
-  it('nowUnique', () => {
+  it('valueUnique', () => {
     const clockDateReal = new ClockDateReal({ clockTime: clockTimeMock })
     clockDateReal.updateOffset(0, null)
     // Each value is greater than value() and than the previous value
