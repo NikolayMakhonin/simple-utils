@@ -11,12 +11,9 @@ export type DateRealOptions = {
 export class DateReal implements IDate {
   readonly #time: ITime
   #nowUnique: number = 0
-  /** The base of now(). now() returns #dateBase plus the time counted since #timeBase. Null before the first update */
   #dateBase: number | null = null
   #timeBase: number = 0
-  /** Date.now() at the last reading of now() or the last update */
   #dateReading: number = 0
-  /** The value of #time.time() at the same moment as #dateReading */
   #timeReading: number = 0
   #realDateMinimum: number | null = null
   #timeRealDateMinimum: number = 0
@@ -86,10 +83,8 @@ export class DateReal implements IDate {
     }
     const now = Date.now()
     const time = this.#time.time()
-    // Date.now() gets ahead of #time.time() after a sleep that #time.time() did not count.
-    // It also gets ahead after the device clock was set forward. now() cannot tell the two apart.
-    // Taking the jump keeps the time of a sleep.
-    // After a device clock set forward, the next updateRealDate() brings now() back to real time
+    // The time of a sleep must count, and a device clock set forward
+    // cannot be told apart from a sleep
     const dateJump = now - this.#dateReading - (time - this.#timeReading)
     if (dateJump > DATE_JUMP_MINIMUM) {
       this.#dateBase += dateJump

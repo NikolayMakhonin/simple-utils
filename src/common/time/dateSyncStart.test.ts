@@ -5,9 +5,9 @@ import { DATE_JUMP_MINIMUM, DateReal } from './date'
 describe('dateSyncStart', () => {
   // Real time, which exclusively the server reports
   let realDate = 0
-  // How far the device clock, Date.now(), is ahead of real time
+  // How far the device clock is ahead of real time
   let dateOffset = 0
-  // The value of performance.now(), which stands still while the device sleeps
+  // The elapsed time of the device, which stands still while the device sleeps
   let performanceNow = 0
   // How long each request takes
   let requestTime = 0

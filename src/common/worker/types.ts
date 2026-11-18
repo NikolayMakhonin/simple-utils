@@ -235,12 +235,14 @@ export type WorkerConnectRequest = {
   connectionName: string
   messagePort: IMessagePort
   /**
-   * The dateReal.offset of the thread that connects to the worker.
-   * The worker sets this value and dateRealRealDateMinimum on its own dateReal.
-   * Then dateReal.now() is the same in both threads, until either thread updates its dateReal
+   * How far the connecting thread corrects the device clock,
+   * so that the worker gives the same dates
    */
   dateRealOffset: number | null
-  /** The dateReal.realDateMinimum of the thread that connects to the worker */
+  /**
+   * The lower bound of real time known to the connecting thread,
+   * so that the worker gives no earlier date
+   */
   dateRealRealDateMinimum: number | null
 }
 

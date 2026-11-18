@@ -18,7 +18,7 @@ export type GetDateInetOptions = {
   /** Milliseconds before the request is aborted. Default: no timeout */
   timeout?: null | number
   abortSignal?: null | IAbortSignalFast
-  /** Counts the time of the request. Default: dateTimeReal */
+  /** Counts down the timeout. Default: dateTimeReal */
   dateTime?: null | IDateTime
 }
 

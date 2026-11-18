@@ -18,7 +18,7 @@
  * - error - whether task function threw
  * - actualStart, actualEnd - execution timestamps relative to origin
  * - result - return value from task function
- * - lastEnd - status.lastEnd relative to origin at time delay was called
+ * - lastEndTime - status.timeLastEnd relative to origin at time delay was called
  * - lastHasError - status.lastHasError at time delay was called
  * - lastFailedRuns - status.lastFailedRuns at time delay was called
  * - lastFailedReason - status.lastFailedReason at time delay was called
@@ -26,11 +26,11 @@
  * - customSuccessPredicate - whether custom successPredicate is used
  *
  * Example trace:
- * [test][delay][0] lastEnd=null lastHasError=false lastFailedRuns=null → delayMs=5 stop=false skipRun=false funcDelay=false
+ * [test][delay][0] lastEndTime=null lastHasError=false lastFailedRuns=null → delayMs=5 stop=false skipRun=false funcDelay=false
  * [test][exec][0] actualStart=0 actualEnd=3 result=0 error=false
- * [test][delay][1] lastEnd=3 lastHasError=false lastFailedRuns=0 → delayMs=5 stop=false skipRun=false funcDelay=true
+ * [test][delay][1] lastEndTime=3 lastHasError=false lastFailedRuns=0 → delayMs=5 stop=false skipRun=false funcDelay=true
  * [test][exec][1] actualStart=8 actualEnd=11 result=1 error=true
- * [test][delay][2] lastEnd=11 lastHasError=true lastFailedRuns=1 → delayMs=null stop=true skipRun=false funcDelay=false
+ * [test][delay][2] lastEndTime=11 lastHasError=true lastFailedRuns=1 → delayMs=null stop=true skipRun=false funcDelay=false
  * [test] DONE executions=2
  */
 import { describe, it } from 'vitest'
@@ -86,7 +86,7 @@ const testVariants = createTestVariants(async (args: TestVariantsArgs) => {
 
 type DelayCallRecord = {
   index: number
-  statusLastEnd: number | null
+  statusLastEndTime: number | null
   statusLastHasError: boolean
   statusIsRunning: boolean
   statusLastFailedRuns: number | null | undefined
@@ -114,7 +114,7 @@ type TestContext = {
   log: boolean
   dateTime: DateTimeMock
   task: ITaskRepeated<null, number>
-  originTime: number
+  timeOrigin: number
   execRecords: ExecRecord[]
   delayCallRecords: DelayCallRecord[]
   plan: GeneratedDelayPlan
@@ -189,7 +189,7 @@ async function generateContext(
 ): Promise<TestContext> {
   const { rnd, args, log } = options
   const dateTime = new DateTimeMock()
-  const originTime = dateTime.time.time()
+  const timeOrigin = dateTime.time.time()
   const execRecords: ExecRecord[] = []
   const delayCallRecords: DelayCallRecord[] = []
 
@@ -200,9 +200,9 @@ async function generateContext(
 
   const { repeated: task } = createTaskRepeated<null, number>(
     async () => {
-      const funcStart = dateTime.time.time() - originTime
+      const funcStart = dateTime.time.time() - timeOrigin
       dateTime.time.addTime(args.executionDuration)
-      const funcEnd = dateTime.time.time() - originTime
+      const funcEnd = dateTime.time.time() - timeOrigin
       const execIdx = callCount++
       const shouldThrow = plan.errorExecIndices.has(execIdx)
       execRecords.push({
@@ -227,7 +227,7 @@ async function generateContext(
       logLevel: LogLevel.none,
       successPredicate: args.useCustomSuccessPredicate
         ? (status: TaskStatusBase<number>): true | SuccessPredicateResult => {
-            if (status.lastEnd != null && !status.lastHasError) {
+            if (status.timeLastEnd != null && !status.lastHasError) {
               return { success: true }
             }
             return {
@@ -256,8 +256,8 @@ async function generateContext(
 
         const record: DelayCallRecord = {
           index: i,
-          statusLastEnd:
-            status.lastEnd == null ? null : status.lastEnd - originTime,
+          statusLastEndTime:
+            status.timeLastEnd == null ? null : status.timeLastEnd - timeOrigin,
           statusLastHasError: status.lastHasError,
           statusIsRunning: status.isRunning,
           statusLastFailedRuns: status.lastFailedRuns,
@@ -269,7 +269,7 @@ async function generateContext(
         if (log) {
           const isStop = delayResult.stop === true
           console.log(
-            `[test][delay][${i}] lastEnd=${record.statusLastEnd} lastHasError=${record.statusLastHasError} lastFailedRuns=${record.statusLastFailedRuns}` +
+            `[test][delay][${i}] lastEndTime=${record.statusLastEndTime} lastHasError=${record.statusLastHasError} lastFailedRuns=${record.statusLastFailedRuns}` +
               ` lastFailedReason=${record.statusLastFailedReason === undefined ? 'undefined' : JSON.stringify(record.statusLastFailedReason)}` +
               ` → delayMs=${plan.delays[i] ?? null} stop=${isStop} skipRun=${!isStop && (delayResult.skipRun ?? false)} funcDelay=${useFuncDelay}` +
               ` skipRepeatHere=${plan.skipRepeatAtIteration === i}`,
@@ -285,7 +285,7 @@ async function generateContext(
     log,
     dateTime,
     task,
-    originTime,
+    timeOrigin,
     execRecords,
     delayCallRecords,
     plan,
@@ -477,7 +477,7 @@ function checkDelayReceivesCorrectStatus(
   plan: GeneratedDelayPlan,
   args: TestVariantsArgs,
 ): void {
-  let expectedLastEnd: number | null = null
+  let expectedLastEndTime: number | null = null
   let expectedLastHasError = false
   let expectedLastFailedRuns: number | null | undefined = undefined
   let expectedLastFailedReason: any = undefined
@@ -486,9 +486,9 @@ function checkDelayReceivesCorrectStatus(
   for (let i = 0; i < delayCallRecords.length; i++) {
     const record = delayCallRecords[i]
 
-    if (record.statusLastEnd !== expectedLastEnd) {
+    if (record.statusLastEndTime !== expectedLastEndTime) {
       throw new Error(
-        `delay[${i}] statusLastEnd: expected ${expectedLastEnd}, actual ${record.statusLastEnd}`,
+        `delay[${i}] statusLastEndTime: expected ${expectedLastEndTime}, actual ${record.statusLastEndTime}`,
       )
     }
     if (record.statusLastHasError !== expectedLastHasError) {
@@ -542,7 +542,7 @@ function checkDelayReceivesCorrectStatus(
     if (i < plan.iterations) {
       if (!plan.skipRunIndices.has(i)) {
         const exec = execRecords[execIdx]
-        expectedLastEnd = exec.end
+        expectedLastEndTime = exec.end
         expectedLastHasError = exec.threw
 
         if (exec.threw) {
