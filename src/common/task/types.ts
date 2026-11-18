@@ -1,5 +1,5 @@
 import { type IObservable } from 'src/common/rx'
-import { type IDateTime } from 'src/common/time/date-time'
+import { type IClock } from 'src/common/time/clock'
 import type {
   PromiseLikeOrValue,
   PromiseOrValue,
@@ -10,7 +10,7 @@ export type ArgsDefault = void | undefined | null
 
 export type TaskStatusBase<Result = any> = {
   readonly abortSignal: IAbortSignalFast
-  readonly dateTime: IDateTime
+  readonly clock: IClock
   /**
    * true - task is currently running
    */
@@ -251,7 +251,7 @@ export type TaskRepeatStrategy<
 
 export type TaskFuncOptions = {
   readonly abortSignal: IAbortSignalFast
-  readonly dateTime: IDateTime
+  readonly clock: IClock
   readonly isFirst: boolean
 }
 

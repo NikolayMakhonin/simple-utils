@@ -1,6 +1,6 @@
 import { type GetDateInetOptions, getDateInet } from './getDateInet'
-import { DATE_JUMP_MINIMUM } from './date'
-import { dateTimeReal } from './date-time'
+import { DATE_JUMP_MINIMUM } from './clock-date'
+import { clockReal } from './clock'
 import type { NumberRange } from 'src/common/types'
 
 export type GetDateInetRangeOptions = GetDateInetOptions & {
@@ -19,20 +19,20 @@ export type GetDateInetRangeOptions = GetDateInetOptions & {
 export async function getDateInetRange(
   options?: null | GetDateInetRangeOptions,
 ): Promise<NumberRange> {
-  const dateTime = options?.dateTime ?? dateTimeReal
-  const timeStart = dateTime.time.time()
+  const clock = options?.clock ?? clockReal
+  const timeStart = clock.time.value()
   const dateStart = Date.now()
   const dateInet = await getDateInet(options)
-  const duration = dateTime.time.time() - timeStart
+  const duration = clock.time.value() - timeStart
   const dateJump = Date.now() - dateStart - duration
   let durationMaximum = duration
   if (dateJump > DATE_JUMP_MINIMUM) {
     if (!options?.dontThrow) {
       throw new Error(
-        `[getDateInetRange] Date.now() got ahead of dateTime.time.time() by ${dateJump} ms during the request, so dateTime.time.time() may have missed a sleep`,
+        `[getDateInetRange] Date.now() got ahead of clock.time.value() by ${dateJump} ms during the request, so clock.time.value() may have missed a sleep`,
       )
     }
-    // A sleep that dateTime.time.time() missed makes the request as long as Date.now() counted it
+    // A sleep that clock.time.value() missed makes the request as long as Date.now() counted it
     durationMaximum += dateJump
   }
   // The server truncates the Date header to whole seconds.

@@ -1,11 +1,11 @@
 import { waitMicrotasks } from './waitMicrotasks'
-import { type TimeMock } from 'src/common/time/time'
+import { type ClockTimeMock } from 'src/common/time/clock-time'
 import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
 import { promiseToAbortSignal } from 'src/common/async/abort/abortSignalToPromise'
 import { EMPTY_FUNC } from 'src/common/constants'
 import { isPromiseLike } from 'src/common/async/promise/isPromiseLike'
 
-export type WaitTimeMockOptions = {
+export type WaitClockTimeMockOptions = {
   timeout?: null | number
   /**
    * - `number` - N `await Promise.resolve().then()` per iteration
@@ -14,20 +14,20 @@ export type WaitTimeMockOptions = {
   awaitsPerIteration?: null | number
 }
 
-export async function waitTimeMock<T = any>(
-  timeMock: TimeMock,
+export async function waitClockTimeMock<T = any>(
+  clockTimeMock: ClockTimeMock,
   abortSignalOrPromise: PromiseLike<T>,
-  options?: null | WaitTimeMockOptions,
+  options?: null | WaitClockTimeMockOptions,
 ): Promise<T>
-export async function waitTimeMock(
-  timeMock: TimeMock,
+export async function waitClockTimeMock(
+  clockTimeMock: ClockTimeMock,
   abortSignal?: null | IAbortSignalFast,
-  options?: null | WaitTimeMockOptions,
+  options?: null | WaitClockTimeMockOptions,
 ): Promise<void>
-export async function waitTimeMock<T = any>(
-  timeMock: TimeMock,
+export async function waitClockTimeMock<T = any>(
+  clockTimeMock: ClockTimeMock,
   abortSignalOrPromise?: null | IAbortSignalFast | PromiseLike<T>,
-  options?: null | WaitTimeMockOptions,
+  options?: null | WaitClockTimeMockOptions,
 ): Promise<T | void> {
   let promise: PromiseLike<T> | null | undefined
   let abortSignal: IAbortSignalFast | null | undefined
@@ -41,7 +41,7 @@ export async function waitTimeMock<T = any>(
   }
 
   const timeEnd =
-    options?.timeout == null ? null : timeMock.time() + options.timeout
+    options?.timeout == null ? null : clockTimeMock.value() + options.timeout
   while (true) {
     if (options?.awaitsPerIteration != null) {
       for (let i = 0, len = options.awaitsPerIteration; i < len; i++) {
@@ -56,10 +56,10 @@ export async function waitTimeMock<T = any>(
     if (abortSignal?.aborted) {
       break
     }
-    if (timeEnd != null && timeMock.time() >= timeEnd) {
+    if (timeEnd != null && clockTimeMock.value() >= timeEnd) {
       break
     }
-    let timeNext = timeMock.timeNextQueued
+    let timeNext = clockTimeMock.timeNextQueued
     if (timeNext == null && !promise) {
       break
     }
@@ -67,7 +67,7 @@ export async function waitTimeMock<T = any>(
       timeNext = timeEnd
     }
     if (timeNext != null) {
-      timeMock.setTime(timeNext)
+      clockTimeMock.setValue(timeNext)
     }
   }
 

@@ -15,7 +15,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 import type { NumberRange } from 'src/common/types/common'
 import type { ConvertToAsync } from 'src/common/converter/types'
-import { DateTimeMock } from 'src/common/time/date-time'
+import { ClockMock } from 'src/common/time/clock'
 import { waitMicrotasks } from 'src/common/async/wait/waitMicrotasks'
 import {
   decompressGzip,
@@ -109,9 +109,9 @@ describe('Cache', () => {
     })
 
     it('updates dateUsed on cache hit', async () => {
-      const dateTime = new DateTimeMock()
-      dateTime.date.setNow(1000)
-      const testOptions = createTestOptions({ dateTime })
+      const clock = new ClockMock()
+      clock.date.setValue(1000)
+      const testOptions = createTestOptions({ clock })
       const cache = createCache(testOptions)
 
       await cache.getOrCreate('key1', () => 'value1')
@@ -119,7 +119,7 @@ describe('Cache', () => {
       expect(statAfterCreate.dateModified).toBe(1000)
       expect(statAfterCreate.dateUsed).toBe(1000)
 
-      dateTime.date.setNow(2000)
+      clock.date.setValue(2000)
       await cache.getOrCreate('key1', () => 'value1-new')
       const statAfterHit = testOptions.storages.stat.data.get('key1')!
       expect(statAfterHit.dateModified).toBe(1000)
@@ -127,9 +127,9 @@ describe('Cache', () => {
     })
 
     it('updates dateUsed on cached error hit', async () => {
-      const dateTime = new DateTimeMock()
-      dateTime.date.setNow(1000)
-      const testOptions = createTestOptions({ dateTime })
+      const clock = new ClockMock()
+      clock.date.setValue(1000)
+      const testOptions = createTestOptions({ clock })
       const cache = createCache(testOptions)
 
       await expect(
@@ -138,7 +138,7 @@ describe('Cache', () => {
         }),
       ).rejects.toBe('cached-error')
 
-      dateTime.date.setNow(2000)
+      clock.date.setValue(2000)
       await expect(cache.getOrCreate('key1', () => 'value1')).rejects.toBe(
         'cached-error',
       )
@@ -374,23 +374,23 @@ describe('Cache', () => {
 
   describe('expiration', () => {
     it('re-computes expired entries', async () => {
-      const dateTime = new DateTimeMock()
-      dateTime.date.setNow(1000)
+      const clock = new ClockMock()
+      clock.date.setValue(1000)
       const testOptions = createTestOptions({
-        dateTime,
-        isExpired: stat => dateTime.date.now() - stat.dateModified > 500,
+        clock,
+        isExpired: stat => clock.date.value() - stat.dateModified > 500,
       })
       const cache = createCache(testOptions)
 
       await cache.getOrCreate('key1', () => 'value1')
 
       // Not expired yet
-      dateTime.date.setNow(1400)
+      clock.date.setValue(1400)
       const result1 = await cache.getOrCreate('key1', () => 'value2')
       expect(result1).toBe('value1')
 
       // Expired
-      dateTime.date.setNow(1600)
+      clock.date.setValue(1600)
       let callCount = 0
       const result2 = await cache.getOrCreate('key1', () => {
         callCount++
@@ -403,11 +403,11 @@ describe('Cache', () => {
     })
 
     it('cleans up old storage entries on expiration', async () => {
-      const dateTime = new DateTimeMock()
-      dateTime.date.setNow(1000)
+      const clock = new ClockMock()
+      clock.date.setValue(1000)
       const testOptions = createTestOptions({
-        dateTime,
-        isExpired: stat => dateTime.date.now() - stat.dateModified > 500,
+        clock,
+        isExpired: stat => clock.date.value() - stat.dateModified > 500,
       })
       const cache = createCache(testOptions)
 
@@ -421,7 +421,7 @@ describe('Cache', () => {
       expect(testOptions.storages.error.data.has('key1')).toBe(true)
 
       // Expire and re-compute with a value
-      dateTime.date.setNow(2000)
+      clock.date.setValue(2000)
       await cache.getOrCreate('key1', () => 'new-value')
 
       // Error storage should be cleaned, value should be set
@@ -433,11 +433,11 @@ describe('Cache', () => {
     })
 
     it('expired error entry gets re-computed', async () => {
-      const dateTime = new DateTimeMock()
-      dateTime.date.setNow(1000)
+      const clock = new ClockMock()
+      clock.date.setValue(1000)
       const testOptions = createTestOptions({
-        dateTime,
-        isExpired: stat => dateTime.date.now() - stat.dateModified > 500,
+        clock,
+        isExpired: stat => clock.date.value() - stat.dateModified > 500,
       })
       const cache = createCache(testOptions)
 
@@ -447,29 +447,29 @@ describe('Cache', () => {
         }),
       ).rejects.toBe('old-error')
 
-      dateTime.date.setNow(2000)
+      clock.date.setValue(2000)
       const result = await cache.getOrCreate('key1', () => 'fresh-value')
       expect(result).toBe('fresh-value')
     })
 
     it('expiration checks dateModified not dateUsed', async () => {
-      const dateTime = new DateTimeMock()
-      dateTime.date.setNow(1000)
+      const clock = new ClockMock()
+      clock.date.setValue(1000)
       const testOptions = createTestOptions({
-        dateTime,
-        isExpired: stat => dateTime.date.now() - stat.dateModified > 500,
+        clock,
+        isExpired: stat => clock.date.value() - stat.dateModified > 500,
       })
       const cache = createCache(testOptions)
 
       await cache.getOrCreate('key1', () => 'value1')
 
       // Access at now=1400 to update dateUsed
-      dateTime.date.setNow(1400)
+      clock.date.setValue(1400)
       await cache.getOrCreate('key1', () => 'should-not-compute')
       expect(testOptions.storages.stat.data.get('key1')!.dateUsed).toBe(1400)
 
       // At now=1600, dateModified=1000, age=600 > 500, expired despite recent access
-      dateTime.date.setNow(1600)
+      clock.date.setValue(1600)
       let callCount = 0
       await cache.getOrCreate('key1', () => {
         callCount++
@@ -481,19 +481,19 @@ describe('Cache', () => {
 
   describe('totalSize and LRU eviction', () => {
     it('evicts LRU entries and cleans down to min', async () => {
-      const dateTime = new DateTimeMock()
-      dateTime.date.setNow(1000)
+      const clock = new ClockMock()
+      clock.date.setValue(1000)
       // min=20 prevents over-eviction: after evicting key1, totalSize=22
       // removing key2 (size 11) would bring total to 11 < 20, so stop
       const testOptions = createTestOptions({
-        dateTime,
+        clock,
         totalSize: [20, 30],
       })
       const cache = createCache(testOptions)
 
-      dateTime.date.setNow(1000)
+      clock.date.setValue(1000)
       await cache.getOrCreate('key1', () => 'aaaaaaaaaa') // size 11, total 11
-      dateTime.date.setNow(2000)
+      clock.date.setValue(2000)
       await cache.getOrCreate('key2', () => 'bbbbbbbbbb') // size 11, total 22
 
       expect(testOptions.storages.value.data.size).toBe(2)
@@ -501,7 +501,7 @@ describe('Cache', () => {
       // Adding key3: 22 + 11 = 33 > 30
       // Evict key1 (LRU dateUsed=1000): totalSize=22
       // key2: 22-11=11 < 20, stop
-      dateTime.date.setNow(3000)
+      clock.date.setValue(3000)
       await cache.getOrCreate('key3', () => 'cccccccccc')
 
       expect(testOptions.storages.value.data.has('key1')).toBe(false)
@@ -511,23 +511,23 @@ describe('Cache', () => {
     })
 
     it('aggressively evicts down to min when min is low', async () => {
-      const dateTime = new DateTimeMock()
-      dateTime.date.setNow(1000)
+      const clock = new ClockMock()
+      clock.date.setValue(1000)
       const testOptions = createTestOptions({
-        dateTime,
+        clock,
         totalSize: [0, 30],
       })
       const cache = createCache(testOptions)
 
-      dateTime.date.setNow(1000)
+      clock.date.setValue(1000)
       await cache.getOrCreate('key1', () => 'aaaaaaaaaa') // size 11, total 11
-      dateTime.date.setNow(2000)
+      clock.date.setValue(2000)
       await cache.getOrCreate('key2', () => 'bbbbbbbbbb') // size 11, total 22
 
       // Adding key3: total 33 > 30
       // Evict key1: totalSize=22, 22-11=11 > 0, evict key2 too
       // key2 evicted: totalSize=11, 11-11=0 NOT > 0, stop
-      dateTime.date.setNow(3000)
+      clock.date.setValue(3000)
       await cache.getOrCreate('key3', () => 'cccccccccc')
 
       expect(testOptions.storages.value.data.has('key1')).toBe(false)
@@ -551,23 +551,23 @@ describe('Cache', () => {
     })
 
     it('respects totalSize minimum during eviction', async () => {
-      const dateTime = new DateTimeMock()
-      dateTime.date.setNow(1000)
+      const clock = new ClockMock()
+      clock.date.setValue(1000)
       const testOptions = createTestOptions({
-        dateTime,
+        clock,
         totalSize: [15, 25],
       })
       const cache = createCache(testOptions)
 
-      dateTime.date.setNow(1000)
+      clock.date.setValue(1000)
       await cache.getOrCreate('key1', () => 'aaaaaaaaa') // size 10, total 10
-      dateTime.date.setNow(2000)
+      clock.date.setValue(2000)
       await cache.getOrCreate('key2', () => 'bbbbbbbbb') // size 10, total 20
 
       // Adding key3 (size 10): total 30 > 25
       // Evict key1 (LRU): totalSize=20, 20-10=10 < 15, stop
       // key2 survives
-      dateTime.date.setNow(3000)
+      clock.date.setValue(3000)
       await cache.getOrCreate('key3', () => 'ccccccccc')
 
       expect(testOptions.storages.value.data.has('key1')).toBe(false)
@@ -576,22 +576,22 @@ describe('Cache', () => {
     })
 
     it('condition 1 priority: evicts below min when necessary to fit new entry', async () => {
-      const dateTime = new DateTimeMock()
-      dateTime.date.setNow(1000)
+      const clock = new ClockMock()
+      clock.date.setValue(1000)
       // Entry sizes are 11 each, max=15
       // After storing key1 (11), storing key2 (11) makes total 22 > 15
       // Evicting key1 (11) makes total 11, and 11-11=0 < 10, but 11 <= 15
       // So eviction stops after key1 (condition 1 satisfied: 11 <= 15)
       const testOptions = createTestOptions({
-        dateTime,
+        clock,
         totalSize: [10, 15],
       })
       const cache = createCache(testOptions)
 
-      dateTime.date.setNow(1000)
+      clock.date.setValue(1000)
       await cache.getOrCreate('key1', () => 'aaaaaaaaaa') // size 11
 
-      dateTime.date.setNow(2000)
+      clock.date.setValue(2000)
       await cache.getOrCreate('key2', () => 'bbbbbbbbbb') // size 11, total 22 > 15
 
       // key1 evicted, only key2 remains
@@ -600,22 +600,22 @@ describe('Cache', () => {
     })
 
     it('evicts by dateUsed then by size then by dateModified then by key', async () => {
-      const dateTime = new DateTimeMock()
-      dateTime.date.setNow(1000)
+      const clock = new ClockMock()
+      clock.date.setValue(1000)
       // min=35: prevents evicting key-large after key-small and key-medium are gone
       const testOptions = createTestOptions({
-        dateTime,
+        clock,
         totalSize: [35, 50],
       })
       const cache = createCache(testOptions)
 
-      dateTime.date.setNow(1000)
+      clock.date.setValue(1000)
       await cache.getOrCreate('key-large', () => 'x'.repeat(14)) // size 15
       await cache.getOrCreate('key-small', () => 'x'.repeat(4)) // size 5
       await cache.getOrCreate('key-medium', () => 'x'.repeat(9)) // size 10
 
       // All dateUsed=1000, sort by size ascending: small(5), medium(10), large(15)
-      dateTime.date.setNow(2000)
+      clock.date.setValue(2000)
       await cache.getOrCreate('key-new', () => 'x'.repeat(24)) // size 25, total 30+25=55
 
       // Evict small(5): 50, medium(10): 40, large(15): 40-15=25 < 35, stop
@@ -626,26 +626,26 @@ describe('Cache', () => {
     })
 
     it('LRU access updates eviction priority', async () => {
-      const dateTime = new DateTimeMock()
-      dateTime.date.setNow(1000)
+      const clock = new ClockMock()
+      clock.date.setValue(1000)
       const testOptions = createTestOptions({
-        dateTime,
+        clock,
         totalSize: [20, 30],
       })
       const cache = createCache(testOptions)
 
-      dateTime.date.setNow(1000)
+      clock.date.setValue(1000)
       await cache.getOrCreate('key1', () => 'aaaaaaaaaa') // size 11, dateUsed=1000
-      dateTime.date.setNow(2000)
+      clock.date.setValue(2000)
       await cache.getOrCreate('key2', () => 'bbbbbbbbbb') // size 11, dateUsed=2000
 
       // Access key1 to update its dateUsed to 3000
-      dateTime.date.setNow(3000)
+      clock.date.setValue(3000)
       await cache.getOrCreate('key1', () => 'should-not-compute')
       expect(testOptions.storages.stat.data.get('key1')!.dateUsed).toBe(3000)
 
       // Now key2 is LRU (dateUsed=2000 < key1 dateUsed=3000)
-      dateTime.date.setNow(4000)
+      clock.date.setValue(4000)
       await cache.getOrCreate('key3', () => 'cccccccccc')
 
       // key2 evicted (LRU), key1 and key3 survive
@@ -655,21 +655,21 @@ describe('Cache', () => {
     })
 
     it('skips current key during eviction', async () => {
-      const dateTime = new DateTimeMock()
-      dateTime.date.setNow(1000)
+      const clock = new ClockMock()
+      clock.date.setValue(1000)
       const testOptions = createTestOptions({
-        dateTime,
+        clock,
         totalSize: [0, 25],
-        isExpired: stat => dateTime.date.now() - stat.dateModified > 500,
+        isExpired: stat => clock.date.value() - stat.dateModified > 500,
       })
       const cache = createCache(testOptions)
 
-      dateTime.date.setNow(1000)
+      clock.date.setValue(1000)
       await cache.getOrCreate('key1', () => 'aaaaaaaaaa') // size 11
 
       // Expire and re-compute with larger value
       // freeUpSpace receives currentKey='key1', skips it in eviction
-      dateTime.date.setNow(2000)
+      clock.date.setValue(2000)
       await cache.getOrCreate('key1', () => 'x'.repeat(14)) // size 15
 
       expect(testOptions.storages.value.data.has('key1')).toBe(true)
@@ -677,15 +677,15 @@ describe('Cache', () => {
     })
 
     it('evicts error entries too', async () => {
-      const dateTime = new DateTimeMock()
-      dateTime.date.setNow(1000)
+      const clock = new ClockMock()
+      clock.date.setValue(1000)
       const testOptions = createTestOptions({
-        dateTime,
+        clock,
         totalSize: [10, 30],
       })
       const cache = createCache(testOptions)
 
-      dateTime.date.setNow(1000)
+      clock.date.setValue(1000)
       await expect(
         cache.getOrCreate('key1', () => {
           throw 'cached-err'
@@ -694,11 +694,11 @@ describe('Cache', () => {
       const key1Size = testOptions.storages.stat.data.get('key1')!.size
       expect(key1Size).toBe('cached-err'.length + 1)
 
-      dateTime.date.setNow(2000)
+      clock.date.setValue(2000)
       await cache.getOrCreate('key2', () => 'bbbbbbbbbb') // size 11
 
       // Adding key3 triggers eviction, key1 is LRU
-      dateTime.date.setNow(3000)
+      clock.date.setValue(3000)
       await cache.getOrCreate('key3', () => 'cccccccccc')
 
       expect(testOptions.storages.stat.data.has('key1')).toBe(false)
@@ -716,20 +716,20 @@ describe('Cache', () => {
     })
 
     it('handles replacing cached value with error accounting for size', async () => {
-      const dateTime = new DateTimeMock()
-      dateTime.date.setNow(1000)
+      const clock = new ClockMock()
+      clock.date.setValue(1000)
       const testOptions = createTestOptions({
-        dateTime,
-        isExpired: stat => dateTime.date.now() - stat.dateModified > 500,
+        clock,
+        isExpired: stat => clock.date.value() - stat.dateModified > 500,
         totalSize: [0, 30],
       })
       const cache = createCache(testOptions)
 
-      dateTime.date.setNow(1000)
+      clock.date.setValue(1000)
       await cache.getOrCreate('key1', () => 'aaaaaaaaaa') // value 10 + stat 1 = 11
 
       // Expire and store error instead
-      dateTime.date.setNow(2000)
+      clock.date.setValue(2000)
       const errStr = 'x'.repeat(9) // 9 chars + stat 1 = 10
       await expect(
         cache.getOrCreate('key1', () => {
@@ -999,17 +999,17 @@ describe('Cache', () => {
     })
 
     it('multiple concurrent getOrCreate for same key after expiration', async () => {
-      const dateTime = new DateTimeMock()
-      dateTime.date.setNow(1000)
+      const clock = new ClockMock()
+      clock.date.setValue(1000)
       const testOptions = createTestOptions({
-        dateTime,
-        isExpired: stat => dateTime.date.now() - stat.dateModified > 500,
+        clock,
+        isExpired: stat => clock.date.value() - stat.dateModified > 500,
       })
       const cache = createCache(testOptions)
 
       await cache.getOrCreate('key1', () => 'value1')
 
-      dateTime.date.setNow(2000) // expired
+      clock.date.setValue(2000) // expired
       let resolveFunc: (value: string) => void = null!
       let callCount = 0
 
@@ -1539,7 +1539,7 @@ function createTestOptions(
   options?: null | {
     totalSize?: null | NumberRange
     isExpired?: null | ((stat: CacheStat) => boolean)
-    dateTime?: null | DateTimeMock
+    clock?: null | ClockMock
   },
 ): {
   options: CacheOptions<
@@ -1570,7 +1570,7 @@ function createTestOptions(
         stat: () => 1,
       },
       isExpired: options?.isExpired,
-      dateTime: options?.dateTime,
+      clock: options?.clock,
     },
   }
 }

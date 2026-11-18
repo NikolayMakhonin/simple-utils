@@ -40,9 +40,9 @@ import {
   AbortError,
   type IAbortSignalFast,
 } from '@flemist/abort-controller-fast'
-import { DateTimeMock } from 'src/common/time/date-time'
+import { ClockMock } from 'src/common/time/clock'
 import { delay } from 'src/common/async/wait/delay'
-import { waitTimeMock } from 'src/common/async/wait/waitTimeMock'
+import { waitClockTimeMock } from 'src/common/async/wait/waitClockTimeMock'
 import {
   arrayShuffle,
   getRandomSeed,
@@ -120,7 +120,7 @@ function generateContext(options: GenerateContextOptions): TestContext {
   }
 
   const priorityQueue = new PriorityQueue()
-  const dateTime = new DateTimeMock()
+  const clock = new ClockMock()
   const orderActual: number[] = []
   const actions = generateActions(options)
   const orderExpected = calculateOrder(actions)
@@ -134,7 +134,7 @@ function generateContext(options: GenerateContextOptions): TestContext {
     },
     onError,
     priorityQueue,
-    dateTime,
+    clock,
     actions,
     orderActual,
     orderExpected,
@@ -414,7 +414,7 @@ type TestContext = {
   throwIfError: () => void
   onError: (error: any) => void
   priorityQueue: PriorityQueue
-  dateTime: DateTimeMock
+  clock: ClockMock
   /** Actions to add to the queue, in the order of adding */
   actions: Action[]
   /** Actual order action ids */
@@ -424,11 +424,11 @@ type TestContext = {
 }
 
 async function runAction(context: TestContext, action: Action): Promise<void> {
-  const { log, priorityQueue, dateTime, orderActual, onError } = context
+  const { log, priorityQueue, clock, orderActual, onError } = context
 
   const priority =
     action.priority != null ? priorityCreate(action.priority) : null
-  await delay(action.addTime, null, dateTime)
+  await delay(action.addTime, null, clock)
 
   if (log) {
     console.log(
@@ -442,7 +442,7 @@ async function runAction(context: TestContext, action: Action): Promise<void> {
     if (action.abortTime === 0) {
       abortController.abort(new AbortError(`TEST_ABORT: ${action.id}`))
     } else {
-      dateTime.time.setTimeout(() => {
+      clock.time.setTimeout(() => {
         abortController!.abort(new AbortError(`TEST_ABORT: ${action.id}`))
       }, action.abortTime)
     }
@@ -462,7 +462,7 @@ async function runAction(context: TestContext, action: Action): Promise<void> {
     started = true
 
     checkAbortSignal(abortSignal, abortController?.signal)
-    timeStart = dateTime.time.time()
+    timeStart = clock.time.value()
     orderActual.push(action.id)
 
     if (log) {
@@ -489,7 +489,7 @@ async function runAction(context: TestContext, action: Action): Promise<void> {
     started = true
 
     checkAbortSignal(abortSignal, abortController?.signal)
-    timeStart = dateTime.time.time()
+    timeStart = clock.time.value()
     orderActual.push(action.id)
 
     if (log) {
@@ -498,7 +498,7 @@ async function runAction(context: TestContext, action: Action): Promise<void> {
       )
     }
 
-    await delay(action.duration, abortSignal, dateTime)
+    await delay(action.duration, abortSignal, clock)
     checkAbortSignal(abortSignal, abortController?.signal)
 
     if (action.throwError) {
@@ -510,7 +510,7 @@ async function runAction(context: TestContext, action: Action): Promise<void> {
 
   const runFunc = action.duration === 0 ? runFuncSync : runFuncAsync
 
-  const timeAdd: number = dateTime.time.time()
+  const timeAdd: number = clock.time.value()
 
   let runResult: number | null = null
   let runError: TestError | AbortError | null = null
@@ -521,7 +521,7 @@ async function runAction(context: TestContext, action: Action): Promise<void> {
         priority,
         abortController?.signal,
       )
-      dateTime.time.setTimeout(() => {
+      clock.time.setTimeout(() => {
         task.setReadyToRun(true)
       }, action.readyToRunTime)
       runResult = await task.result
@@ -540,7 +540,7 @@ async function runAction(context: TestContext, action: Action): Promise<void> {
     }
   }
 
-  const timeEnd = dateTime.time.time()
+  const timeEnd = clock.time.value()
 
   checkActionResult(action, runResult, runError, timeAdd, timeStart, timeEnd)
 }
@@ -690,8 +690,7 @@ type TestOptions = {
 
 async function test(options: TestOptions): Promise<void> {
   const { context } = options
-  const { throwIfError, dateTime, actions, orderActual, orderExpected } =
-    context
+  const { throwIfError, clock, actions, orderActual, orderExpected } = context
 
   const promises = actions.map(action => runAction(context, action))
 
@@ -708,7 +707,7 @@ async function test(options: TestOptions): Promise<void> {
     },
   )
 
-  await waitTimeMock(dateTime.time)
+  await waitClockTimeMock(clock.time)
   throwIfError()
 
   if (hasError) {
@@ -727,8 +726,8 @@ async function test(options: TestOptions): Promise<void> {
     )
   }
 
-  dateTime.time.addTime(1e9)
-  await waitTimeMock(dateTime.time)
+  clock.time.addValue(1e9)
+  await waitClockTimeMock(clock.time)
   throwIfError()
 }
 

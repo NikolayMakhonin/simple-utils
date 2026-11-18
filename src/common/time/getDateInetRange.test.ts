@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
 import { getDateInetRange } from './getDateInetRange'
-import { DATE_JUMP_MINIMUM } from './date'
-import { DateTimeMock } from './date-time'
+import { DATE_JUMP_MINIMUM } from './clock-date'
+import { ClockMock } from './clock'
 
 const DATE_HEADER = 'Wed, 01 Jan 2020 00:00:00 GMT'
 const DATE_TIME = Date.UTC(2020, 0, 1)
@@ -64,14 +64,14 @@ describe('getDateInetRange', () => {
     ).toEqual([DATE_TIME, DATE_TIME + 1300 + DATE_JUMP_MINIMUM + 1])
   })
 
-  it('measures the request by options.dateTime', async () => {
-    const dateTime = new DateTimeMock()
+  it('measures the request by options.clock', async () => {
+    const clock = new ClockMock()
     vi.stubGlobal('fetch', async () => {
-      dateTime.time.addTime(300)
+      clock.time.addValue(300)
       return new Response(null, { headers: { date: DATE_HEADER } })
     })
     expect(
-      await getDateInetRange({ url: 'https://example.test/', dateTime }),
+      await getDateInetRange({ url: 'https://example.test/', clock }),
     ).toEqual([DATE_TIME, DATE_TIME + 1300])
   })
 
@@ -80,7 +80,7 @@ describe('getDateInetRange', () => {
     await expect(
       getDateInetRange({ url: 'https://example.test/' }),
     ).rejects.toThrow(
-      /Date\.now\(\) got ahead of dateTime\.time\.time\(\) by 1001 ms/,
+      /Date\.now\(\) got ahead of clock\.time\.value\(\) by 1001 ms/,
     )
   })
 })

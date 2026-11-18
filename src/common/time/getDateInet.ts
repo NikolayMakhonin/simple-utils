@@ -3,7 +3,7 @@ import {
   toAbortSignal,
 } from '@flemist/abort-controller-fast'
 import { timeoutAbortController } from 'src/common/async/timeout'
-import type { IDateTime } from 'src/common/time/date-time'
+import type { IClock } from 'src/common/time/clock'
 
 export type GetDateInetOptions = {
   /**
@@ -18,8 +18,8 @@ export type GetDateInetOptions = {
   /** Milliseconds before the request is aborted. Default: no timeout */
   timeout?: null | number
   abortSignal?: null | IAbortSignalFast
-  /** Counts down the timeout. Default: dateTimeReal */
-  dateTime?: null | IDateTime
+  /** Counts down the timeout. Default: clockReal */
+  clock?: null | IClock
 }
 
 /**

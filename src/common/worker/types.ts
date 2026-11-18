@@ -238,12 +238,12 @@ export type WorkerConnectRequest = {
    * How far the connecting thread corrects the device clock,
    * so that the worker gives the same dates
    */
-  dateRealOffset: number | null
+  clockDateRealOffset: number | null
   /**
    * The lower bound of real time known to the connecting thread,
    * so that the worker gives no earlier date
    */
-  dateRealRealDateMinimum: number | null
+  clockDateRealDateMinimum: number | null
 }
 
 export type WorkerServerHandler = (messagePort: IMessagePort) => void

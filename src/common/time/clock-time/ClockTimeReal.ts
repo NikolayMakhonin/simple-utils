@@ -1,14 +1,14 @@
-import type { ITime } from './contracts'
+import type { IClockTime } from './contracts'
 
-export class TimeReal implements ITime {
+export class ClockTimeReal implements IClockTime {
   #timeUnique: number = 0
 
-  time(): number {
+  value(): number {
     return performance.now()
   }
 
-  timeUnique(): number {
-    const next = Math.max(this.#timeUnique, this.time()) + 1
+  valueUnique(): number {
+    const next = Math.max(this.#timeUnique, this.value()) + 1
     this.#timeUnique = next
     return next
   }
@@ -22,4 +22,4 @@ export class TimeReal implements ITime {
   }
 }
 
-export const timeReal = /* @__PURE__ */ new TimeReal()
+export const clockTimeReal = /* @__PURE__ */ new ClockTimeReal()

@@ -7,7 +7,7 @@ import {
   type IAbortControllerFast,
   AbortControllerFast,
 } from '@flemist/abort-controller-fast'
-import { type IDateTime, DateTimeMock } from 'src/common/time/date-time'
+import { type IClock, ClockMock } from 'src/common/time/clock'
 import { delay } from '../wait'
 
 describe(
@@ -28,20 +28,20 @@ describe(
       name: string,
       results: string[],
       delayTime: number | null,
-      dateTime: IDateTime,
+      clock: IClock,
       timeStart: number,
     ) {
       return function func(abortSignal?: null | IAbortSignalFast) {
-        results.push(`${dateTime.time.time() - timeStart}-2: ${name} start`)
+        results.push(`${clock.time.value() - timeStart}-2: ${name} start`)
         if (delayTime != null) {
-          return delay(delayTime, abortSignal, dateTime).then(
+          return delay(delayTime, abortSignal, clock).then(
             function delayThen() {
-              results.push(`${dateTime.time.time() - timeStart}-3: ${name} end`)
+              results.push(`${clock.time.value() - timeStart}-3: ${name} end`)
               return name
             },
           )
         }
-        results.push(`${dateTime.time.time() - timeStart}-3: ${name} end`)
+        results.push(`${clock.time.value() - timeStart}-3: ${name} end`)
         return name
       }
     }
@@ -49,7 +49,7 @@ describe(
     function enqueueFunc(
       results: string[],
       funcParams: FuncParams,
-      dateTime: IDateTime,
+      clock: IClock,
       timeStart: number,
       priorityQueue: PriorityQueue,
     ) {
@@ -57,13 +57,13 @@ describe(
         funcParams.name,
         results,
         funcParams.runTime,
-        dateTime,
+        clock,
         timeStart,
       )
 
       function enqueue() {
         results.push(
-          `${dateTime.time.time() - timeStart}-1: ${funcParams.name} enqueue`,
+          `${clock.time.value() - timeStart}-1: ${funcParams.name} enqueue`,
         )
 
         let promise: Promise<string>
@@ -74,7 +74,7 @@ describe(
             funcParams.abortController?.signal,
           )
           promise = task.result
-          dateTime.time.setTimeout(() => {
+          clock.time.setTimeout(() => {
             task.setReadyToRun(true)
           }, funcParams.readyToRunTime)
         } else {
@@ -89,7 +89,7 @@ describe(
         promise.then(
           function runThen(result) {
             results.push(
-              `${dateTime.time.time() - timeStart}-3: ${funcParams.name} result: ${result}`,
+              `${clock.time.value() - timeStart}-3: ${funcParams.name} result: ${result}`,
             )
           },
           function runError(err) {
@@ -97,7 +97,7 @@ describe(
               results.push('ERROR: ' + err.stack)
             } else {
               results.push(
-                `${dateTime.time.time() - timeStart}-3: ${funcParams.name} aborted: ${err}`,
+                `${clock.time.value() - timeStart}-3: ${funcParams.name} aborted: ${err}`,
               )
             }
           },
@@ -105,18 +105,14 @@ describe(
       }
 
       if (funcParams.abortTime != null) {
-        dateTime.time.setTimeout(function abortTimerCallback() {
+        clock.time.setTimeout(function abortTimerCallback() {
           funcParams.abortController!.abort(funcParams.name)
         }, funcParams.startTime + funcParams.abortTime)
       }
-      dateTime.time.setTimeout(enqueue, funcParams.startTime)
+      clock.time.setTimeout(enqueue, funcParams.startTime)
     }
 
-    function awaitTime(
-      dateTime: DateTimeMock,
-      time: number,
-      awaitsPerTime: number,
-    ) {
+    function awaitTime(clock: ClockMock, time: number, awaitsPerTime: number) {
       let i = 0
       let j = 0
       function next() {
@@ -125,10 +121,10 @@ describe(
           if (i >= time) {
             return
           }
-          dateTime.time.addTime(1)
+          clock.time.addValue(1)
           j = 0
         }
-        dateTime.time.addTime(0)
+        clock.time.addValue(0)
         j++
         return Promise.resolve().then(next)
       }
@@ -136,10 +132,10 @@ describe(
       // for (let i = 0; i < time; i++) {
       //   for (let j = 0; j < awaitsPerTime; j++) {
       //     // eslint-disable-next-line @typescript-eslint/await-thenable
-      //     dateTime.time.addTime(0)
+      //     clock.time.addValue(0)
       //     await 0
       //   }
-      //   dateTime.time.addTime(1)
+      //   clock.time.addValue(1)
       // }
     }
 
@@ -292,7 +288,7 @@ describe(
       startTime3: number
     }) {
       const results = []
-      const dateTime = new DateTimeMock()
+      const clock = new ClockMock()
       const priorityQueue = new PriorityQueue()
       const funcsParams: FuncParams[] = [
         {
@@ -328,16 +324,16 @@ describe(
       ]
       const len = funcsParams.length
 
-      const timeStart = dateTime.time.time()
+      const timeStart = clock.time.value()
 
       for (let i = 0; i < len; i++) {
         const funcParams = funcsParams[i]
-        enqueueFunc(results, funcParams, dateTime, timeStart, priorityQueue)
+        enqueueFunc(results, funcParams, clock, timeStart, priorityQueue)
       }
 
       assert.strictEqual(results.length, 0)
 
-      await awaitTime(dateTime, 9, 15)
+      await awaitTime(clock, 9, 15)
 
       const expectedResults = getExpectedResults(funcsParams)
 
@@ -347,8 +343,8 @@ describe(
       )
 
       results.length = 0
-      dateTime.time.addTime(1000000)
-      await awaitTime(dateTime, 1, 20)
+      clock.time.addValue(1000000)
+      await awaitTime(clock, 1, 20)
       assert.strictEqual(results.length, 0)
     })
 

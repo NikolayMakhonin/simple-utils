@@ -2,7 +2,7 @@ import {
   AbortControllerReusable,
   type AbortControllerReusableOptions,
 } from '../async/abort/AbortControllerReusable'
-import { type IDateTime, dateTimeReal } from 'src/common/time/date-time'
+import { type IClock, clockReal } from 'src/common/time/clock'
 import type {
   ITaskStatus,
   SuccessPredicateResult,
@@ -21,12 +21,12 @@ export interface ITaskStatusControllerBase<
   run(func: () => PromiseLikeOrValue<Result>): Promise<Result>
   abort(reason?: any): void
   readonly abortSignal: IAbortSignalFast
-  readonly dateTime: IDateTime
+  readonly clock: IClock
 }
 
 export type TaskStatusControllerBaseOptions<Result = void> =
   AbortControllerReusableOptions & {
-    dateTime?: null | IDateTime
+    clock?: null | IClock
     successPredicate?: null | TaskSuccessPredicate<
       Result,
       TaskStatusBase<Result>
@@ -50,7 +50,7 @@ export class TaskStatusControllerBase<
   readonly #options: undefined | null | TaskStatusControllerBaseOptions<Result>
   readonly #abortController: AbortControllerReusable = null!
   readonly #events: ISubject<Status>
-  readonly #dateTime: IDateTime
+  readonly #clock: IClock
   #status: Status
 
   constructor(
@@ -72,16 +72,16 @@ export class TaskStatusControllerBase<
       | 'lastSuccessRuns'
       | 'lastFailedRuns'
       | 'abortSignal'
-      | 'dateTime'
+      | 'clock'
     >,
     options: undefined | null | TaskStatusControllerBaseOptions<Result>,
   ) {
     this.#options = options
     this.#abortController = new AbortControllerReusable(this.#options)
-    this.#dateTime = this.#options?.dateTime ?? dateTimeReal
+    this.#clock = this.#options?.clock ?? clockReal
     this.#status = {
       abortSignal: this.#abortController.signal,
-      dateTime: this.#dateTime,
+      clock: this.#clock,
       timeFirstStart: null,
       isRunning: false,
       isAborted: false,
@@ -114,7 +114,7 @@ export class TaskStatusControllerBase<
   }
 
   protected onStart(): void {
-    const time = this.#dateTime.time.time()
+    const time = this.#clock.time.value()
     this.#status = {
       ...this.#status,
       abortSignal: this.#abortController.signal,
@@ -133,7 +133,7 @@ export class TaskStatusControllerBase<
       isRunning: false,
       isAborted: this.#abortController.signal.aborted,
       timeLastStartCompleted: this.#status.timeLastStart,
-      timeLastEnd: this.#dateTime.time.time(),
+      timeLastEnd: this.#clock.time.value(),
       lastHasError: false,
       lastError: undefined,
       lastResult: result,
@@ -147,7 +147,7 @@ export class TaskStatusControllerBase<
       isRunning: false,
       isAborted: this.#abortController.signal.aborted,
       timeLastStartCompleted: this.#status.timeLastStart,
-      timeLastEnd: this.#dateTime.time.time(),
+      timeLastEnd: this.#clock.time.value(),
       lastHasError: true,
       lastError: error,
       lastResult: undefined,
@@ -200,7 +200,7 @@ export class TaskStatusControllerBase<
     return this.#abortController.signal
   }
 
-  get dateTime(): IDateTime {
-    return this.#dateTime
+  get clock(): IClock {
+    return this.#clock
   }
 }

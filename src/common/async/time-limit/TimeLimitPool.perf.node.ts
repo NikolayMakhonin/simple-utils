@@ -1,6 +1,6 @@
 import { describe, it } from 'vitest'
 import { calcPerformanceAsync } from 'rdtsc'
-import { DateTimeMock } from 'src/common/time/date-time'
+import { ClockMock } from 'src/common/time/clock'
 import { TimeLimitPool } from './TimeLimitPool'
 import { Pool } from 'src/common/async/pool/Pool'
 import { poolRunWait } from 'src/common/async/pool/poolRunWait'
@@ -9,11 +9,11 @@ import { Pools } from 'src/common/async/pool/Pools'
 describe('time-limits > TimeLimits perf', { timeout: 600000 }, () => {
   it('base', async () => {
     const emptyFunc = () => {}
-    const dateTime = new DateTimeMock()
+    const clock = new ClockMock()
     const timeLimitPool = new TimeLimitPool({
       pool: new Pool(1),
       time: 1,
-      dateTime,
+      clock,
     })
     const timeLimitsPool = new Pools(timeLimitPool)
 
@@ -34,7 +34,7 @@ describe('time-limits > TimeLimits perf', { timeout: 600000 }, () => {
             )
           }
           for (let i = 0; i < count; i++) {
-            dateTime.time.addTime(1)
+            clock.time.addValue(1)
             await 0
             await 0
             await 0
@@ -43,7 +43,7 @@ describe('time-limits > TimeLimits perf', { timeout: 600000 }, () => {
             await 0
             await 0
           }
-          dateTime.time.addTime(1)
+          clock.time.addValue(1)
           await Promise.all(promises)
         },
       ],

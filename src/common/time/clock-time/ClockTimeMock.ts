@@ -1,24 +1,26 @@
 import { PairingHeap, type PairingNode } from '@flemist/pairing-heap'
-import type { ITime } from './contracts'
+import type { IClockTime } from './contracts'
 
-type TimeMockTimer = {
+type ClockTimeMockTimer = {
   readonly id: number
   readonly time: number
   readonly handler: () => void
 }
 
-function timerLessThan(a: TimeMockTimer, b: TimeMockTimer): boolean {
+function timerLessThan(a: ClockTimeMockTimer, b: ClockTimeMockTimer): boolean {
   return a.time < b.time || (a.time === b.time && a.id < b.id)
 }
 
-export class TimeMock implements ITime<PairingNode<TimeMockTimer>> {
-  readonly #queue: PairingHeap<TimeMockTimer>
+export class ClockTimeMock
+  implements IClockTime<PairingNode<ClockTimeMockTimer>>
+{
+  readonly #queue: PairingHeap<ClockTimeMockTimer>
   #time: number = 1
   #nextId: number = 0
   #timeUnique: number = 0
 
   constructor() {
-    this.#queue = new PairingHeap<TimeMockTimer>({
+    this.#queue = new PairingHeap<ClockTimeMockTimer>({
       lessThanFunc: timerLessThan,
     })
   }
@@ -31,15 +33,15 @@ export class TimeMock implements ITime<PairingNode<TimeMockTimer>> {
     return this.#queue.getMin()?.time ?? null
   }
 
-  addTime(duration: number): void {
-    this.setTime(this.#time + duration)
+  addValue(duration: number): void {
+    this.setValue(this.#time + duration)
   }
 
-  setTime(time: number): void {
+  setValue(time: number): void {
     if (time < this.#time) {
       throw new Error(
-        `[TimeMock][setTime] time (${time})` +
-          ` should be >= time() (${this.#time})`,
+        `[ClockTimeMock][setValue] time (${time})` +
+          ` should be >= value() (${this.#time})`,
       )
     }
 
@@ -56,17 +58,20 @@ export class TimeMock implements ITime<PairingNode<TimeMockTimer>> {
     this.#time = time
   }
 
-  time(): number {
+  value(): number {
     return this.#time
   }
 
-  timeUnique(): number {
-    const next = Math.max(this.#timeUnique, this.time()) + 1
+  valueUnique(): number {
+    const next = Math.max(this.#timeUnique, this.value()) + 1
     this.#timeUnique = next
     return next
   }
 
-  setTimeout(handler: () => void, timeout: number): PairingNode<TimeMockTimer> {
+  setTimeout(
+    handler: () => void,
+    timeout: number,
+  ): PairingNode<ClockTimeMockTimer> {
     return this.#queue.add(
       Object.freeze({
         id: this.#nextId++,
@@ -76,7 +81,7 @@ export class TimeMock implements ITime<PairingNode<TimeMockTimer>> {
     )
   }
 
-  clearTimeout(handle: PairingNode<TimeMockTimer>): void {
+  clearTimeout(handle: PairingNode<ClockTimeMockTimer>): void {
     this.#queue.delete(handle)
   }
 }

@@ -159,9 +159,7 @@ export class TaskRepeated<
         if (typeof _delay === 'number') {
           if (_delay >= 0) {
             const delayAbortSignal = this.createDelayAbortSignal()
-            await delay(_delay, delayAbortSignal, this.dateTime).catch(
-              EMPTY_FUNC,
-            )
+            await delay(_delay, delayAbortSignal, this.clock).catch(EMPTY_FUNC)
             this.abortDelay()
           }
         } else if (typeof _delay === 'function') {
@@ -197,7 +195,7 @@ export class TaskRepeated<
           }
 
           if (afterDelay != null && afterDelay >= 0) {
-            await delay(afterDelay, delayAbortSignal, this.dateTime).catch(
+            await delay(afterDelay, delayAbortSignal, this.clock).catch(
               EMPTY_FUNC,
             )
           }

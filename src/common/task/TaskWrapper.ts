@@ -1,6 +1,6 @@
 import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
 import { type Listener } from 'src/common/rx'
-import type { IDateTime } from 'src/common/time/date-time'
+import type { IClock } from 'src/common/time/clock'
 import { EMPTY_FUNC } from 'src/common/constants'
 import { LogLevel } from 'src/common/debug'
 import type { Unsubscribe } from 'src/common/types'
@@ -125,8 +125,8 @@ export class TaskWrapper<
     return this.#statusController.abortSignal
   }
 
-  get dateTime(): IDateTime {
-    return this.#statusController.dateTime
+  get clock(): IClock {
+    return this.#statusController.clock
   }
 
   subscribe(listener: Listener<Status>): Unsubscribe {

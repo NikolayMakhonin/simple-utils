@@ -388,11 +388,11 @@ export function matchIntDate(options?: null | MatchIntArgs): Matcher<number> {
   // Date.now() is read per call, not at module level.
   // Module-level code would run on every import of this library.
   // The range must be relative to the time of the call, not of the import
-  const now = Date.now()
+  const date = Date.now()
   return matchInt({
     ...options,
-    min: options?.min ?? now - DATE_DISTANCE_MAX,
-    max: options?.max ?? now + DATE_DISTANCE_MAX,
+    min: options?.min ?? date - DATE_DISTANCE_MAX,
+    max: options?.max ?? date + DATE_DISTANCE_MAX,
   }).name('int date')
 }
 

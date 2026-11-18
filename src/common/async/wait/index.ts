@@ -1,3 +1,3 @@
 export * from './delay'
 export * from './waitMicrotasks'
-export * from './waitTimeMock'
+export * from './waitClockTimeMock'

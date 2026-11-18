@@ -47,9 +47,9 @@ import type { Unsubscribe } from 'src/common/types/common'
 import type { ActionOnCircular, IObservable } from './types'
 import { Derived } from './Derived'
 import { Subject } from './Subject'
-import { DateTimeMock } from 'src/common/time/date-time'
+import { ClockMock } from 'src/common/time/clock'
 import { AbortControllerFast } from '@flemist/abort-controller-fast'
-import { waitTimeMock } from 'src/common/async/wait/waitTimeMock'
+import { waitClockTimeMock } from 'src/common/async/wait/waitClockTimeMock'
 import { delay } from 'src/common/async/wait/delay'
 import { EMPTY_FUNC } from 'src/common/constants'
 
@@ -71,7 +71,7 @@ const testVariants = createTestVariants(async (args: TestVariantsArgs) => {
 
 function generateContext(options: GenerateContextOptions): TestContext {
   const { rnd, args, log } = options
-  const dateTime = new DateTimeMock()
+  const clock = new ClockMock()
 
   const source = new Subject<Value>({
     emitLastEvent: args.source_emitLastEvent,
@@ -85,7 +85,7 @@ function generateContext(options: GenerateContextOptions): TestContext {
     source,
     length: args.chainLength1,
     isAsync: args.async,
-    dateTime,
+    clock,
     chainIndex: 1,
     log,
   })
@@ -95,7 +95,7 @@ function generateContext(options: GenerateContextOptions): TestContext {
     source,
     length: args.chainLength2,
     isAsync: args.async,
-    dateTime,
+    clock,
     chainIndex: 2,
     log,
   })
@@ -131,7 +131,7 @@ function generateContext(options: GenerateContextOptions): TestContext {
     log,
     source,
     destination,
-    dateTime,
+    clock,
   }
 }
 
@@ -140,13 +140,13 @@ type BuildChainOptions = {
   source: IObservable<Value>
   length: number
   isAsync: boolean
-  dateTime: DateTimeMock
+  clock: ClockMock
   chainIndex: number
   log: boolean
 }
 
 function buildChain(options: BuildChainOptions): IObservable<Value> {
-  const { rnd, source, length, isAsync, dateTime, chainIndex, log } = options
+  const { rnd, source, length, isAsync, clock, chainIndex, log } = options
 
   let current: IObservable<Value> = source
 
@@ -173,7 +173,7 @@ function buildChain(options: BuildChainOptions): IObservable<Value> {
                 return EMPTY_FUNC
               }
               const abortController = new AbortControllerFast()
-              delay(nodeDelay, abortController.signal, dateTime)
+              delay(nodeDelay, abortController.signal, clock)
                 .then(() => {
                   emit(value)
                 })
@@ -205,7 +205,7 @@ function buildChain(options: BuildChainOptions): IObservable<Value> {
                     abortController.abort()
                   }
                   abortController = new AbortControllerFast()
-                  delay(nodeDelay, abortController.signal, dateTime)
+                  delay(nodeDelay, abortController.signal, clock)
                     .then(() => {
                       emit(value)
                     })
@@ -231,7 +231,7 @@ function buildChain(options: BuildChainOptions): IObservable<Value> {
 
 async function test(options: TestOptions): Promise<void> {
   const { rnd, context, args } = options
-  const { source, destination, dateTime, log } = context
+  const { source, destination, clock, log } = context
 
   type Action = 'invalidate' | 'update' | 'emit' | 'unsubscribe' | 'subscribe'
   const actions: Action[] = []
@@ -268,7 +268,7 @@ async function test(options: TestOptions): Promise<void> {
         }
         source.emit(value)
         if (args.async && randomBoolean(rnd)) {
-          await waitTimeMock(dateTime.time)
+          await waitClockTimeMock(clock.time)
         }
         break
       }
@@ -280,7 +280,7 @@ async function test(options: TestOptions): Promise<void> {
           }
           source.update(() => value)
           if (args.async && randomBoolean(rnd)) {
-            await waitTimeMock(dateTime.time)
+            await waitClockTimeMock(clock.time)
           }
         }
         break
@@ -303,7 +303,7 @@ async function test(options: TestOptions): Promise<void> {
           console.log(`[test][${i}] subscribe total=${activeSubscribes}`)
         }
         if (args.async && randomBoolean(rnd)) {
-          await waitTimeMock(dateTime.time)
+          await waitClockTimeMock(clock.time)
         }
         break
       }
@@ -366,7 +366,7 @@ type TestContext = {
   log: boolean
   source: Subject<Value>
   destination: Derived<[IObservable<Value>, IObservable<Value>], Value[]>
-  dateTime: DateTimeMock
+  clock: ClockMock
 }
 
 type TestOptions = {

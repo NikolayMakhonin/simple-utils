@@ -8,8 +8,8 @@ import {
 import { type IObjectPool, ObjectPool } from './ObjectPool'
 import { Pool } from 'src/common/async/pool/Pool'
 import { Pools } from 'src/common/async/pool/Pools'
-import { DateTimeMock } from 'src/common/time/date-time'
-import { waitTimeMock } from 'src/common/async/wait/waitTimeMock'
+import { ClockMock } from 'src/common/time/clock'
+import { waitClockTimeMock } from 'src/common/async/wait/waitClockTimeMock'
 
 describe('object-pool > ObjectPool', () => {
   let iteration = 0
@@ -34,7 +34,7 @@ describe('object-pool > ObjectPool', () => {
     }) => {
       iteration++
 
-      const dateTime = new DateTimeMock()
+      const clock = new ClockMock()
 
       const promises: Promise<number>[] = []
 
@@ -47,7 +47,7 @@ describe('object-pool > ObjectPool', () => {
         ? async function createObject(): Promise<IObject> {
             objectsCount++
             assert.ok(objectsCount <= maxSize)
-            await delay(1, null, dateTime)
+            await delay(1, null, clock)
             return {
               id: objectsCount,
             }
@@ -86,7 +86,7 @@ describe('object-pool > ObjectPool', () => {
       if (preAllocateSize != null) {
         await Promise.race([
           objectPool.allocate(preAllocateSize),
-          waitTimeMock(dateTime.time, null, {
+          waitClockTimeMock(clock.time, null, {
             timeout: 1,
             awaitsPerIteration: 4,
           }).then(() => {
@@ -144,7 +144,7 @@ describe('object-pool > ObjectPool', () => {
                 assert.strictEqual(objectPool.heldObjects, null)
               }
 
-              await delay(1, null, dateTime)
+              await delay(1, null, clock)
 
               if (abort) {
                 assert.ok(abortSignal!.aborted)
@@ -241,7 +241,7 @@ describe('object-pool > ObjectPool', () => {
 
       const results = await Promise.race([
         Promise.all(promises),
-        waitTimeMock(dateTime.time, null, {
+        waitClockTimeMock(clock.time, null, {
           timeout: totalCount + countObjects,
           awaitsPerIteration: 10 * totalCount,
         }).then(() => {

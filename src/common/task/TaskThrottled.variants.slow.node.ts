@@ -25,8 +25,8 @@
  */
 import { describe, it } from 'vitest'
 import { createTestVariants } from '@flemist/test-variants'
-import { DateTimeMock } from 'src/common/time/date-time'
-import { waitTimeMock } from 'src/common/async/wait/waitTimeMock'
+import { ClockMock } from 'src/common/time/clock'
+import { waitClockTimeMock } from 'src/common/async/wait/waitClockTimeMock'
 import { getRandomSeed, Random, randomItem } from 'src/common/random'
 import { createTaskThrottled, type ITaskThrottled } from './TaskThrottled'
 
@@ -60,7 +60,7 @@ const testVariants = createTestVariants(async (args: TestVariantsArgs) => {
 
 type TestContext = {
   log: boolean
-  dateTime: DateTimeMock
+  clock: ClockMock
   task: ITaskThrottled<null, number>
   timeOrigin: number
   timeStamps: { start: number; end: number }[]
@@ -75,18 +75,18 @@ async function generateContext(
   options: GenerateContextOptions,
 ): Promise<TestContext> {
   const { args, log } = options
-  const dateTime = new DateTimeMock()
-  const timeOrigin = dateTime.time.time()
+  const clock = new ClockMock()
+  const timeOrigin = clock.time.value()
   const timeStamps: { start: number; end: number }[] = []
 
   let callCount = 0
   const { throttled: task } = createTaskThrottled(
     async () => {
-      const funcStart = dateTime.time.time() - timeOrigin
-      dateTime.time.addTime(args.executionDuration)
+      const funcStart = clock.time.value() - timeOrigin
+      clock.time.addValue(args.executionDuration)
       timeStamps.push({
         start: funcStart,
-        end: dateTime.time.time() - timeOrigin,
+        end: clock.time.value() - timeOrigin,
       })
       return callCount++
     },
@@ -95,11 +95,11 @@ async function generateContext(
       throttleTime: args.throttleTime,
       throttleTimeMax: args.throttleTimeMax,
       throttleFromEnd: args.throttleFromEnd,
-      dateTime,
+      clock,
     },
   )
 
-  return { log, dateTime, task, timeOrigin, timeStamps }
+  return { log, clock, task, timeOrigin, timeStamps }
 }
 
 type TestOptions = {
@@ -110,7 +110,7 @@ type TestOptions = {
 
 async function test(options: TestOptions): Promise<void> {
   const { rnd, context, args } = options
-  const { dateTime, task, timeStamps, log } = context
+  const { clock, task, timeStamps, log } = context
 
   let throttleFromEndState = args.throttleFromEnd
 
@@ -153,8 +153,8 @@ async function test(options: TestOptions): Promise<void> {
       )
     }
 
-    const result = await waitTimeMock(
-      dateTime.time,
+    const result = await waitClockTimeMock(
+      clock.time,
       Promise.resolve(
         task.run({
           throttleTime: runThrottleTime,

@@ -7,7 +7,7 @@ import type {
   IStorageDb,
 } from './types'
 import type { ConverterAsync, ConvertToAsync } from 'src/common/converter'
-import { type IDateTime, dateTimeReal } from 'src/common/time/date-time'
+import { type IClock, clockReal } from 'src/common/time/clock'
 import {
   type ILockerWithId,
   LockerWithId,
@@ -51,7 +51,7 @@ export type CacheOptions<
     stat: () => number
   }
   isExpired?: null | ((stat: Stat) => boolean)
-  dateTime?: null | IDateTime
+  clock?: null | IClock
 }
 
 /** Compare function for LRU eviction strategy */
@@ -94,7 +94,7 @@ export class Cache<
     ErrorStored,
     StatStored
   >
-  readonly #dateTime: IDateTime
+  readonly #clock: IClock
   readonly #locker: ILockerWithId<Key>
   readonly #stats: ICacheStats<Key, CacheStat>
 
@@ -111,7 +111,7 @@ export class Cache<
     >,
   ) {
     this.#options = options
-    this.#dateTime = options.dateTime ?? dateTimeReal
+    this.#clock = options.clock ?? clockReal
     this.#locker = new LockerWithId()
     this.#stats = new CacheStats({
       storage: options.storages.stat,
@@ -237,7 +237,7 @@ export class Cache<
           this.#options.storages.error?.get(key),
         ])
 
-        const now = this.#dateTime.date.now()
+        const date = this.#clock.date.value()
 
         // When readStored returns null, func below recalculates the value
         // and replaces the unreadable data. Without the recalculation,
@@ -249,7 +249,7 @@ export class Cache<
             storedValue,
           )
           if (read != null) {
-            await this.#stats.set(key, { ...statOld, dateUsed: now })
+            await this.#stats.set(key, { ...statOld, dateUsed: date })
             return read.result as T
           }
         }
@@ -261,7 +261,7 @@ export class Cache<
             storedError,
           )
           if (read != null) {
-            await this.#stats.set(key, { ...statOld, dateUsed: now })
+            await this.#stats.set(key, { ...statOld, dateUsed: date })
             throw read.result
           }
         }
@@ -296,10 +296,10 @@ export class Cache<
           this.#options.storages.error.set(key, storedError),
           this.#options.storages.value.delete(key),
         ])
-        const now = this.#dateTime.date.now()
+        const date = this.#clock.date.value()
         const statNew: CacheStat = {
-          dateModified: now,
-          dateUsed: now,
+          dateModified: date,
+          dateUsed: date,
           size,
           hasError: true,
         }
@@ -317,10 +317,10 @@ export class Cache<
         this.#options.storages.value.set(key, storedValue),
         this.#options.storages.error?.delete(key),
       ])
-      const now = this.#dateTime.date.now()
+      const date = this.#clock.date.value()
       const statNew: CacheStat = {
-        dateModified: now,
-        dateUsed: now,
+        dateModified: date,
+        dateUsed: date,
         size,
       }
       await this.#stats.set(key, statNew)

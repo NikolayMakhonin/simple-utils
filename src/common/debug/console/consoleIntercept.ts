@@ -7,7 +7,7 @@ import { Subject } from 'src/common/rx/Subject'
 import type { Emit, IObservable } from 'src/common/rx/types'
 import { formatDateFileName } from 'src/common/string/format/formatDateFileName'
 import { EMPTY_FUNC } from 'src/common/constants'
-import { dateReal } from 'src/common/time/date'
+import { clockDateReal } from 'src/common/time/clock-date'
 
 function formatObject(obj: any, options?: null | FormatAnyOptions): string {
   return formatAny(obj, {
@@ -63,7 +63,7 @@ export function consoleIntercept() {
     ) {
       if (consoleMessagesEmit) {
         consoleMessagesEmit({
-          date: dateReal.now(),
+          date: clockDateReal.value(),
           level,
           args,
         })

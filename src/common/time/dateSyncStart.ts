@@ -4,29 +4,32 @@ import { createTaskRepeated } from 'src/common/task/TaskRepeated'
 import type { Unsubscribe } from 'src/common/types'
 import type { GetDateInetOptions } from './getDateInet'
 import { getDateInetRange } from './getDateInetRange'
-import { type DateReal, dateReal as dateRealDefault } from './date'
+import {
+  type ClockDateReal,
+  clockDateReal as clockDateRealDefault,
+} from './clock-date'
 
-// An hour: between syncs dateReal.now() drifts by a fraction of a second per hour.
+// An hour: between syncs clockDateReal.value() drifts by a fraction of a second per hour.
 // That is less than the 1-second precision of internet time
 const DATE_SYNC_INTERVAL = 60 * 60 * 1000
 
 // A minute: when the page ends without being hidden, such as on a crash,
-// the stored realDateMinimum lags the end of the page by at most a minute
-const DATE_REAL_SAVE_INTERVAL = 60 * 1000
+// the stored dateMinimum lags the end of the page by at most a minute
+const CLOCK_DATE_REAL_SAVE_INTERVAL = 60 * 1000
 
-// A second: after a device clock set forward, dateReal.now() stays ahead
+// A second: after a device clock set forward, clockDateReal.value() stays ahead
 // for at most a second before a measurement starts
-const DATE_REAL_CHECK_INTERVAL = 1000
+const CLOCK_DATE_REAL_CHECK_INTERVAL = 1000
 
-/** The state that restores a DateReal after a restart */
+/** The state that restores a ClockDateReal after a restart */
 export type DateSyncStored = {
   offset: number
-  realDateMinimum: number | null
+  dateMinimum: number | null
 }
 
 export type DateSyncStartOptions = {
   dateInetOptions?: null | Omit<GetDateInetOptions, 'abortSignal'>
-  /** The widest accepted range of real time. A wider range still updates dateReal, and the measurement repeats */
+  /** The widest accepted range of real time. A wider range still updates clockDateReal, and the measurement repeats */
   rangeWidthMaximum: number
   /** Returns the state that save kept, or null */
   load: () => DateSyncStored | null
@@ -38,26 +41,26 @@ export type DateSyncStartOptions = {
    */
   onUpdate?: null | ((error: unknown) => void)
   logFuncError?: TaskOptionsBase['logFuncError']
-  /** Default: dateReal */
-  dateReal?: null | DateReal
+  /** Default: clockDateReal */
+  clockDateReal?: null | ClockDateReal
 }
 
 /**
- * Keeps dateReal on internet time,
+ * Keeps clockDateReal on internet time,
  * and keeps its state across restarts through load and save
  */
 export function dateSyncStart(options: DateSyncStartOptions): Unsubscribe {
-  const dateReal = options.dateReal ?? dateRealDefault
+  const clockDateReal = options.clockDateReal ?? clockDateRealDefault
   const stored = options.load()
   if (stored != null) {
-    dateReal.updateOffset(stored.offset, stored.realDateMinimum)
+    clockDateReal.updateOffset(stored.offset, stored.dateMinimum)
   }
   options.onUpdate?.(null)
 
-  function saveDateReal() {
-    const offset = dateReal.offset
+  function saveClockDateReal() {
+    const offset = clockDateReal.offset
     if (offset != null) {
-      options.save({ offset, realDateMinimum: dateReal.realDateMinimum })
+      options.save({ offset, dateMinimum: clockDateReal.dateMinimum })
     }
   }
 
@@ -72,11 +75,11 @@ export function dateSyncStart(options: DateSyncStartOptions): Unsubscribe {
           ...options.dateInetOptions,
           abortSignal,
         })
-        dateReal.updateRealDate(range)
+        clockDateReal.updateDate(range)
         const rangeWidth = range[1] - range[0]
         lastRangeWidth = rangeWidth
-        saveDateReal()
-        // A wider range has still updated dateReal, and the throw makes the task measure again
+        saveClockDateReal()
+        // A wider range has still updated clockDateReal, and the throw makes the task measure again
         if (rangeWidth > options.rangeWidthMaximum) {
           throw new Error(
             `[dateSyncStart] range of internet time (${rangeWidth} ms) is wider than rangeWidthMaximum (${options.rangeWidthMaximum} ms)`,
@@ -121,7 +124,7 @@ export function dateSyncStart(options: DateSyncStartOptions): Unsubscribe {
   if (typeof document !== 'undefined') {
     function onVisibilityChange() {
       if (document.hidden) {
-        saveDateReal()
+        saveClockDateReal()
       } else {
         syncDateNow()
       }
@@ -139,32 +142,35 @@ export function dateSyncStart(options: DateSyncStartOptions): Unsubscribe {
     })
   }
 
-  const dateRealSaveTimer = setInterval(saveDateReal, DATE_REAL_SAVE_INTERVAL)
+  const clockDateRealSaveTimer = setInterval(
+    saveClockDateReal,
+    CLOCK_DATE_REAL_SAVE_INTERVAL,
+  )
   unsubscribes.push(() => {
-    clearInterval(dateRealSaveTimer)
+    clearInterval(clockDateRealSaveTimer)
   })
 
   // After a sleep or a device clock set forward, Date.now() jumps ahead.
-  // The next reading of dateReal.now() adds the jump.
+  // The next reading of clockDateReal.value() adds the jump.
   // A jump past the range of the last measurement can come from a wrong device clock.
   // Only a measurement tells it from a sleep
-  const dateRealCheckTimer = setInterval(() => {
-    const realDateMinimum = dateReal.realDateMinimum
+  const clockDateRealCheckTimer = setInterval(() => {
+    const dateMinimum = clockDateReal.dateMinimum
     // After a failed measurement, the task repeats it after its own growing delay.
     // A measurement started here would cut that delay short.
     // The status of rerun counts every measurement. The status of repeated counts its whole loop as one run.
-    // The + 1 allows for dateReal.now() and realDateMinimum each rounded down to whole milliseconds
+    // The + 1 allows for clockDateReal.value() and dateMinimum each rounded down to whole milliseconds
     if (
       !dateSyncTask.rerun.status.lastFailedRuns &&
       lastRangeWidth != null &&
-      realDateMinimum != null &&
-      dateReal.now() - realDateMinimum > lastRangeWidth + 1
+      dateMinimum != null &&
+      clockDateReal.value() - dateMinimum > lastRangeWidth + 1
     ) {
       syncDateNow()
     }
-  }, DATE_REAL_CHECK_INTERVAL)
+  }, CLOCK_DATE_REAL_CHECK_INTERVAL)
   unsubscribes.push(() => {
-    clearInterval(dateRealCheckTimer)
+    clearInterval(clockDateRealCheckTimer)
   })
 
   return () => {

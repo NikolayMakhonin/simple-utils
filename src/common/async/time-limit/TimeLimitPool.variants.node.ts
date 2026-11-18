@@ -1,14 +1,14 @@
 import { describe, it, assert } from 'vitest'
 import { delay } from 'src/common/async/wait/delay'
 import { priorityCreate } from 'src/common/async/priority/Priority'
-import { type IDateTime, DateTimeMock } from 'src/common/time/date-time'
+import { type IClock, ClockMock } from 'src/common/time/clock'
 import { type IAbortSignalFast } from '@flemist/abort-controller-fast'
 import { createTestVariants } from '@flemist/test-variants'
 import { type IPool, Pool } from 'src/common/async/pool/Pool'
 import { poolRunWait } from 'src/common/async/pool/poolRunWait'
 import { Pools } from 'src/common/async/pool/Pools'
 import { TimeLimitPool } from './TimeLimitPool'
-import { waitTimeMock } from 'src/common/async/wait/waitTimeMock'
+import { waitClockTimeMock } from 'src/common/async/wait/waitClockTimeMock'
 
 describe('time-limits > TimeLimits', () => {
   type Limit = {
@@ -24,19 +24,19 @@ describe('time-limits > TimeLimits', () => {
     abortSignal?: null | IAbortSignalFast,
   ) => Promise<number> | number
   type CheckedFuncContext = {
-    dateTime: IDateTime
+    clock: IClock
     timeLog: number[]
     limits: Limit[]
     results: Result[]
   }
 
   function checkedFuncCheckTimeLimits({
-    dateTime,
+    clock,
     limits,
     results,
     timeLog,
   }: CheckedFuncContext) {
-    const time = dateTime.time.time()
+    const time = clock.time.value()
     let maxCountTotal = 0
     for (let i = 0; i < limits.length; i++) {
       const limit = limits[i]
@@ -65,23 +65,23 @@ describe('time-limits > TimeLimits', () => {
   }
 
   function checkedFuncOnCompleted(context: CheckedFuncContext) {
-    const time = context.dateTime.time.time()
+    const time = context.clock.time.value()
     context.timeLog.push(time)
   }
 
   function createCheckedFunc({
     func,
-    dateTime,
+    clock,
     limits,
     results,
   }: {
     func: Func
-    dateTime: IDateTime
+    clock: IClock
     limits: Limit[]
     results: Result[]
   }) {
     const context: CheckedFuncContext = {
-      dateTime,
+      clock,
       limits,
       results,
       timeLog: [],
@@ -119,7 +119,7 @@ describe('time-limits > TimeLimits', () => {
       maxCount2: number
       maxCount3: number
     }) => {
-      const dateTime = new DateTimeMock()
+      const clock = new ClockMock()
       const abortSignal: IAbortSignalFast | null = null
 
       const timeLimits: {
@@ -137,7 +137,7 @@ describe('time-limits > TimeLimits', () => {
         const pool = new TimeLimitPool({
           pool: new Pool(maxCount),
           time: timeMs,
-          dateTime,
+          clock,
         })
         timeLimits.push({
           pool,
@@ -231,7 +231,7 @@ describe('time-limits > TimeLimits', () => {
               ? async abortSignal => {
                   values.push(order)
                   if (runTime) {
-                    await delay(runTime, abortSignal, dateTime)
+                    await delay(runTime, abortSignal, clock)
                   }
                   return order
                 }
@@ -241,11 +241,11 @@ describe('time-limits > TimeLimits', () => {
                 },
             limits: timeLimit.limits,
             results: results,
-            dateTime,
+            clock,
           })
 
           if (startTime) {
-            dateTime.time.setTimeout(() => {
+            clock.time.setTimeout(() => {
               checkPromiseResults.push(order)
               promises.push(
                 poolRunWait({
@@ -273,7 +273,7 @@ describe('time-limits > TimeLimits', () => {
       }
 
       async function run() {
-        await waitTimeMock(dateTime.time, null, {
+        await waitClockTimeMock(clock.time, null, {
           timeout:
             countPerTimeLimit *
               (Math.max(timeLimit1, timeLimit2, timeLimit3) + 3) +

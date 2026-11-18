@@ -1,5 +1,5 @@
 import { type Listener } from 'src/common/rx'
-import type { IDateTime } from 'src/common/time/date-time'
+import type { IClock } from 'src/common/time/clock'
 import { EMPTY_FUNC } from 'src/common/constants'
 import type { Unsubscribe } from 'src/common/types'
 import { LogLevel } from 'src/common/debug'
@@ -16,7 +16,7 @@ import { TaskStatusControllerBase } from './TaskStatusControllerBase'
 import { AbortError } from '@flemist/abort-controller-fast'
 
 export type TaskOptionsBase<Result = void> = AbortControllerReusableOptions & {
-  readonly dateTime?: null | IDateTime
+  readonly clock?: null | IClock
   readonly logLevel?: null | LogLevel
   /**
    * Log error manually or skip it and return false
@@ -116,7 +116,7 @@ export class TaskBase<
       .run(() =>
         this.#func(this.#args, {
           abortSignal: this.#statusController.abortSignal,
-          dateTime: this.#statusController.dateTime,
+          clock: this.#statusController.clock,
           isFirst,
         }),
       )

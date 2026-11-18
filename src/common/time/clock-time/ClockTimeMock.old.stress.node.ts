@@ -1,10 +1,10 @@
 import { describe, it, assert } from 'vitest'
 import { createTestVariants } from '@flemist/test-variants'
 import { delay } from 'src/common/async/wait/delay'
-import { DateTimeMock, dateTimeReal, type IDateTime } from '../date-time'
+import { ClockMock, clockReal, type IClock } from '../clock'
 
-describe('time > TimeMock', () => {
-  function test({ dateTime, times, postDelay, resolve }: TestOptions): number {
+describe('time > ClockTimeMock', () => {
+  function test({ clock, times, postDelay, resolve }: TestOptions): number {
     const result: string[] = []
     let timeMax = 0
     for (let i = 0, len = times.length; i < len; i++) {
@@ -15,16 +15,16 @@ describe('time > TimeMock', () => {
       )
 
       function start() {
-        const handle = dateTime.time.setTimeout(() => {
+        const handle = clock.time.setTimeout(() => {
           result.push(`completed: ${time.index}`)
         }, time.timeout)
 
         if (time.abort != null) {
           if (time.abort < 0) {
-            dateTime.time.clearTimeout(handle)
+            clock.time.clearTimeout(handle)
           } else {
-            dateTime.time.setTimeout(() => {
-              dateTime.time.clearTimeout(handle)
+            clock.time.setTimeout(() => {
+              clock.time.clearTimeout(handle)
               result.push(`aborted: ${time.index}`)
             }, time.abort)
           }
@@ -34,11 +34,11 @@ describe('time > TimeMock', () => {
       if (time.start == null) {
         start()
       } else {
-        dateTime.time.setTimeout(start, time.start)
+        clock.time.setTimeout(start, time.start)
       }
     }
 
-    dateTime.time.setTimeout(() => {
+    clock.time.setTimeout(() => {
       resolve(result)
     }, timeMax + postDelay)
 
@@ -141,11 +141,11 @@ describe('time > TimeMock', () => {
     ({ times, step1, step2, step3, expectedResult }: TestVariantsArgs) => {
       const steps = [step1, step2, step3].filter(o => o != null)
 
-      const dateTime = new DateTimeMock()
+      const clock = new ClockMock()
 
       let result: string[] = null!
       let expectedTime = test({
-        dateTime,
+        clock,
         times,
         postDelay: 0,
         resolve: o => {
@@ -156,9 +156,9 @@ describe('time > TimeMock', () => {
       for (let i = 0, len = steps.length; i < len; i++) {
         const step = steps[i]
         expectedTime -= step
-        dateTime.time.addTime(step)
+        clock.time.addValue(step)
       }
-      dateTime.time.addTime(Math.max(0, expectedTime))
+      clock.time.addValue(Math.max(0, expectedTime))
 
       assert.deepStrictEqual(result, expectedResult)
     },
@@ -172,7 +172,7 @@ describe('time > TimeMock', () => {
 
       const result = await new Promise<string[]>(resolve => {
         test({
-          dateTime: dateTimeReal,
+          clock: clockReal,
           times,
           postDelay: 100,
           resolve,
@@ -199,7 +199,7 @@ describe('time > TimeMock', () => {
   })
 
   it(
-    'createExpectedResult matches timeReal',
+    'createExpectedResult matches clockTimeReal',
     { timeout: 600000000 },
     async () => {
       await testVariantsExpectedResult({
@@ -264,7 +264,7 @@ type TestTime = {
 }
 
 type TestOptions = {
-  dateTime: IDateTime
+  clock: IClock
   times: TestTime[]
   postDelay: number
   resolve: (result: string[]) => void

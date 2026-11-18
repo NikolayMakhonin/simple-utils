@@ -5,7 +5,7 @@ import type {
   WorkerConnectRequest,
 } from '../types'
 import type { PromiseLikeOrValue } from 'src/common/types'
-import { dateReal } from 'src/common/time/date'
+import { clockDateReal } from 'src/common/time/clock-date'
 
 export type WorkerConnectPoolOptions = {
   /**
@@ -50,8 +50,8 @@ export function createWorkerConnectPool(
         type: 'connect',
         connectionName,
         messagePort,
-        dateRealOffset: dateReal.offset,
-        dateRealRealDateMinimum: dateReal.realDateMinimum,
+        clockDateRealOffset: clockDateReal.offset,
+        clockDateRealDateMinimum: clockDateReal.dateMinimum,
       }
       worker.postMessage(request, [messagePort])
     },

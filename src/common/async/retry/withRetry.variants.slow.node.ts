@@ -31,9 +31,9 @@
  */
 import { describe, it } from 'vitest'
 import { createTestVariants } from '@flemist/test-variants'
-import { DateTimeMock } from 'src/common/time/date-time'
+import { ClockMock } from 'src/common/time/clock'
 import { AbortControllerFast } from '@flemist/abort-controller-fast'
-import { waitTimeMock } from 'src/common/async/wait/waitTimeMock'
+import { waitClockTimeMock } from 'src/common/async/wait/waitClockTimeMock'
 import {
   getRandomSeed,
   Random,
@@ -146,7 +146,7 @@ async function test(options: TestOptions): Promise<void> {
   const { rnd, args, log } = options
   const plan = generatePlan({ rnd: rnd.clone(), args })
 
-  const dateTime = new DateTimeMock()
+  const clock = new ClockMock()
   const abortController = args.useAbort ? new AbortControllerFast() : null
 
   const callRecords: {
@@ -196,7 +196,7 @@ async function test(options: TestOptions): Promise<void> {
         index: i,
         threw: shouldThrow,
         result: shouldThrow ? null : i,
-        time: dateTime.time.time(),
+        time: clock.time.value(),
       }
       callRecords.push(record)
 
@@ -213,7 +213,7 @@ async function test(options: TestOptions): Promise<void> {
     },
     repeatStrategy: retryStrategy,
     abortSignal: abortController?.signal ?? null,
-    dateTime,
+    clock,
     logLevel: LogLevel.none,
   })
 
@@ -236,7 +236,7 @@ async function test(options: TestOptions): Promise<void> {
   let rejectedError: any
 
   try {
-    resolvedValue = await waitTimeMock(dateTime.time, retryPromise, {
+    resolvedValue = await waitClockTimeMock(clock.time, retryPromise, {
       timeout: maxTime,
     })
     resolved = true
