@@ -21,7 +21,7 @@ const CLOCK_DATE_REAL_SAVE_INTERVAL = 60 * 1000
 // for at most a second before a measurement starts
 const CLOCK_DATE_REAL_CHECK_INTERVAL = 1000
 
-/** The state of a ClockDateReal for a restart, which its updateOffset(offset, dateMinimum) restores */
+/** The state of a ClockDateReal for a restart */
 export type DateSyncStored = {
   offset: number
   dateMinimum: number | null
@@ -31,7 +31,7 @@ export type DateSyncStartOptions = {
   dateInetOptions?: null | Omit<GetDateInetOptions, 'abortSignal'>
   /** The widest accepted range of real time. A wider range still updates clockDateReal, and the measurement repeats */
   rangeWidthMaximum: number
-  /** Keeps the state for a restart; called after every answer of the time server, every minute and when the page hides */
+  /** Keeps the state for a restart */
   save: (stored: DateSyncStored) => void
   /**
    * Called after every measurement of internet time, never at start.
