@@ -61,65 +61,58 @@ describe('dateSyncStart', () => {
     vi.advanceTimersByTime(time)
   }
 
-  // Starts the sync of a new ClockDateReal and collects what it gives to save and onUpdate
-  function start(stored: DateSyncStored | null) {
+  // Starts the sync of a new ClockDateReal and collects what it gives to save and onMeasure
+  function start() {
     const clockDateReal = new ClockDateReal()
     const savedList: DateSyncStored[] = []
-    const updateErrors: unknown[] = []
+    const measureErrorList: unknown[] = []
     const stop = dateSyncStart({
       rangeWidthMaximum: 2500,
-      load: () => stored,
       save: o => {
         savedList.push(o)
       },
-      onUpdate: error => {
-        updateErrors.push(error)
+      onMeasure: error => {
+        measureErrorList.push(error)
       },
-      // The tests check every error through onUpdate
+      // The tests check every error through onMeasure
       logFuncError: () => false,
       clockDateReal,
     })
-    return { clockDateReal, savedList, updateErrors, stop }
+    return { clockDateReal, savedList, measureErrorList, stop }
   }
 
   it('base', async () => {
     // A right device clock: the measurement keeps clockDateReal.value()
-    let sync = start(null)
-    // The sync calls onUpdate at start, before any measurement
-    expect(sync.updateErrors).toEqual([null])
+    let sync = start()
+    // The sync calls onMeasure exclusively after measurements, never at start
+    expect(sync.measureErrorList).toEqual([])
     await wait(0)
     expect(fetchCount).toBe(1)
     expect(sync.clockDateReal.offset).toBe(0)
     expect(sync.savedList).toEqual([{ offset: 0, dateMinimum: date }])
-    expect(sync.updateErrors).toEqual([null, null])
+    expect(sync.measureErrorList).toEqual([null])
     sync.stop()
 
     // A device clock ahead or behind: clockDateReal.value() moves to the middle of the range of real time
     dateOffset = 60 * 60 * 1000
-    sync = start(null)
+    sync = start()
     await wait(0)
     expect(sync.clockDateReal.value()).toBe(date + 500)
     sync.stop()
     dateOffset = -60 * 60 * 1000
-    sync = start(null)
+    sync = start()
     await wait(0)
     expect(sync.clockDateReal.value()).toBe(date + 500)
-    sync.stop()
-
-    // The stored state sets clockDateReal.value() before the first measurement
-    dateOffset = 0
-    sync = start({ offset: 5000, dateMinimum: null })
-    expect(sync.clockDateReal.value()).toBe(date + 5000)
     sync.stop()
   })
 
   it('repeated measurements', async () => {
     // A failed measurement repeats after waits doubling from 1 second up to 10 seconds
     isOffline = true
-    const sync = start(null)
+    const sync = start()
     await wait(0)
     expect(fetchCount).toBe(1)
-    expect(sync.updateErrors[1]).toBeInstanceOf(TypeError)
+    expect(sync.measureErrorList[0]).toBeInstanceOf(TypeError)
     await wait(999)
     expect(fetchCount).toBe(1)
     await wait(1)
@@ -139,8 +132,8 @@ describe('dateSyncStart', () => {
     isOffline = false
     await wait(10_000)
     expect(fetchCount).toBe(8)
-    expect(sync.updateErrors.length).toBe(9)
-    expect(sync.updateErrors[8]).toBe(null)
+    expect(sync.measureErrorList.length).toBe(8)
+    expect(sync.measureErrorList[7]).toBe(null)
     waitSynchronously(60 * 60 * 1000 - 1)
     expect(fetchCount).toBe(8)
     await wait(1)
@@ -151,15 +144,16 @@ describe('dateSyncStart', () => {
     // also while clockDateReal.value() stands above dateMinimum by more than rangeWidthMaximum
     requestTime = 2000
     date += 900
-    const syncSlow = start(null)
+    const syncSlow = start()
     await wait(0)
     expect(fetchCount).toBe(10)
     expect(syncSlow.clockDateReal.value() - date).toBe(0)
     expect(
       syncSlow.clockDateReal.value() - syncSlow.clockDateReal.dateMinimum!,
     ).toBe(2900)
-    expect(syncSlow.updateErrors[1]).toBeInstanceOf(Error)
-    expect(String(syncSlow.updateErrors[1])).toMatch(
+    // onMeasure gets the error of an answer whose range is too wide, after the answer has corrected the clock
+    expect(syncSlow.measureErrorList[0]).toBeInstanceOf(Error)
+    expect(String(syncSlow.measureErrorList[0])).toMatch(
       /wider than rangeWidthMaximum/,
     )
     await wait(999)
@@ -174,7 +168,7 @@ describe('dateSyncStart', () => {
   })
 
   it('jumps of Date.now()', async () => {
-    const sync = start(null)
+    const sync = start()
     await wait(0)
     expect(fetchCount).toBe(1)
 
@@ -217,7 +211,7 @@ describe('dateSyncStart', () => {
   })
 
   it('save and stop', async () => {
-    const sync = start(null)
+    const sync = start()
     await wait(0)
     expect(sync.savedList.length).toBe(1)
     // The state is also saved every minute
@@ -230,12 +224,5 @@ describe('dateSyncStart', () => {
     await wait(60 * 60 * 1000)
     expect(fetchCount).toBe(1)
     expect(sync.savedList.length).toBe(2)
-  })
-
-  it('errors', () => {
-    expect(() => start({ offset: NaN, dateMinimum: null })).toThrow(
-      /offset \(NaN\) should be a finite number/,
-    )
-    expect(vi.getTimerCount()).toBe(0)
   })
 })

@@ -1,7 +1,7 @@
 import { AbortControllerFast } from '@flemist/abort-controller-fast'
 import type { TaskOptionsBase } from 'src/common/task/TaskBase'
 import { createTaskRepeated } from 'src/common/task/TaskRepeated'
-import type { Unsubscribe } from 'src/common/types'
+import type { NumberRange, Unsubscribe } from 'src/common/types'
 import type { GetDateInetOptions } from './getDateInet'
 import { getDateInetRange } from './getDateInetRange'
 import {
@@ -21,7 +21,7 @@ const CLOCK_DATE_REAL_SAVE_INTERVAL = 60 * 1000
 // for at most a second before a measurement starts
 const CLOCK_DATE_REAL_CHECK_INTERVAL = 1000
 
-/** The state that restores a ClockDateReal after a restart */
+/** The state of a ClockDateReal for a restart, which its updateOffset(offset, dateMinimum) restores */
 export type DateSyncStored = {
   offset: number
   dateMinimum: number | null
@@ -31,31 +31,26 @@ export type DateSyncStartOptions = {
   dateInetOptions?: null | Omit<GetDateInetOptions, 'abortSignal'>
   /** The widest accepted range of real time. A wider range still updates clockDateReal, and the measurement repeats */
   rangeWidthMaximum: number
-  /** Returns the state that save kept, or null */
-  load: () => DateSyncStored | null
-  /** Keeps the state for load to return after a restart */
+  /** Keeps the state for a restart; called after every answer of the time server, every minute and when the page hides */
   save: (stored: DateSyncStored) => void
   /**
-   * Called with null at start and after every successful measurement.
-   * Called with the error of every failed measurement, also when its range is wider than rangeWidthMaximum
+   * Called after every measurement of internet time, never at start.
+   * error is null after a successful measurement, else the reason why it failed:
+   * the time server did not answer, or the range of its answer is wider than rangeWidthMaximum
    */
-  onUpdate?: null | ((error: unknown) => void)
+  onMeasure?: null | ((error: unknown) => void)
   logFuncError?: TaskOptionsBase['logFuncError']
   /** Default: clockDateReal */
   clockDateReal?: null | ClockDateReal
 }
 
 /**
- * Keeps clockDateReal on internet time,
- * and keeps its state across restarts through load and save
+ * Keeps clockDateReal on internet time in the background, and gives its state to save for a restart.
+ * Restore a saved state through clockDateReal.updateOffset before the program first reads the clock,
+ * because a reading before it gives the device clock
  */
 export function dateSyncStart(options: DateSyncStartOptions): Unsubscribe {
   const clockDateReal = options.clockDateReal ?? clockDateRealDefault
-  const stored = options.load()
-  if (stored != null) {
-    clockDateReal.updateOffset(stored.offset, stored.dateMinimum)
-  }
-  options.onUpdate?.(null)
 
   function saveClockDateReal() {
     const offset = clockDateReal.offset
@@ -70,28 +65,33 @@ export function dateSyncStart(options: DateSyncStartOptions): Unsubscribe {
 
   const dateSyncTask = createTaskRepeated(
     async (_, { abortSignal }) => {
+      // The catch covers exclusively the request, so that an error thrown by save or by onMeasure itself
+      // fails the task without reaching onMeasure as a failed measurement
+      let range: NumberRange
       try {
-        const range = await getDateInetRange({
+        range = await getDateInetRange({
           ...options.dateInetOptions,
           abortSignal,
         })
-        clockDateReal.updateDate(range)
-        const rangeWidth = range[1] - range[0]
-        lastRangeWidth = rangeWidth
-        saveClockDateReal()
-        // A wider range has still updated clockDateReal, and the throw makes the task measure again
-        if (rangeWidth > options.rangeWidthMaximum) {
-          throw new Error(
-            `[dateSyncStart] range of internet time (${rangeWidth} ms) is wider than rangeWidthMaximum (${options.rangeWidthMaximum} ms)`,
-          )
-        }
-        options.onUpdate?.(null)
       } catch (error) {
         if (!abortSignal.aborted) {
-          options.onUpdate?.(error)
+          options.onMeasure?.(error)
         }
         throw error
       }
+      clockDateReal.updateDate(range)
+      const rangeWidth = range[1] - range[0]
+      lastRangeWidth = rangeWidth
+      saveClockDateReal()
+      // A wider range has still updated clockDateReal, and the throw makes the task measure again
+      if (rangeWidth > options.rangeWidthMaximum) {
+        const error = new Error(
+          `[dateSyncStart] range of internet time (${rangeWidth} ms) is wider than rangeWidthMaximum (${options.rangeWidthMaximum} ms)`,
+        )
+        options.onMeasure?.(error)
+        throw error
+      }
+      options.onMeasure?.(null)
     },
     null,
     {
