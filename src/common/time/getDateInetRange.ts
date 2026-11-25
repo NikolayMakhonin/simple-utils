@@ -12,7 +12,7 @@ export type GetDateInetRangeOptions = GetDateInetOptions & {
 }
 
 /**
- * Returns the range that holds real time at the moment of the return.
+ * Returns the range that holds real time at the moment of the return, in whole milliseconds.
  * The range comes from the Date header of a web server response.
  * Throws when Date.now() jumps forward by more than DATE_JUMP_MINIMUM during the request, such as after a sleep
  */
@@ -38,5 +38,5 @@ export async function getDateInetRange(
   // The server truncates the Date header to whole seconds.
   // It sets the header between the request and the response.
   // So at the response, real time lies between dateInet and dateInet + 1 second + the longest duration of the request
-  return [dateInet, dateInet + 1000 + durationMaximum]
+  return [dateInet, dateInet + 1000 + Math.ceil(durationMaximum)]
 }

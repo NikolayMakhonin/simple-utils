@@ -43,6 +43,11 @@ describe('getDateInetRange', () => {
       DATE_TIME,
       DATE_TIME + 1300,
     ])
+    stubFetch(300.4, 0)
+    expect(await getDateInetRange({ url: 'https://example.test/' })).toEqual([
+      DATE_TIME,
+      DATE_TIME + 1301,
+    ])
   })
 
   it('jumps of Date.now()', async () => {
