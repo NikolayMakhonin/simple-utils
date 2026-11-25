@@ -32,7 +32,7 @@
 import { describe, it } from 'vitest'
 import { createTestVariants } from '@flemist/test-variants'
 import { ClockMock } from 'src/common/time/clock'
-import { AbortControllerFast } from '@flemist/abort-controller-fast'
+import { AbortControllerFast, AbortError } from '@flemist/abort-controller-fast'
 import { waitClockTimeMock } from 'src/common/async/wait/waitClockTimeMock'
 import {
   getRandomSeed,
@@ -79,6 +79,7 @@ type GeneratedPlan = {
   delays: DelaysConfig
   jitter: number | null
   abortAfterCall: number | null
+  abortInPause: boolean
 }
 
 type TestOptions = {
@@ -130,7 +131,17 @@ function generatePlan(options: {
   const abortAfterCall =
     args.useAbort && failCount > 0 ? randomInt(rnd, 0, failCount) : null
 
-  return { failCount, maxRetries, maxTotalTime, delays, jitter, abortAfterCall }
+  const abortInPause = randomBoolean(rnd)
+
+  return {
+    failCount,
+    maxRetries,
+    maxTotalTime,
+    delays,
+    jitter,
+    abortAfterCall,
+    abortInPause,
+  }
 }
 
 function getExpectedDelay(plan: GeneratedPlan, retryIndex: number): number {
@@ -165,7 +176,8 @@ async function test(options: TestOptions): Promise<void> {
     console.log(
       `[test] config maxRetries=${plan.maxRetries} maxTotalTime=${plan.maxTotalTime}` +
         ` delaysMode=${plan.delays.mode} delays=${delaysStr}` +
-        ` jitter=${plan.jitter} failCount=${plan.failCount} abortAfterCall=${plan.abortAfterCall}`,
+        ` jitter=${plan.jitter} failCount=${plan.failCount} abortAfterCall=${plan.abortAfterCall}` +
+        ` abortInPause=${plan.abortInPause}`,
     )
   }
 
@@ -189,7 +201,12 @@ async function test(options: TestOptions): Promise<void> {
       const shouldThrow = i < plan.failCount
 
       if (plan.abortAfterCall != null && i === plan.abortAfterCall) {
-        abortController!.abort()
+        if (plan.abortInPause) {
+          // The pause after the call is longer than 0 ms
+          clock.time.setTimeout(() => abortController!.abort(), 0)
+        } else {
+          abortController!.abort()
+        }
       }
 
       const record = {
@@ -264,6 +281,7 @@ async function test(options: TestOptions): Promise<void> {
     rejected,
     resolvedValue,
     rejectedError,
+    !!abortController?.signal.aborted,
   )
   checkCallCount(plan, callRecords)
   if (!args.useAbort && plan.jitter == null) {
@@ -283,11 +301,18 @@ function checkResult(
   rejected: boolean,
   resolvedValue: number | undefined,
   rejectedError: any,
+  aborted: boolean,
 ): void {
   if (plan.abortAfterCall != null && plan.abortAfterCall < plan.failCount) {
     if (!rejected) {
       throw new Error(
         `expected rejection due to abort after call ${plan.abortAfterCall}, but got resolved=${resolved}`,
+      )
+    }
+    if (aborted && !(rejectedError instanceof AbortError)) {
+      throw new Error(
+        `expected the abort after call ${plan.abortAfterCall} as the rejection` +
+          `, but got error=${rejectedError?.message}`,
       )
     }
     return

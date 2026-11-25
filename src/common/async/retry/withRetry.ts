@@ -36,5 +36,12 @@ export async function withRetry<T>(options: WithRetryOptions<T>): Promise<T> {
     options,
   )
 
-  return repeated.run()
+  try {
+    return await repeated.run()
+  } catch (error) {
+    // A task aborted in the pause between two attempts ends with the error of the last attempt.
+    // The caller should get the abort instead, to tell it from a failure
+    options.abortSignal?.throwIfAborted()
+    throw error
+  }
 }
