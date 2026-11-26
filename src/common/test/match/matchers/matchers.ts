@@ -11,7 +11,7 @@ import {
 } from './MatcherNumber'
 import { MatcherObject, type MatchObject } from './MatcherObject'
 import { MatcherString, type MatchStringPattern } from './MatcherString'
-import { MatcherInstanceOf } from './MatchInstanceOf'
+import { MatcherInstanceOf } from './MatcherInstanceOf'
 import { MatcherIn } from './MatcherIn'
 import { MatcherFew } from './MatcherFew'
 import { MatcherCustom } from './MatcherCustom'
@@ -25,6 +25,7 @@ import { MatcherObjectEntry } from './MatcherObjectEntry'
 import { MatcherRef } from './MatcherRef'
 import { isPlainObject } from 'src/common/object/isPlainObject'
 import { setOwnProperty } from 'src/common/object/setOwnProperty'
+import { getEnumValues } from 'src/common/object/getEnumValues'
 
 export function matchArray<T extends any[]>(expected?: null | MatchArray<T>) {
   return new MatcherArray<T>({ expected })
@@ -360,7 +361,7 @@ export function matchIn<T>(expected: Set<T> | Iterable<T>) {
 }
 
 export function matchEnum<T>(enumObject: { [key: string]: T }) {
-  return matchIn(Object.values(enumObject))
+  return matchIn(getEnumValues(enumObject))
 }
 
 export function matchCustom<T>(
@@ -439,7 +440,9 @@ export function matchNot<T>(expected: Expected<T>) {
 }
 
 export function matchUuid(): Matcher<string> {
-  return matchString(/^[\da-f-]{36}|[\da-f]{32}$/i).name('uuid')
+  return matchString(
+    /^(?:[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}|[\da-f]{32})$/i,
+  ).name('uuid')
 }
 
 export function matchValueState<T>(args: MatchObject<Partial<ValueState<T>>>) {
@@ -466,9 +469,12 @@ export function matchArrayBuffer<
       }
     | string,
 ): Matcher<T> {
-  if (expected != null && typeof expected === 'string') {
-    expected = new TextEncoder().encode(expected).buffer
-  }
+  const expectedBytes =
+    expected == null
+      ? null
+      : typeof expected === 'string'
+        ? new TextEncoder().encode(expected)
+        : getBytes(expected)
   return matchCustom('array buffer', (actual: T) => {
     if (
       actual == null ||
@@ -477,19 +483,26 @@ export function matchArrayBuffer<
     ) {
       return `Expected array buffer, got "${actual}"`
     }
-    if (expected == null) {
+    if (expectedBytes == null) {
       return true
     }
-    if (actual.byteLength !== expected.byteLength) {
-      return `Expected array buffer length to be ${expected.byteLength}, got ${actual.byteLength}`
+    if (actual.byteLength !== expectedBytes.length) {
+      return `Expected array buffer length to be ${expectedBytes.length}, got ${actual.byteLength}`
     }
-    for (let i = 0, len = expected.byteLength; i < len; i++) {
-      if (actual[i] !== expected[i]) {
-        return `Expected array buffer[${i}] to be ${expected[i]}, got ${actual[i]}`
+    const actualBytes = getBytes(actual)
+    for (let i = 0, len = expectedBytes.length; i < len; i++) {
+      if (actualBytes[i] !== expectedBytes[i]) {
+        return `Expected array buffer byte ${i} to be ${expectedBytes[i]}, got ${actualBytes[i]}`
       }
     }
     return true
   })
+}
+
+function getBytes(buffer: { readonly byteLength: number }): Uint8Array {
+  return ArrayBuffer.isView(buffer)
+    ? new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)
+    : new Uint8Array(buffer as ArrayBufferLike)
 }
 
 // Это похоже на письменные размышления о структуре интерфейса:

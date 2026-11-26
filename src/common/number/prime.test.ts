@@ -1,4 +1,4 @@
-import { describe, it, assert, expect } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { isPrime, nextPrime, prevPrime } from './prime'
 
 describe('prime', () => {
@@ -54,35 +54,38 @@ describe('prime', () => {
     expect(() => prevPrime(2147483648)).toThrow()
   })
 
-  it.skip(
-    'isPrime',
-    async function () {
-      const primeNumbers: number[] = []
-      for (let i = 2; i < 1000000; i++) {
-        let _isPrime = true
-        for (let j = 0; j < primeNumbers.length; j++) {
-          if (i % primeNumbers[j] === 0) {
-            _isPrime = false
-            break
-          }
-        }
-        assert.strictEqual(isPrime(i), _isPrime)
-        if (_isPrime) {
-          if (primeNumbers.length >= 1) {
-            assert.strictEqual(
-              nextPrime(primeNumbers[primeNumbers.length - 1]),
-              i,
-            )
-            assert.strictEqual(
-              prevPrime(i),
-              primeNumbers[primeNumbers.length - 1],
-            )
-          }
-          primeNumbers.push(i)
+  it('every number below 1000000 against trial division', () => {
+    const primeNumbers: number[] = []
+    const wrongCalls: string[] = []
+    for (let i = 2; i < 1000000; i++) {
+      let isPrimeExpected = true
+      for (
+        let j = 0;
+        j < primeNumbers.length && primeNumbers[j] * primeNumbers[j] <= i;
+        j++
+      ) {
+        if (i % primeNumbers[j] === 0) {
+          isPrimeExpected = false
+          break
         }
       }
-      console.log(primeNumbers.length)
-    },
-    10 * 60 * 1000,
-  )
+      if (isPrime(i) !== isPrimeExpected) {
+        wrongCalls.push(`isPrime(${i})`)
+      }
+      if (isPrimeExpected) {
+        if (primeNumbers.length >= 1) {
+          const primePrev = primeNumbers[primeNumbers.length - 1]
+          if (nextPrime(primePrev) !== i) {
+            wrongCalls.push(`nextPrime(${primePrev})`)
+          }
+          if (prevPrime(i) !== primePrev) {
+            wrongCalls.push(`prevPrime(${i})`)
+          }
+        }
+        primeNumbers.push(i)
+      }
+    }
+    expect(wrongCalls).toEqual([])
+    expect(primeNumbers.length).toBe(78498)
+  })
 })

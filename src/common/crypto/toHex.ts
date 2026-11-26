@@ -14,8 +14,10 @@ function getByteToHex(): string[] {
 }
 
 /**
- * Converts ANY TypedArray or DataView to a HEX string.
- * Uses a zero-copy Uint8 view of the underlying memory.
+ * Like buffer.toString('hex') of Node.js,
+ * but for any ArrayBufferView and in browsers too.
+ * Gives two lowercase hex digits per byte,
+ * in the order of the bytes in memory.
  */
 export function toHex(data: ArrayBufferView): string {
   const tab = getByteToHex()

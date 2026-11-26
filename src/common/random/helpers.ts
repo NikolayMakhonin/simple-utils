@@ -1,4 +1,5 @@
 import { Random } from './Random'
+import { getEnumValues } from 'src/common/object/getEnumValues'
 
 export function randomFloat(
   rnd: Random,
@@ -148,21 +149,7 @@ export function randomEnum<EnumType extends Record<string, any>>(
   enumType: EnumType,
   predicate?: null | ((value: EnumType[keyof EnumType]) => boolean),
 ): EnumType[keyof EnumType] {
-  const values: EnumType[keyof EnumType][] = []
-  for (const key in enumType) {
-    if (Object.prototype.hasOwnProperty.call(enumType, key)) {
-      const value = enumType[key]
-      // Numeric TypeScript enums contain reverse mapping entries: E[E.A = 0] = 'A'
-      const isReverseMapping =
-        typeof value === 'string' &&
-        typeof enumType[value] === 'number' &&
-        String(enumType[value]) === key
-      if (!isReverseMapping && (!predicate || predicate(value))) {
-        values.push(value)
-      }
-    }
-  }
-  return randomItem(rnd, values)
+  return randomItem(rnd, getEnumValues(enumType, { filter: predicate }))
 }
 
 export function arrayShuffle<T>(rnd: Random, array: T[]): T[] {

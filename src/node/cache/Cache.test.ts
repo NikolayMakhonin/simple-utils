@@ -1303,8 +1303,8 @@ describe('Cache', () => {
         const cache = new Cache(options)
         await cache.getOrCreate('key', () => ({ a: 1 }))
 
-        const valueFiles = (await readDirFlat(DIR_CACHE)).filter(f =>
-          f.endsWith('.value'),
+        const valueFiles = (await readDirFlat(DIR_CACHE)).filter(o =>
+          o.endsWith('.value'),
         )
         expect(valueFiles.length).toBe(1)
         await fs.promises.writeFile(valueFiles[0], new Uint8Array([0xff, 0xfe]))
@@ -1334,8 +1334,8 @@ describe('Cache', () => {
       const payload = { message: 'plain-json', count: 7 }
       await cache.getOrCreate('plain-key', () => payload)
 
-      const valueFiles = (await readDirFlat(DIR_CACHE)).filter(f =>
-        f.endsWith('.value'),
+      const valueFiles = (await readDirFlat(DIR_CACHE)).filter(o =>
+        o.endsWith('.value'),
       )
       expect(valueFiles.length).toBe(1)
       const bytes = await fs.promises.readFile(valueFiles[0])
@@ -1353,8 +1353,8 @@ describe('Cache', () => {
 
       await cache.getOrCreate('null-key', () => ({ a: 1 }))
 
-      const valueFiles = (await readDirFlat(DIR_CACHE)).filter(f =>
-        f.endsWith('.value'),
+      const valueFiles = (await readDirFlat(DIR_CACHE)).filter(o =>
+        o.endsWith('.value'),
       )
       const bytes = await fs.promises.readFile(valueFiles[0])
       expect(isGzipCompressed(bytes)).toBe(false)
@@ -1372,8 +1372,8 @@ describe('Cache', () => {
       const result1 = await cache.getOrCreate('gzip-key', () => payload)
       expect(result1).toEqual(payload)
 
-      const valueFiles = (await readDirFlat(DIR_CACHE)).filter(f =>
-        f.endsWith('.value'),
+      const valueFiles = (await readDirFlat(DIR_CACHE)).filter(o =>
+        o.endsWith('.value'),
       )
       expect(valueFiles.length).toBe(1)
       const bytes = await fs.promises.readFile(valueFiles[0])
@@ -1408,8 +1408,8 @@ describe('Cache', () => {
         }),
       ).rejects.toThrow('gzip-cached-error')
 
-      const errorFiles = (await readDirFlat(DIR_CACHE)).filter(f =>
-        f.endsWith('.error'),
+      const errorFiles = (await readDirFlat(DIR_CACHE)).filter(o =>
+        o.endsWith('.error'),
       )
       expect(errorFiles.length).toBe(1)
       const bytes = await fs.promises.readFile(errorFiles[0])
@@ -1430,7 +1430,7 @@ describe('Cache', () => {
       const plainCache = new Cache(plainOptions)
       await plainCache.getOrCreate('same-key', () => payload)
       const plainBytes = await fs.promises.readFile(
-        (await readDirFlat(DIR_CACHE)).filter(f => f.endsWith('.value'))[0],
+        (await readDirFlat(DIR_CACHE)).filter(o => o.endsWith('.value'))[0],
       )
 
       await fs.promises.rm(DIR_CACHE, { recursive: true })
@@ -1444,7 +1444,7 @@ describe('Cache', () => {
       const gzipCache = new Cache(gzipOptions)
       await gzipCache.getOrCreate('same-key', () => payload)
       const gzipBytes = await fs.promises.readFile(
-        (await readDirFlat(DIR_CACHE)).filter(f => f.endsWith('.value'))[0],
+        (await readDirFlat(DIR_CACHE)).filter(o => o.endsWith('.value'))[0],
       )
 
       expect(isGzipCompressed(plainBytes)).toBe(false)
@@ -1486,8 +1486,8 @@ describe('Cache', () => {
       const result1 = await cache.getOrCreate('level0-key', () => payload)
       expect(result1).toEqual(payload)
 
-      const valueFiles = (await readDirFlat(DIR_CACHE)).filter(f =>
-        f.endsWith('.value'),
+      const valueFiles = (await readDirFlat(DIR_CACHE)).filter(o =>
+        o.endsWith('.value'),
       )
       const bytes = await fs.promises.readFile(valueFiles[0])
       expect(isGzipCompressed(bytes)).toBe(true)
