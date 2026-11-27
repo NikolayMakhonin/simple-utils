@@ -1,7 +1,8 @@
 let BYTE_TO_HEX: string[] | null = null
 
 /**
- * Lazy-initializes the lookup table only when needed.
+ * Creates the lookup table at the first call, not at module level,
+ * because package.json declares "sideEffects": false.
  */
 function getByteToHex(): string[] {
   if (!BYTE_TO_HEX) {

@@ -386,9 +386,10 @@ export type MatchRangeOptions = {
 
 const DATE_DISTANCE_MAX = 10 * 365.25 * 24 * 60 * 60 * 1000
 export function matchIntDate(options?: null | MatchIntArgs): Matcher<number> {
-  // Date.now() is read per call, not at module level.
-  // Module-level code would run on every import of this library.
-  // The range must be relative to the time of the call, not of the import
+  // Date.now() is read at every call, not at module level,
+  // because package.json declares "sideEffects": false.
+  // It is not read once either, because the range must follow
+  // a time that a test sets for Date.now()
   const date = Date.now()
   return matchInt({
     ...options,
