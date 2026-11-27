@@ -1,10 +1,11 @@
 import { isPlainObject } from './isPlainObject'
 
 /**
- * null, undefined equals an absent property.
- * Order of keys doesn't matter.
- * Throws for NaN compared with a number,
- * and for a class instance compared with an object that is not an array
+ * A total order of JSON-like values, as a comparator for Array.prototype.sort.
+ * It returns 0 exactly when deepEqualJsonLike returns true,
+ * so null and undefined equal an absent property, and the order of keys does not matter.
+ * It throws for values without an order: NaN compared with a number,
+ * and a class instance compared with an object that is not an array
  */
 export function compareJsonLike(a: any, b: any): -1 | 0 | 1 {
   if (a === b) {

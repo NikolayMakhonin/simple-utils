@@ -150,16 +150,17 @@ export class Cache<
     const statsArray = Array.from(stats.entries())
     statsArray.sort(compareLru)
 
-    statsArray.forEach(([key, stat]) => {
+    for (let i = 0, len = statsArray.length; i < len; i++) {
+      const [key, stat] = statsArray[i]
       // Skip the current key: its space contribution is already accounted for
       if (key === currentKey) {
-        return
+        continue
       }
 
-      // Those that are currently queued are obviously not worth deleting, since they are needed right now
+      // A key with a running or a waiting operation is needed right now, so it is kept
       const hasQueued = this.#locker.hasQueued(key)
       if (hasQueued) {
-        return
+        continue
       }
 
       const totalSizeDelta = -stat.size
@@ -178,7 +179,7 @@ export class Cache<
         )
         totalSize += totalSizeDelta
       }
-    })
+    }
 
     await promiseAllWait(promises)
   }
@@ -232,37 +233,40 @@ export class Cache<
         ])
         statOld = null
       } else {
-        const [storedValue, storedError] = await Promise.all([
-          this.#options.storages.value.get(key),
-          this.#options.storages.error?.get(key),
-        ])
-
-        const date = this.#clock.date.value()
-
         // When readStored returns null, func below recalculates the value
         // and replaces the unreadable data. Without the recalculation,
         // every call for this key would fail on the same data
-        if (!statOld.hasError && storedValue != null) {
-          const read = await this.readStored(
-            key,
-            this.#options.converterValue,
-            storedValue,
-          )
-          if (read != null) {
-            await this.#stats.set(key, { ...statOld, dateUsed: date })
-            return read.result as T
+        if (!statOld.hasError) {
+          const storedValue = await this.#options.storages.value.get(key)
+          if (storedValue != null) {
+            const read = await this.readStored(
+              key,
+              this.#options.converterValue,
+              storedValue,
+            )
+            if (read != null) {
+              await this.#stats.set(key, {
+                ...statOld,
+                dateUsed: this.#clock.date.value(),
+              })
+              return read.result as T
+            }
           }
-        }
-
-        if (statOld.hasError && storedError != null) {
-          const read = await this.readStored(
-            key,
-            this.#options.converterError,
-            storedError,
-          )
-          if (read != null) {
-            await this.#stats.set(key, { ...statOld, dateUsed: date })
-            throw read.result
+        } else {
+          const storedError = await this.#options.storages.error?.get(key)
+          if (storedError != null) {
+            const read = await this.readStored(
+              key,
+              this.#options.converterError,
+              storedError,
+            )
+            if (read != null) {
+              await this.#stats.set(key, {
+                ...statOld,
+                dateUsed: this.#clock.date.value(),
+              })
+              throw read.result
+            }
           }
         }
       }
