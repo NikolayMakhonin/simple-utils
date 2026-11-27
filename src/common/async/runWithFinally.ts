@@ -6,14 +6,18 @@ import type {
 import { isPromiseLike } from './promise/isPromiseLike'
 import { promiseLikeToPromise } from './promise/promiseLikeToPromise'
 
-/** Optimized try finally with sync and async support:
-const context = await init()
-try {
-  return await func(context)
-} finally {
-  await onFinally()
-}
-*/
+/**
+ * Runs the code below as an async function would, but returns or throws without a promise
+ * while init, func, and onFinally return no promise:
+ * ```
+ * const context = await init()
+ * try {
+ *   return await func(context)
+ * } finally {
+ *   await onFinally()
+ * }
+ * ```
+ */
 export function runWithFinally<Context, Result>(
   /** init executes outside of try-catch block without onFinally and returns context that will be passed to func */
   init: (() => PromiseLikeOrValue<Context>) | null | undefined,
@@ -54,16 +58,13 @@ export function runWithFinally<Context, Result>(
       return func(context)
     }
 
+    let result: Result
     try {
       const resultOrPromise = func(context)
-      if (!isPromiseLike(resultOrPromise)) {
-        const voidOrPromise = onFinally()
-        if (!isPromiseLike(voidOrPromise)) {
-          return resultOrPromise
-        }
-        return voidOrPromise.then(() => resultOrPromise)
+      if (isPromiseLike(resultOrPromise)) {
+        return promiseFinally(resultOrPromise, onFinally)
       }
-      return promiseFinally(resultOrPromise, onFinally)
+      result = resultOrPromise
     } catch (err) {
       const voidOrPromise = onFinally()
       if (!isPromiseLike(voidOrPromise)) {
@@ -73,6 +74,14 @@ export function runWithFinally<Context, Result>(
         throw err
       })
     }
+
+    // Called after the try, because the catch above would call onFinally
+    // a second time for an error that onFinally throws
+    const voidOrPromise = onFinally()
+    if (!isPromiseLike(voidOrPromise)) {
+      return result
+    }
+    return voidOrPromise.then(() => result)
   }
 
   const contextOrPromise = init ? init() : (void 0 as unknown as Context)

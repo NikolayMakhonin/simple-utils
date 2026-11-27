@@ -12,6 +12,7 @@ export type LockFunc = {
 
 export interface ILocker {
   lock: LockFunc
+  /** Whether an operation of lock runs or waits for its turn */
   hasQueued: boolean
 }
 
@@ -23,12 +24,11 @@ export class Locker implements ILocker {
   }
 
   lock<T>(handler: () => PromiseLikeOrValue<T>): PromiseOrValue<T> {
-    if (this.#lockPromise) {
-      return promiseLikeToPromise(
-        this.#lockPromise.then(() => this.lock(handler)),
-      )
-    }
-    const promiseOrValue = handler()
+    // A call that waits runs its handler after #lockPromise and replaces it below,
+    // so that hasQueued stays true until the operation of the last call completes
+    const promiseOrValue = this.#lockPromise
+      ? this.#lockPromise.then(() => handler())
+      : handler()
     if (isPromiseLike(promiseOrValue)) {
       const promise = promiseOrValue.then(
         () => {
@@ -55,6 +55,7 @@ export type LockWithIdFunc<Id> = {
 
 export interface ILockerWithId<Id> {
   lock: LockWithIdFunc<Id>
+  /** Whether an operation of lock with this id runs or waits for its turn */
   hasQueued(id: Id): boolean
 }
 
