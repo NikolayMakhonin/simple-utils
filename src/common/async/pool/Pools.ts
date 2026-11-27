@@ -1,6 +1,7 @@
 import { type IAbortSignalFast } from '@flemist/abort-controller-fast'
 import type { PromiseOrValue } from 'src/common/types/common'
 import { isPromiseLike } from 'src/common/async/promise/isPromiseLike'
+import { promiseToAbortable } from 'src/common/async/abort/promiseToAbortable'
 import { type IPool } from './Pool'
 import {
   type IPriorityQueue,
@@ -230,7 +231,9 @@ export function poolsTick(
 ): PromiseOrValue<void> {
   let promises: Promise<void>[] | null = null
   for (let i = 0, len = pools.length; i < len; i++) {
-    const promise = pools[i].tick(abortSignal)
+    // Without the signal, which applies once to the race below: a tick of a pool
+    // with the signal stays subscribed to it until that pool releases
+    const promise = pools[i].tick()
     if (promise) {
       if (!promises) {
         promises = [promise]
@@ -244,57 +247,5 @@ export function poolsTick(
     return
   }
 
-  return Promise.race(promises)
+  return promiseToAbortable(abortSignal, Promise.race(promises))
 }
-
-/*
-export function poolsWait({
-  priorityQueue,
-  pools,
-  count,
-  priority,
-  abortSignal,
-}: {
-  priorityQueue: IPriorityQueue
-  pools: IPool[]
-  count: number | number[]
-  priority?: null | Priority
-  abortSignal?: null | IAbortSignalFast
-}): Promise<void> {
-  const len = pools.length
-  if (typeof count !== 'number' && count.length !== len) {
-    throw new Error(
-      `[poolsWait] count.length (${count.length}) !== pools.length (${len})`,
-    )
-  }
-
-  return priorityQueue.run(
-    async abortSignal => {
-      while (!poolsCanHold(pools, count)) {
-        await poolsTick(pools, abortSignal)
-      }
-    },
-    priority,
-    abortSignal,
-  )
-}
-
-export async function poolsWaitHold({
-  priorityQueue,
-  pools,
-  count,
-  priority,
-  abortSignal,
-}: {
-  priorityQueue: IPriorityQueue
-  pools: IPool[]
-  count: number | number[]
-  priority?: null | Priority
-  abortSignal?: null | IAbortSignalFast
-}): Promise<void> {
-  await poolsWait({ priorityQueue, pools, count, priority, abortSignal })
-  if (!poolsHold(pools, count)) {
-    throw new Error('[poolsWaitHold] hold failed after wait succeeded')
-  }
-}
-*/
