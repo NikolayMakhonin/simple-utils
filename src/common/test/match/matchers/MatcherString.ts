@@ -26,7 +26,7 @@ export class MatcherString extends Matcher<
       if (typeof pattern === 'function') {
         return pattern(actual)
       }
-      if (!pattern.test(actual)) {
+      if (actual.search(pattern) === -1) {
         return false
       }
     }

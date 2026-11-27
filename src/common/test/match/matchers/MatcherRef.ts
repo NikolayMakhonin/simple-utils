@@ -4,10 +4,10 @@ import {
   type MatchResult3,
   type MatchResultNested,
 } from '../types'
-import { match } from '../match'
+import { matchNested } from '../match'
 
 export class MatcherRef<T> extends Matcher<T> {
-  // #hasExpected: boolean = false
+  #hasExpected: boolean = false
   #expected: Expected<T> = undefined as any
   get expected(): Expected<T> {
     return this.#expected
@@ -15,11 +15,14 @@ export class MatcherRef<T> extends Matcher<T> {
 
   set expected(value: Expected<T>) {
     this.#expected = value
-    // this.#hasExpected = true
+    this.#hasExpected = true
   }
 
   match(actual: T): MatchResult3 {
-    const matchResult = match(actual, this.#expected)
+    if (!this.#hasExpected) {
+      throw new Error('[test][MatcherRef] expected is not set')
+    }
+    const matchResult = matchNested(actual, this.#expected)
     const nested: MatchResultNested[] = [
       {
         result: matchResult,

@@ -67,23 +67,16 @@ export function matchResultNestedToString(
 export function matchResultToString(
   matchResult: MatchResult<any>,
   indent: string,
-  // keyNull: boolean = false,
 ) {
   if (matchResult.result) {
-    return matchResult.expected.toString()
+    return expectedToString(matchResult.expected, matchResult.actual)
   }
 
   let nested = ''
   if (matchResult.nested) {
-    // const _keyNull =
-    //   matchResult.nested.length === 1 && matchResult.nested[0].actualKey == null
-    // if (_keyNull) {
-    //   nested = matchResultToString(matchResult.nested[0].result, indent, true)
-    // } else {
     nested = matchResult.nested
       .map(o => matchResultNestedToString(o, indent))
       .join('\n')
-    // }
   }
 
   let cause = matchResult.cause || ''
@@ -96,11 +89,5 @@ export function matchResultToString(
     return `${cause}\n${nested}`
   }
 
-  return `${cause}\n${indent}expected: ${
-    isMatcher(matchResult.expected)
-      ? matchResult.expected.toString(matchResult.actual)
-      : matchResult.expected
-  }\n${indent}actual: ${expectedToString(matchResult.actual)}`
-
-  // return cause
+  return `${cause}\n${indent}expected: ${expectedToString(matchResult.expected, matchResult.actual)}\n${indent}actual: ${expectedToString(matchResult.actual)}`
 }

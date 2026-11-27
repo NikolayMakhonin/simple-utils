@@ -57,7 +57,7 @@ export function checkFunc<T>(func: () => PromiseLikeOrValue<T>) {
     try {
       actual = func()
     } catch (error) {
-      check(error)(expectedError)
+      checkErrorExpected(error, expectedError)
       return void 0! as T
     }
     if (!isPromiseLike(actual)) {
@@ -73,13 +73,28 @@ export function checkFunc<T>(func: () => PromiseLikeOrValue<T>) {
         if (actualError instanceof CheckError) {
           throw actualError
         }
-        try {
-          check(actualError)(expectedError)
-        } catch (error) {
-          console.error('[test][check] error', error)
-          throw actualError
-        }
+        checkErrorExpected(actualError, expectedError)
         return void 0! as T
       })
+  }
+}
+
+/**
+ * Throws error itself when it does not match expectedError,
+ * after logging the report of the mismatch,
+ * so that the test fails with the message and the stack of error
+ */
+function checkErrorExpected(
+  error: unknown,
+  expectedError: Expected<any>,
+): void {
+  try {
+    check(error)(expectedError)
+  } catch (checkError) {
+    console.error(
+      '[test][checkFunc] error does not match expectedError',
+      checkError,
+    )
+    throw error
   }
 }

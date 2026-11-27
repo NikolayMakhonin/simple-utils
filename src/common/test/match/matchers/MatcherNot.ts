@@ -1,5 +1,5 @@
 import type { Expected, MatchResult3 } from '../types'
-import { match } from '../match'
+import { matchNested } from '../match'
 import { Matcher, type MatcherArgs } from '../Matcher'
 
 export type MatchNotArgs<T> = MatcherArgs<T> & {
@@ -9,7 +9,7 @@ export type MatchNotArgs<T> = MatcherArgs<T> & {
 export class MatcherNot<T> extends Matcher<T, MatchNotArgs<T>> {
   match(actual: T): MatchResult3 {
     const expected = this._args.expected
-    const nested = match(actual, expected)
+    const nested = matchNested(actual, expected)
     return {
       result: !nested.result,
       nested: [

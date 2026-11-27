@@ -1,5 +1,5 @@
 import type { Expected, MatchResult3, MatchResultNested } from '../types'
-import { createMatchResult, match } from '../match'
+import { createMatchResult, matchNested } from '../match'
 import { argsToString } from '../helpers'
 import { Matcher, type MatcherArgs } from '../Matcher'
 import { MAX_REPORT_ITEMS_DEFAULT } from './constants'
@@ -49,7 +49,7 @@ export class MatcherObject<T> extends Matcher<
           ? void 0
           : actual[key]
       const expectedValue = expected[key]
-      const matchResult = match(actualValue, expectedValue)
+      const matchResult = matchNested(actualValue, expectedValue)
       if (matchResult.result) {
         if (resultTrueCount < maxReportItems) {
           nested.push({

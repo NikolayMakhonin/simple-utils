@@ -1,5 +1,5 @@
 import type { Expected, MatchResult3, MatchResultNested } from '../types'
-import { match } from '../match'
+import { matchNested } from '../match'
 import { Matcher, type MatcherArgs } from '../Matcher'
 import { MAX_REPORT_ITEMS_DEFAULT } from './constants'
 
@@ -13,7 +13,7 @@ export class MatcherArrayItem<T> extends Matcher<T[], MatchArrayItemArgs<T>> {
     if (typeof actual !== 'object') {
       return `Expected array, got "${typeof actual}"`
     }
-    if (!(actual instanceof Array)) {
+    if (!Array.isArray(actual)) {
       return `Expected array`
     }
     const expected = this._args.expected
@@ -25,7 +25,7 @@ export class MatcherArrayItem<T> extends Matcher<T[], MatchArrayItemArgs<T>> {
     let resultFalseCount = 0
     for (let i = 0; i < actual.length; i++) {
       const actualValue = actual[i]
-      const matchResult = match(actualValue, expected)
+      const matchResult = matchNested(actualValue, expected)
       if (matchResult.result) {
         if (resultTrueCount < maxReportItems) {
           nested.push({

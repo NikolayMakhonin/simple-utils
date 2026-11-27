@@ -1,5 +1,5 @@
 import type { Expected, MatchResult3, MatchResultNested } from '../types'
-import { match } from '../match'
+import { matchNested } from '../match'
 import { Matcher, type MatcherArgs } from '../Matcher'
 
 export type MatchConvertArgs<T, U> = MatcherArgs<T> & {
@@ -10,7 +10,7 @@ export type MatchConvertArgs<T, U> = MatcherArgs<T> & {
 export class MatcherConvert<T, U> extends Matcher<T, MatchConvertArgs<T, U>> {
   match(actual: T): MatchResult3 {
     const { expected, convert } = this._args
-    const matchResult = match(convert(actual), expected)
+    const matchResult = matchNested(convert(actual), expected)
     const nested: MatchResultNested[] = [
       {
         result: matchResult,

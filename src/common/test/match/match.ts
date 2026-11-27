@@ -112,14 +112,27 @@ export function createMatchResult<T>(
   })
 }
 
+/** Never throws: the error of a matcher becomes the error of the result */
 export function match<T>(actual: T, expected: Expected<T>): MatchResult<T> {
   try {
-    if (isMatcher(expected)) {
-      const result = expected.match(actual)
-      return createMatchResult(actual, expected, result)
-    }
-    return createMatchResultBoolean(actual, expected, actual === expected)
+    return matchNested(actual, expected)
   } catch (error: any) {
     return createMatchResultError(actual, expected, error)
   }
+}
+
+/**
+ * Like match, but throws the error of a matcher.
+ * A matcher must match its nested values with it,
+ * because an error counted as a mismatch would make matchNot match
+ */
+export function matchNested<T>(
+  actual: T,
+  expected: Expected<T>,
+): MatchResult<T> {
+  if (isMatcher(expected)) {
+    const result = expected.match(actual)
+    return createMatchResult(actual, expected, result)
+  }
+  return createMatchResultBoolean(actual, expected, actual === expected)
 }

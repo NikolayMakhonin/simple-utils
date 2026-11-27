@@ -1,5 +1,5 @@
 import type { Expected, MatchResult3, MatchResultNested } from '../types'
-import { match } from '../match'
+import { matchNested } from '../match'
 import { Matcher, type MatcherArgs } from '../Matcher'
 
 export type MatchFewArgs<T> = MatcherArgs<T> & {
@@ -17,7 +17,7 @@ export class MatcherFew<T> extends Matcher<T, MatchFewArgs<T>> {
     const nested: MatchResultNested[] = []
     for (let i = 0; i < expecteds.length; i++) {
       const expected = expecteds[i]
-      const matchResult = match(actual, expected)
+      const matchResult = matchNested(actual, expected)
       nested.push({
         actualKey: `<${type} ${i}>`,
         expectedKey: `<${type} ${i}>`,

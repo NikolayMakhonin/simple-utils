@@ -15,11 +15,7 @@ export class MatcherCustom<T> extends Matcher<T, MatchCustomArgs<T>> {
     return matcher(actual)
   }
 
-  nameDefault(actual?: T): string {
-    const name = this._args.name
-    if (typeof name === 'string') {
-      return name
-    }
-    return name ? name(actual) : `custom`
+  nameDefault(): string {
+    return 'custom'
   }
 }

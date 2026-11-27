@@ -1,5 +1,5 @@
 import type { Expected, MatchResult3, MatchResultNested } from '../types'
-import { match } from '../match'
+import { matchNested } from '../match'
 import { Matcher, type MatcherArgs } from '../Matcher'
 import { expectedToString } from '../helpers'
 import { MAX_REPORT_ITEMS_DEFAULT } from './constants'
@@ -22,7 +22,7 @@ export class MatcherArray<T extends any[]> extends Matcher<
     if (typeof actual !== 'object') {
       return `Expected array, got "${typeof actual}"`
     }
-    if (!(actual instanceof Array)) {
+    if (!Array.isArray(actual)) {
       return `Expected array`
     }
     const expected = this._args?.expected
@@ -43,7 +43,7 @@ export class MatcherArray<T extends any[]> extends Matcher<
       for (let i = 0; i < expected.length; i++) {
         const actualValue = actual[i]
         const expectedValue = expected[i] as any
-        const matchResult = match(actualValue, expectedValue)
+        const matchResult = matchNested(actualValue, expectedValue)
         if (matchResult.result) {
           if (resultTrueCount < maxReportItems) {
             nested.push({
@@ -89,7 +89,7 @@ export class MatcherArray<T extends any[]> extends Matcher<
         let found = false
         for (let j = 0; j < actual.length; j++) {
           const actualValue = actual[j]
-          const matchResult = match(actualValue, expectedValue)
+          const matchResult = matchNested(actualValue, expectedValue)
           if (matchResult.result) {
             found = true
             if (resultTrueCount < maxReportItems) {
@@ -132,7 +132,7 @@ export class MatcherArray<T extends any[]> extends Matcher<
       }
     }
 
-    return `Unknown matchType "${matchType}"`
+    throw new Error(`[test][MatcherArray] Unknown matchType "${matchType}"`)
   }
 
   nameDefault(): string {

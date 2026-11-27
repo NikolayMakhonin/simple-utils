@@ -16,8 +16,10 @@ export function isMatcher(value: any): value is Matcher<any> {
   return value instanceof Matcher
 }
 
-export function expectedToString(expected: any): string {
-  return formatObject(expected)
+export function expectedToString(expected: any, actual?: any): string {
+  return isMatcher(expected)
+    ? expected.toString(actual)
+    : formatObject(expected)
 }
 
 export function argsToString(

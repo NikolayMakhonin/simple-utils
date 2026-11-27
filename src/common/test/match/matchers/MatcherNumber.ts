@@ -27,14 +27,14 @@ export class MatcherNumber extends Matcher<
     if (this._args == null) {
       return Number.isFinite(actual) ? true : 'Expected finite number'
     }
-    if (!this._args.allowNaN && Number.isNaN(actual)) {
-      return `Expected not NaN`
+    if (Number.isNaN(actual)) {
+      return this._args.allowNaN ? true : `Expected not NaN`
     }
     if (!this._args.allowInfinity && !Number.isFinite(actual)) {
       return `Expected not Infinity`
     }
     const { min, max, float } = this._args
-    if (!float && !Number.isInteger(actual)) {
+    if (!float && Number.isFinite(actual) && !Number.isInteger(actual)) {
       return `Expected integer, got "${actual}"`
     }
     if (min != null && actual < min) {
@@ -47,6 +47,6 @@ export class MatcherNumber extends Matcher<
   }
 
   nameDefault(): string {
-    return `number(${argsToString(this._args)})`
+    return 'number' + argsToString(this._args)
   }
 }
