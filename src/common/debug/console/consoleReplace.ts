@@ -1,5 +1,3 @@
-/* eslint-disable prefer-rest-params */
-
 import {
   AbortControllerFast,
   type IAbortSignalFast,
@@ -22,39 +20,29 @@ export const ConsoleMessageLevel = {
 const consoleMethods: ConsoleMessageLevel[] =
   /* @__PURE__ */ Object.values(ConsoleMessageLevel)
 
-function bindConsoleMethod(method: (...args: any[]) => void) {
-  return function () {
-    // @ts-ignore
-    method.apply(console, arguments)
-  }
-}
-
 // TODO: write doc comments
 export type Console = Record<ConsoleMessageLevel, (...args: any[]) => void>
-
-const consoleOrig: Console = {
-  log: bindConsoleMethod(console.log),
-  warn: bindConsoleMethod(console.warn),
-  error: bindConsoleMethod(console.error),
-  info: bindConsoleMethod(console.info),
-  debug: bindConsoleMethod(console.debug),
-  trace: bindConsoleMethod(console.trace),
-  assert: bindConsoleMethod(console.assert),
-}
 
 // TODO: write doc comments
 export function consoleReplace(
   handler: (console: Console, level: ConsoleMessageLevel, args: any[]) => void,
 ): () => void {
-  consoleMethods.forEach(level => {
+  const methodsPrev = {} as Console
+  const consolePrev = {} as Console
+  for (let i = 0, len = consoleMethods.length; i < len; i++) {
+    const level = consoleMethods[i]
+    const method: Console[ConsoleMessageLevel] = console[level]
+    methodsPrev[level] = method
+    consolePrev[level] = (...args: any[]) => method.apply(console, args)
     console[level] = (...args: any[]) => {
-      handler(consoleOrig, level, args)
+      handler(consolePrev, level, args)
     }
-  })
+  }
   return () => {
-    consoleMethods.forEach(level => {
-      console[level] = consoleOrig[level]
-    })
+    for (let i = 0, len = consoleMethods.length; i < len; i++) {
+      const level = consoleMethods[i]
+      console[level] = methodsPrev[level]
+    }
   }
 }
 

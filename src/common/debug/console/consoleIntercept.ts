@@ -18,9 +18,11 @@ function formatObject(obj: any, options?: null | FormatAnyOptions): string {
 }
 
 function consoleArgsToString(args: any[]): string[] {
-  return args.map(arg =>
-    arg && typeof arg === 'object' ? formatObject(arg) : arg,
-  )
+  const result: string[] = []
+  for (let i = 0, len = args.length; i < len; i++) {
+    result.push(formatObject(args[i]))
+  }
+  return result
 }
 
 export type ConsoleMessage = {
@@ -30,9 +32,7 @@ export type ConsoleMessage = {
 }
 
 export function consoleMessageToString(message: ConsoleMessage): string {
-  return `${formatDateFileName(new Date(message.date))} [${message.level.toUpperCase()}] ${consoleArgsToString(
-    message.args,
-  ).join(' ')}`
+  return `${formatDateFileName(new Date(message.date))} [${message.level.toUpperCase()}] ${message.args.join(' ')}`
 }
 
 let consoleMessagesEmit: Emit<ConsoleMessage> | null = null
@@ -53,7 +53,7 @@ export function getConsoleMessages(): IObservable<ConsoleMessage> {
 
 export function consoleIntercept() {
   return consoleReplace((console, level, args) => {
-    if (level === 'assert' && args[0] === true) {
+    if (level === 'assert' && args[0]) {
       return
     }
     if (
@@ -65,7 +65,7 @@ export function consoleIntercept() {
         consoleMessagesEmit({
           date: clockDateReal.value(),
           level,
-          args,
+          args: consoleArgsToString(args),
         })
       }
       console[level](...args)
