@@ -139,4 +139,9 @@ describe('workerFunction', { timeout: 60 * 1000 }, () => {
   it('abort', async () => {
     await testParallel(true)
   })
+
+  it('calls that follow one another run in one worker', async () => {
+    const workerId = await test(1, 2, false)
+    expect(await test(3, 4, false)).toBe(workerId)
+  })
 })

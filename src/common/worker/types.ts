@@ -225,10 +225,18 @@ export type WorkerServerResponse<Data> =
 
 // endregion
 
+/**
+ * Opens a connection to a worker through the port, and returns the function
+ * that the caller calls once, when the connection no longer needs the worker,
+ * so that the connector can reuse or free the worker
+ */
 export type WorkerConnect = (
   connectionName: string,
   messagePort: IMessagePort,
-) => void
+) => WorkerConnectRelease
+
+/** Tells the connector that a connection that it opened no longer needs the worker */
+export type WorkerConnectRelease = () => void
 
 export type WorkerConnectRequest = {
   type: 'connect'

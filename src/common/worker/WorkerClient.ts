@@ -6,6 +6,7 @@ import {
   WorkerClientResponseType,
   WorkerClientStatus,
   type WorkerConnect,
+  type WorkerConnectRelease,
   WorkerError,
   WorkerErrorType,
   type WorkerServerResponse,
@@ -67,6 +68,7 @@ export class WorkerClient<RequestData, ResponseData>
   readonly #options: WorkerClientOptions
   readonly #events: ISubject<WorkerClientResponse<ResponseData>>
   #messageChannel: MessageChannel = null!
+  #release: WorkerConnectRelease | null = null
   #status: WorkerClientStatus = WorkerClientStatus.disconnected
 
   constructor(options: WorkerClientOptions) {
@@ -75,7 +77,9 @@ export class WorkerClient<RequestData, ResponseData>
     this.#events = new Subject<WorkerClientResponse<ResponseData>>()
 
     options.abortSignal?.subscribe(() => {
-      void this.close()
+      // The worker can still run the aborted operation, so the worker is released
+      // when it closes the connection, not at once as by close()
+      void this.#closeConnection()
     })
   }
 
@@ -86,6 +90,12 @@ export class WorkerClient<RequestData, ResponseData>
   private set status(value: WorkerClientStatus) {
     if (this.#status !== value) {
       this.#status = value
+      // A connection that ends without close(), closed by the worker,
+      // by the port, or after an abort, releases the worker here,
+      // before the listeners can open another connection
+      if (value === WorkerClientStatus.closed) {
+        this.#releaseWorker()
+      }
       this.#events.emit({
         type: WorkerClientResponseType.status,
         status: this.#status,
@@ -168,7 +178,7 @@ export class WorkerClient<RequestData, ResponseData>
     this.#messageChannel.port2.addEventListener('close', onClose)
     this.#messageChannel.port2.start()
 
-    this.#options.connect(
+    this.#release = this.#options.connect(
       this.#options.connectionName,
       this.#messageChannel.port1,
     )
@@ -224,10 +234,29 @@ export class WorkerClient<RequestData, ResponseData>
   #closePromise: Promise<void> | null = null
 
   close(): Promise<void> {
+    // Releases the worker at once: the worker confirms the close in a later message event,
+    // and a caller that closes after the result of its operation can open its next
+    // connection before that event, which must find the worker free
+    this.#releaseWorker()
+    return this.#closeConnection()
+  }
+
+  /** Closes the connection once; the worker is released when the connection is closed */
+  #closeConnection(): Promise<void> {
     if (this.#closePromise == null) {
       this.#closePromise = this._close()
     }
     return this.#closePromise
+  }
+
+  /**
+   * Tells the connector once that this connection no longer needs the worker;
+   * a client closed before it connected holds nothing to release
+   */
+  #releaseWorker(): void {
+    const release = this.#release
+    this.#release = null
+    release?.()
   }
 
   subscribe(
