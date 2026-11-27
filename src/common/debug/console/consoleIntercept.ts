@@ -51,6 +51,13 @@ export function getConsoleMessages(): IObservable<ConsoleMessage> {
   return _consoleMessages
 }
 
+/**
+ * Replaces the console methods, so that the console prints exclusively errors,
+ * warnings, and failed assertions, and every other call does nothing.
+ * Debug logs of a production build then cost neither memory nor time.
+ * Emits every printed call to the subscribers of getConsoleMessages.
+ * Returns the function that restores the console methods
+ */
 export function consoleIntercept() {
   return consoleReplace((console, level, args) => {
     if (level === 'assert' && args[0]) {
