@@ -11,7 +11,10 @@ import {
   priorityCompare,
   priorityCreate,
 } from 'src/common/async/priority/Priority'
-import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
+import type {
+  IAbortSignalFast,
+  IUnsubscribe,
+} from '@flemist/abort-controller-fast'
 import { EMPTY_FUNC } from 'src/common/constants'
 import { ManualPromise } from 'src/common/async/promise/ManualPromise'
 
@@ -25,6 +28,7 @@ type QueueItem<T> = {
   reject: (error: any) => void
   readyToRun: boolean
   node: PairingNode<QueueItem<T>> | null
+  unsubscribe: IUnsubscribe | null
 }
 
 function queueItemLessThan(o1: QueueItem<any>, o2: QueueItem<any>): boolean {
@@ -76,6 +80,7 @@ export class PriorityQueue implements IPriorityQueue, IPriorityQueueRunTask {
       reject: promise.reject,
       readyToRun: !taskMode,
       node: null,
+      unsubscribe: null,
     }
 
     item.node = this.#queue.add(item)
@@ -89,7 +94,7 @@ export class PriorityQueue implements IPriorityQueue, IPriorityQueueRunTask {
           ? ({ result: promise.promise, setReadyToRun: EMPTY_FUNC } as any)
           : promise.promise
       }
-      abortSignal.subscribe(reason => {
+      item.unsubscribe = abortSignal.subscribe(reason => {
         if (item.node != null) {
           this.#queue.delete(item.node)
           item.node = null
@@ -161,6 +166,8 @@ export class PriorityQueue implements IPriorityQueue, IPriorityQueueRunTask {
       }
 
       item.node = null
+      // A signal that outlives the run would keep the item until it aborts
+      item.unsubscribe?.()
 
       if (item.abortSignal && item.abortSignal.aborted) {
         item.reject(item.abortSignal.reason)

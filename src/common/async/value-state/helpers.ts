@@ -68,7 +68,6 @@ export function resolveValueStatesFunc<
         ...(state.value as OfValueStateOrValues<TValues>),
       ) as any
     } catch (error) {
-      // console.error(error)
       state.value = void 0
       state.hasValue = false
       state.error = error
@@ -135,7 +134,6 @@ export async function asyncToValueState<TValue>(
       })
     }
   } catch (error) {
-    // console.error(error)
     updater(o => {
       state = o || createValueState<TValue>()
       state.error = error
