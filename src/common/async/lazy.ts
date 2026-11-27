@@ -32,11 +32,14 @@ export class Lazy<T = void> implements ILazy<T> {
       let promiseOrValue = this.#options.func()
 
       const onResolve = (value: T) => {
-        if (!this.#options.persist) {
-          this.#promiseOrValue = null
-          this.#hasValue = false
-        } else {
-          this.#promiseOrValue = value
+        // set() during the run replaces the promise of the run, and its value must stay
+        if (this.#promiseOrValue === promise) {
+          if (!this.#options.persist) {
+            this.#promiseOrValue = null
+            this.#hasValue = false
+          } else {
+            this.#promiseOrValue = value
+          }
         }
         return value
       }
@@ -56,7 +59,8 @@ export class Lazy<T = void> implements ILazy<T> {
         }
       }
 
-      this.#promiseOrValue = promiseLikeToPromise(promiseOrValue)
+      const promise = promiseLikeToPromise(promiseOrValue)
+      this.#promiseOrValue = promise
       this.#hasValue = true
     }
     return this.#promiseOrValue!
@@ -98,10 +102,13 @@ export class LazyWithId<Id, Result = void> implements ILazyWithId<Id, Result> {
     }
     let promiseOrValue = this.#options.func(id)
     const onResolve = (value: Result) => {
-      if (!this.#options.persist) {
-        this.#promiseOrValues.delete(id)
-      } else {
-        this.#promiseOrValues.set(id, value)
+      // set() during the run replaces the promise of the run, and its value must stay
+      if (this.#promiseOrValues.get(id) === result) {
+        if (!this.#options.persist) {
+          this.#promiseOrValues.delete(id)
+        } else {
+          this.#promiseOrValues.set(id, value)
+        }
       }
       return value
     }

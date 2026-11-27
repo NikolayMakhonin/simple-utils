@@ -3,28 +3,28 @@ import {
   type IUnsubscribe,
 } from '@flemist/abort-controller-fast'
 import { type IClock, clockReal } from 'src/common/time/clock'
-import { rejectAsResolve } from 'src/common/async/promise/rejectAsResolve'
+import {
+  promiseRejected,
+  rejectAsResolve,
+} from 'src/common/async/promise/rejectAsResolve'
 
 export function delay(
   milliseconds: number | null | undefined,
   abortSignal?: null | IAbortSignalFast,
   clock?: null | IClock,
-) {
-  if (milliseconds == null) {
-    return Promise.resolve()
+): Promise<void> {
+  if (milliseconds != null && !Number.isFinite(milliseconds)) {
+    throw new TypeError(
+      '[delay] milliseconds must be a finite number: ' + milliseconds,
+    )
   }
-  if (!Number.isFinite(milliseconds)) {
-    throw new TypeError('milliseconds must be a finite number: ' + milliseconds)
+  if (abortSignal && abortSignal.aborted) {
+    return promiseRejected(abortSignal.reason)
   }
-  if (milliseconds <= 0) {
+  if (milliseconds == null || milliseconds <= 0) {
     return Promise.resolve()
   }
   return new Promise<void>(function executor(resolve) {
-    if (abortSignal && abortSignal.aborted) {
-      rejectAsResolve(resolve, abortSignal.reason)
-      return
-    }
-
     let unsubscribe: IUnsubscribe
     function onResolve() {
       if (unsubscribe) {

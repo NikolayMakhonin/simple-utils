@@ -1,19 +1,24 @@
 import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
-import { abortSignalToPromise } from 'src/common/async/abort/abortSignalToPromise'
 import { isPromiseLike } from 'src/common/async/promise/isPromiseLike'
 
 export function waitMicrotasks(
   abortSignalOrPromise?: null | IAbortSignalFast | PromiseLike<any>,
 ): Promise<void> {
-  const waitPromise = new Promise<void>(resolve => {
-    runAfterMicrotasks(resolve)
+  if (isPromiseLike(abortSignalOrPromise)) {
+    return Promise.race([waitMicrotasks(), abortSignalOrPromise])
+  }
+  const abortSignal = abortSignalOrPromise
+  return new Promise<void>((resolve, reject) => {
+    if (abortSignal == null) {
+      runAfterMicrotasks(resolve)
+      return
+    }
+    const unsubscribe = abortSignal.subscribe(reject)
+    runAfterMicrotasks(() => {
+      unsubscribe()
+      resolve()
+    })
   })
-  const promise = isPromiseLike(abortSignalOrPromise)
-    ? abortSignalOrPromise
-    : abortSignalOrPromise
-      ? abortSignalToPromise(abortSignalOrPromise)
-      : null
-  return promise ? Promise.race([waitPromise, promise]) : waitPromise
 }
 
 let messageChannel: MessageChannel | null = null

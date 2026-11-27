@@ -2,7 +2,6 @@ import {
   AbortControllerFast,
   type IAbortSignalFast,
 } from '@flemist/abort-controller-fast'
-import type { PromiseOrValue } from 'src/common/types'
 
 export type AbortSignalToPromiseOptions = {
   dontThrow?: null | boolean
@@ -11,7 +10,7 @@ export type AbortSignalToPromiseOptions = {
 export function abortSignalToPromise(
   abortSignal: IAbortSignalFast | null | undefined,
   options?: null | AbortSignalToPromiseOptions,
-): PromiseOrValue<void> {
+): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     abortSignal?.subscribe(error => {
       if (options?.dontThrow) {
