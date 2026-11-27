@@ -1,6 +1,7 @@
 export * from './constants'
 export * from './combineAbortSignals'
 export * from './abortSignalToPromise'
+export * from './promiseToAbortSignal'
 export * from './useAbortController'
 export * from './AbortControllerReusable'
 export * from './withAbortSignal'

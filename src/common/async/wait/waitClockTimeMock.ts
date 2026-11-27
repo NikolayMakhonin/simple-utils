@@ -1,7 +1,7 @@
 import { waitMicrotasks } from './waitMicrotasks'
 import { type ClockTimeMock } from 'src/common/time/clock-time'
 import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
-import { promiseToAbortSignal } from 'src/common/async/abort/abortSignalToPromise'
+import { promiseToAbortSignal } from 'src/common/async/abort/promiseToAbortSignal'
 import { EMPTY_FUNC } from 'src/common/constants'
 import { isPromiseLike } from 'src/common/async/promise/isPromiseLike'
 

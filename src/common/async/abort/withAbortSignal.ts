@@ -16,10 +16,10 @@ export function withAbortSignal<T>({
     return func(abortSignal) as any
   }
 
+  abortSignal.throwIfAborted()
   const unsubscribe = onAbort == null ? null : abortSignal.subscribe(onAbort)
 
   try {
-    abortSignal.throwIfAborted()
     const resultOrPromise = func(abortSignal)
     if (isPromiseLike(resultOrPromise)) {
       return resultOrPromise.then(

@@ -26,14 +26,7 @@ export function promiseToAbortable<T>(
       resolve(value)
     }
 
-    let rejected: boolean = false
     function onReject(reason: any) {
-      if (rejected) {
-        return
-      }
-
-      rejected = true
-
       if (unsubscribe) {
         unsubscribe()
       }

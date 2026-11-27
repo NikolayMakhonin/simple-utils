@@ -1,7 +1,4 @@
-import {
-  AbortControllerFast,
-  type IAbortSignalFast,
-} from '@flemist/abort-controller-fast'
+import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
 
 export type AbortSignalToPromiseOptions = {
   dontThrow?: null | boolean
@@ -20,19 +17,4 @@ export function abortSignalToPromise(
       }
     })
   })
-}
-
-export function promiseToAbortSignal(
-  promise: PromiseLike<any>,
-): IAbortSignalFast {
-  const abortController = new AbortControllerFast()
-  promise.then(
-    () => {
-      abortController.abort()
-    },
-    error => {
-      abortController.abort(error)
-    },
-  )
-  return abortController.signal
 }

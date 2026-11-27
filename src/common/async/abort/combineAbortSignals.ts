@@ -32,7 +32,7 @@ export class AbortSignalCombined implements IAbortSignalFast {
     if (this.#subscriptionCount === 0) {
       for (let i = 0; i < this.#abortSignals.length; i++) {
         const abortSignal = this.#abortSignals[i]
-        if (abortSignal != null && abortSignal.aborted) {
+        if (abortSignal.aborted) {
           this.#abortController.abort(abortSignal.reason)
           return true
         }
@@ -73,9 +73,6 @@ export class AbortSignalCombined implements IAbortSignalFast {
         break
       }
       const abortSignal = this.#abortSignals[i]
-      if (abortSignal == null) {
-        continue
-      }
       this.#unsubscribes.push(abortSignal.subscribe(this.#onAbort))
     }
   }
@@ -90,13 +87,15 @@ export class AbortSignalCombined implements IAbortSignalFast {
       return this.#abortController.signal.subscribe(callback)
     }
 
+    // Before the count, because the signal throws for a callback subscribed twice,
+    // and after the count it would never return to 0
+    const unsubscribe: Unsubscribe =
+      this.#abortController.signal.subscribe(callback)
+
     this.#subscriptionCount++
     if (this.#subscriptionCount === 1) {
       this.subscribeAll()
     }
-
-    const unsubscribe: Unsubscribe =
-      this.#abortController.signal.subscribe(callback)
 
     let unsubscribed = false
 
@@ -114,6 +113,13 @@ export class AbortSignalCombined implements IAbortSignalFast {
   }
 }
 
+/**
+ * Like AbortSignal.any(), but subscribes to the signals exclusively while
+ * the combined signal has subscribers, so that the signals keep no reference
+ * to a combined signal without subscribers. Without subscribers it is aborted
+ * with the reason of the first aborted signal in the order of the arguments,
+ * with subscribers with the reason of the signal that aborts first
+ */
 export function combineAbortSignals(
   ...abortSignals: (IAbortSignalFast | null | undefined)[]
 ): IAbortSignalFast {
