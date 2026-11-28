@@ -141,6 +141,12 @@ export class WorkerClient<RequestData, ResponseData>
             type: WorkerClientResponseType.error,
             error: deserializeError(data.error),
           })
+          // An error before the connection is set up means that the worker opened
+          // no server for the port, which would never answer it
+          if (this.#status === WorkerClientStatus.connecting) {
+            this.#messageChannel.port2.close()
+            this.status = WorkerClientStatus.closed
+          }
           break
         case WorkerServerResponseType.data:
           this.#events.emit({

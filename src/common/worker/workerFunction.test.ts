@@ -186,6 +186,16 @@ describe('workerFunction', { timeout: 60 * 1000 }, () => {
     expect(await test(3, 4, false)).toBe(workerId)
   })
 
+  it('a call of a name that the worker lacks ends with the error of the worker', async () => {
+    const missing = createWorkerFunctionClient<null, null>({
+      connect: pool.connect,
+      connectionName: 'missing',
+    })
+    await expect(missing({ data: { data: null } }).end()).rejects.toThrow(
+      'no handler for connectionName missing',
+    )
+  })
+
   it('a call cancelled while it waits for a busy worker ends at once and never starts there', async () => {
     const poolSingle = createWorkerConnectPool({
       createWorker: createTestWorker,
