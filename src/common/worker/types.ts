@@ -226,17 +226,33 @@ export type WorkerServerResponse<Data> =
 // endregion
 
 /**
- * Opens a connection to a worker through the port, and returns the function
- * that the caller calls once, when the connection no longer needs the worker,
- * so that the connector can reuse or free the worker
+ * Opens a connection to a worker through the port. When the connector ends the worker
+ * of an open connection, after a cancel of its operation or when the connector itself
+ * ends, it calls onTerminate, because the worker can no longer close the connection.
+ * It must not call onTerminate inside connect, abort, or release, because the caller
+ * can call them inside the handling of an event of the connection, and onTerminate
+ * emits such an event
  */
 export type WorkerConnect = (
   connectionName: string,
   messagePort: IMessagePort,
-) => WorkerConnectRelease
+  onTerminate: () => void,
+) => WorkerConnection
 
-/** Tells the connector that a connection that it opened no longer needs the worker */
-export type WorkerConnectRelease = () => void
+/** A connection that a connector opened to a worker */
+export type WorkerConnection = {
+  /**
+   * Tells the connector once that the connection no longer needs the worker,
+   * so that the connector can reuse or free the worker
+   */
+  release(): void
+  /**
+   * Tells the connector once, before the release, that the operation of the connection
+   * is cancelled while the worker may still run it, so that the connector can end
+   * the worker instead of waiting for the end of the operation
+   */
+  abort(): void
+}
 
 export type WorkerConnectRequest = {
   type: 'connect'

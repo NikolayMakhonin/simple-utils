@@ -15,19 +15,27 @@ import { ManualPromise } from 'src/common/async/promise/ManualPromise'
 describe('WorkerClient', () => {
   /**
    * Connects a client to a WorkerServer in this thread and counts the releases
-   * of the connection; the server closes the connection exclusively when
-   * the test closes it
+   * and the cancels of the connection; the server closes the connection exclusively
+   * when the test closes it, and terminate plays the connector that ends the worker
    */
   function createClient(abortSignal?: null | IAbortSignalFast) {
     let releaseCount = 0
+    let abortCount = 0
     let server: WorkerServer<unknown, unknown> = null!
+    let onTerminateConnection: () => void = null!
     const client = new WorkerClient<unknown, unknown>({
       connectionName: 'test',
-      connect: (connectionName, messagePort) => {
+      connect: (connectionName, messagePort, onTerminate) => {
         server = new WorkerServer({ messagePort })
         server.connect()
-        return () => {
-          releaseCount++
+        onTerminateConnection = onTerminate
+        return {
+          release() {
+            releaseCount++
+          },
+          abort() {
+            abortCount++
+          },
         }
       },
       abortSignal,
@@ -36,6 +44,10 @@ describe('WorkerClient', () => {
       client,
       getServer: () => server,
       getReleaseCount: () => releaseCount,
+      getAbortCount: () => abortCount,
+      terminate: () => {
+        onTerminateConnection()
+      },
     }
   }
 
@@ -57,7 +69,7 @@ describe('WorkerClient', () => {
 
   it('an abort releases the worker when the worker closes the connection', async () => {
     const abortController = new AbortControllerFast()
-    const { client, getServer, getReleaseCount } = createClient(
+    const { client, getServer, getReleaseCount, getAbortCount } = createClient(
       abortController.signal,
     )
     await client.connect()
@@ -79,10 +91,32 @@ describe('WorkerClient', () => {
 
     abortController.abort()
     await closeRequest.promise
+    expect(getAbortCount()).toBe(1)
     expect(getReleaseCount()).toBe(0)
 
     getServer().close()
     await closed.promise
     expect(getReleaseCount()).toBe(1)
+  })
+
+  it('a connector that ends the worker closes the connection', async () => {
+    const abortController = new AbortControllerFast()
+    const { client, getReleaseCount, terminate } = createClient(
+      abortController.signal,
+    )
+    await client.connect()
+    abortController.abort()
+    terminate()
+    expect(client.status).toBe(WorkerClientStatus.closed)
+    expect(getReleaseCount()).toBe(1)
+  })
+
+  it('a cancel right after connect reaches the connector', async () => {
+    const abortController = new AbortControllerFast()
+    const { client, getAbortCount } = createClient(abortController.signal)
+    const connected = client.connect()
+    abortController.abort()
+    expect(getAbortCount()).toBe(1)
+    await connected
   })
 })

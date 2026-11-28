@@ -1,10 +1,17 @@
 import { afterAll, describe, expect, it } from 'vitest'
-import { AbortControllerFast, AbortError } from '@flemist/abort-controller-fast'
+import {
+  AbortControllerFast,
+  AbortError,
+  type IAbortSignalFast,
+} from '@flemist/abort-controller-fast'
 import { createWorkerFunctionClient } from './function/createWorkerFunctionClient'
 import { workerRequest } from './request/workerRequest'
 import { workerRequestHandler } from './request/workerRequestHandler'
 import { createWorkerConnectPool } from './connect/createWorkerConnectPool'
 import type {
+  WorkerFunctionTestBusyEvent,
+  WorkerFunctionTestBusyInput,
+  WorkerFunctionTestBusyOutput,
   WorkerFunctionTestEvent,
   WorkerFunctionTestInput,
   WorkerFunctionTestMultiplyRequest,
@@ -13,23 +20,57 @@ import type {
 } from './-test/types'
 import { createWorkerVite } from './create/createWorkerVite'
 import { createWorkerWeb } from './create/createWorkerWeb'
+import { ManualPromise } from 'src/common/async/promise/ManualPromise'
+import type { WorkerConnect } from './types'
 
-const STEP_DURATION_MS = 100
+const STEP_TIME = 100
 const TOTAL_STEPS = 10
 const WORKER_COUNT = 3
 const TASKS_PER_WORKER = 3
+// Long enough for a test to call the worker again while busy holds it
+const BUSY_HOLD_TIME = 1000
 
 const pool = createWorkerConnectPool({
-  // Node.js has no Worker, so there the worker runs through Vite in a worker thread.
-  // In browsers it runs as a web worker
-  createWorker: () => {
-    const url = new URL('./-test/worker.ts', import.meta.url)
-    return typeof Worker === 'undefined'
-      ? createWorkerVite(url)
-      : createWorkerWeb(url)
-  },
+  createWorker: createTestWorker,
   maxCount: WORKER_COUNT,
 })
+
+function createTestWorker() {
+  const url = new URL('./-test/worker.ts', import.meta.url)
+  // Node.js has no Worker, so there the worker runs through Vite in a worker thread.
+  // In browsers it runs as a web worker
+  return typeof Worker === 'undefined'
+    ? createWorkerVite(url)
+    : createWorkerWeb(url)
+}
+
+/** Calls busy, the function of the test worker that holds its worker synchronously */
+function createBusy(connect: WorkerConnect) {
+  return createWorkerFunctionClient<
+    WorkerFunctionTestBusyInput,
+    WorkerFunctionTestBusyOutput,
+    never,
+    WorkerFunctionTestBusyEvent
+  >({ connect, connectionName: 'busy' })
+}
+
+/** Starts a call of busy and waits until the call holds the worker */
+async function startBusy(
+  busy: WorkerFunctionTestBusyClient,
+  holdTime: number,
+  abortSignal?: null | IAbortSignalFast,
+) {
+  const call = busy({ data: { data: { holdTime } }, abortSignal })
+  const started = new ManualPromise()
+  call.subscribe(() => {
+    started.resolve()
+  })
+  await call.start()
+  await started.promise
+  return call
+}
+
+type WorkerFunctionTestBusyClient = ReturnType<typeof createBusy>
 
 afterAll(async () => {
   await pool.terminate()
@@ -52,7 +93,7 @@ async function test(a: number, b: number, useAbort: boolean): Promise<string> {
 
   const call = sum({
     data: {
-      data: { a, b, steps: TOTAL_STEPS, stepDurationMs: STEP_DURATION_MS },
+      data: { a, b, steps: TOTAL_STEPS, stepTime: STEP_TIME },
     },
     abortSignal: abortController?.signal,
   })
@@ -143,5 +184,107 @@ describe('workerFunction', { timeout: 60 * 1000 }, () => {
   it('calls that follow one another run in one worker', async () => {
     const workerId = await test(1, 2, false)
     expect(await test(3, 4, false)).toBe(workerId)
+  })
+
+  it('a call cancelled while it waits for a busy worker ends at once and never starts there', async () => {
+    const poolSingle = createWorkerConnectPool({
+      createWorker: createTestWorker,
+      maxCount: 1,
+    })
+    try {
+      const busy = createBusy(poolSingle.connect)
+      const callRunning = await startBusy(busy, BUSY_HOLD_TIME)
+      let isRunningEnded = false
+      const runningEnd = callRunning.end().then(result => {
+        isRunningEnded = true
+        return result
+      })
+
+      const abortController = new AbortControllerFast()
+      const cancelledEnd = busy({
+        data: { data: { holdTime: 0 } },
+        abortSignal: abortController.signal,
+      }).end()
+      abortController.abort()
+      await expect(cancelledEnd).rejects.toThrow(AbortError)
+      expect(isRunningEnded).toBe(false)
+
+      const runningResult = await runningEnd
+      const nextResult = await busy({ data: { data: { holdTime: 0 } } }).end()
+      expect(nextResult.data.workerId).toBe(runningResult.data.workerId)
+      expect(nextResult.data.startCount).toBe(runningResult.data.startCount + 1)
+    } finally {
+      await poolSingle.terminate()
+    }
+  })
+
+  it('a cancelled call ends its worker when the worker holds no other call', async () => {
+    const poolSingle = createWorkerConnectPool({
+      createWorker: createTestWorker,
+      maxCount: 1,
+    })
+    try {
+      const busy = createBusy(poolSingle.connect)
+      const abortController = new AbortControllerFast()
+      const callCancelled = await startBusy(
+        busy,
+        BUSY_HOLD_TIME,
+        abortController.signal,
+      )
+      abortController.abort()
+      // busy ignores the cancel, so exclusively the end of its worker stops it before its output
+      await expect(callCancelled.end()).rejects.toThrow(AbortError)
+      const nextResult = await busy({ data: { data: { holdTime: 0 } } }).end()
+      expect(nextResult.data.startCount).toBe(1)
+    } finally {
+      await poolSingle.terminate()
+    }
+  })
+
+  it('a call cancelled right after its start lets the pool end its worker', async () => {
+    const poolSingle = createWorkerConnectPool({
+      createWorker: createTestWorker,
+      maxCount: 1,
+    })
+    try {
+      const busy = createBusy(poolSingle.connect)
+      const abortControllerRunning = new AbortControllerFast()
+      const callRunning = await startBusy(
+        busy,
+        BUSY_HOLD_TIME,
+        abortControllerRunning.signal,
+      )
+      const abortControllerWaiting = new AbortControllerFast()
+      const waitingEnd = busy({
+        data: { data: { holdTime: 0 } },
+        abortSignal: abortControllerWaiting.signal,
+      }).end()
+      abortControllerWaiting.abort()
+      abortControllerRunning.abort()
+      await expect(waitingEnd).rejects.toThrow(AbortError)
+      await expect(callRunning.end()).rejects.toThrow(AbortError)
+      const nextResult = await busy({ data: { data: { holdTime: 0 } } }).end()
+      expect(nextResult.data.startCount).toBe(1)
+    } finally {
+      await poolSingle.terminate()
+    }
+  })
+
+  it('a call leaves no subscription on its abort signal when it ends', async () => {
+    let subscriptionCount = 0
+    const abortSignal: IAbortSignalFast = {
+      aborted: false,
+      reason: undefined,
+      throwIfAborted() {},
+      subscribe() {
+        subscriptionCount++
+        return () => {
+          subscriptionCount--
+        }
+      },
+    }
+    const busy = createBusy(pool.connect)
+    await busy({ data: { data: { holdTime: 0 } }, abortSignal }).end()
+    expect(subscriptionCount).toBe(0)
   })
 })

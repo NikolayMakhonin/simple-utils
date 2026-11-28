@@ -9,7 +9,7 @@ export type WorkerFunctionTestInput = {
   a: number
   b: number
   steps: number
-  stepDurationMs: number
+  stepTime: number
 }
 
 export type WorkerFunctionTestOutput = {
@@ -39,3 +39,16 @@ export type WorkerFunctionTestEvent =
   | WorkerEventRequest<WorkerFunctionTestMultiplyRequest>
   | WorkerEventResponse<WorkerFunctionTestMultiplyResponse>
   | WorkerEventResponseError
+
+export type WorkerFunctionTestBusyInput = {
+  holdTime: number
+}
+
+export type WorkerFunctionTestBusyOutput = {
+  workerId: string
+  /** The count of the calls of busy that started in the worker, this one included */
+  startCount: number
+}
+
+/** Sent when a call of busy starts */
+export type WorkerFunctionTestBusyEvent = WorkerEventFire<null>

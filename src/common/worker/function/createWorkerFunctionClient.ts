@@ -3,6 +3,7 @@ import {
   type IAbortSignalFast,
 } from '@flemist/abort-controller-fast'
 import { EMPTY_FUNC } from 'src/common/constants'
+import { promiseToAbortable } from 'src/common/async/abort/promiseToAbortable'
 import {
   type IWorkerFunctionCall,
   type WorkerFunctionClient,
@@ -84,8 +85,14 @@ export class WorkerFunctionCall<
     WorkerFunctionResponse<Output, EventOutput>
   >
   #input: WorkerData<Input> | null
+  /**
+   * The cancel of the caller, read directly, because the connection can close
+   * because of the cancel before the call reacts to the cancel
+   */
+  readonly #abortSignal: IAbortSignalFast | null
   readonly #events = new Subject<EventOutput>()
   readonly #abortController = new AbortControllerFast()
+  readonly #unsubscribeAbort: Unsubscribe | null
   readonly #resolveEnd: (value: WorkerData<Output>) => void
   readonly #rejectEnd: (reason?: any) => void
   readonly #endPromise: Promise<WorkerData<Output>>
@@ -97,10 +104,12 @@ export class WorkerFunctionCall<
   ) {
     this.#client = options.client
     this.#input = options.input
+    this.#abortSignal = options.abortSignal ?? null
 
-    options.abortSignal?.subscribe(reason => {
-      this.#abortController.abort(reason)
-    })
+    this.#unsubscribeAbort =
+      options.abortSignal?.subscribe(reason => {
+        this.#abortController.abort(reason)
+      }) ?? null
 
     let resolveEnd: (value: WorkerData<Output>) => void
     let rejectEnd: (reason?: any) => void
@@ -123,6 +132,7 @@ export class WorkerFunctionCall<
       return
     }
     this.#completed = true
+    this.#unsubscribeAbort?.()
     this.#abortController.abort()
     this.#client.close().catch(EMPTY_FUNC)
     this.#resolveEnd(data)
@@ -133,6 +143,7 @@ export class WorkerFunctionCall<
       return
     }
     this.#completed = true
+    this.#unsubscribeAbort?.()
     this.#abortController.abort(reason)
     this.#client.close().catch(EMPTY_FUNC)
     this.#rejectEnd(reason)
@@ -176,11 +187,15 @@ export class WorkerFunctionCall<
           break
         case WorkerClientResponseType.status:
           if (event.status === WorkerClientStatus.closed) {
+            // A connector can close the connection of a cancelled call by ending its worker
+            const abortSignal = this.#abortSignal
             this.onReject(
-              new WorkerError(
-                WorkerErrorType.closed,
-                '[WorkerFunctionCall] worker closed',
-              ),
+              abortSignal?.aborted
+                ? abortSignal.reason
+                : new WorkerError(
+                    WorkerErrorType.closed,
+                    '[WorkerFunctionCall] worker closed',
+                  ),
             )
           }
           break
@@ -195,7 +210,30 @@ export class WorkerFunctionCall<
       }
     })
 
-    await client.connect()
+    const abortSignal = this.#abortSignal
+    if (!abortSignal?.aborted) {
+      try {
+        // Raced with the cancel, because a worker busy with a synchronous task sets up
+        // the connection exclusively after that task, and a cancelled call must end at once
+        await promiseToAbortable(abortSignal, client.connect())
+      } catch (error) {
+        // A cancel ends the call below, whether the race or the connector,
+        // which can end the worker of a cancelled call, rejected the connect
+        if (!abortSignal?.aborted) {
+          throw error
+        }
+      }
+    }
+    // A call cancelled before its connection is set up must not start in the worker.
+    // A worker busy with a synchronous task sets up the connection only after that task,
+    // so it would run the cancelled call after it, to its end
+    if (abortSignal?.aborted) {
+      this.onReject(abortSignal.reason)
+    }
+    // A call that ended while it connected, by the cancel or by the worker, sends nothing
+    if (this.#completed) {
+      return
+    }
 
     const input = this.#input!
     this.#input = null

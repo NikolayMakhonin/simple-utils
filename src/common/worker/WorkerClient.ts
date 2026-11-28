@@ -6,7 +6,7 @@ import {
   WorkerClientResponseType,
   WorkerClientStatus,
   type WorkerConnect,
-  type WorkerConnectRelease,
+  type WorkerConnection,
   WorkerError,
   WorkerErrorType,
   type WorkerServerResponse,
@@ -68,19 +68,23 @@ export class WorkerClient<RequestData, ResponseData>
   readonly #options: WorkerClientOptions
   readonly #events: ISubject<WorkerClientResponse<ResponseData>>
   #messageChannel: MessageChannel = null!
-  #release: WorkerConnectRelease | null = null
+  #connection: WorkerConnection | null = null
   #status: WorkerClientStatus = WorkerClientStatus.disconnected
+  #unsubscribeAbort: Unsubscribe | null
 
   constructor(options: WorkerClientOptions) {
     this.#options = options
 
     this.#events = new Subject<WorkerClientResponse<ResponseData>>()
 
-    options.abortSignal?.subscribe(() => {
-      // The worker can still run the aborted operation, so the worker is released
-      // when it closes the connection, not at once as by close()
-      void this.#closeConnection()
-    })
+    this.#unsubscribeAbort =
+      options.abortSignal?.subscribe(() => {
+        // The worker can still run the aborted operation, so the connector learns of the abort,
+        // which lets it end the worker, and the worker is released when the connection closes,
+        // not at once as by close()
+        this.#connection?.abort()
+        void this.#closeConnection()
+      }) ?? null
   }
 
   get status(): WorkerClientStatus {
@@ -91,7 +95,8 @@ export class WorkerClient<RequestData, ResponseData>
     if (this.#status !== value) {
       this.#status = value
       // A connection that ends without close(), closed by the worker,
-      // by the port, or after an abort, releases the worker here,
+      // by the port, by the connector that ended the worker, or after an abort,
+      // releases the worker here,
       // before the listeners can open another connection
       if (value === WorkerClientStatus.closed) {
         this.#releaseWorker()
@@ -104,15 +109,12 @@ export class WorkerClient<RequestData, ResponseData>
   }
 
   private async _connect(): Promise<void> {
-    await this.#closePromise?.catch(EMPTY_FUNC)
-
-    if (
-      this.#status === WorkerClientStatus.closing ||
-      this.#status === WorkerClientStatus.closed
-    ) {
+    // Checked without waiting, so that the connection opens within connect(),
+    // and a cancel right after connect() reaches the connector through abort()
+    if (this.#closePromise != null) {
       throw new WorkerError(
         WorkerErrorType.closed,
-        `[WorkerClient] cannot connect when status is ${this.#status}`,
+        '[WorkerClient] cannot connect after close',
       )
     }
 
@@ -178,9 +180,15 @@ export class WorkerClient<RequestData, ResponseData>
     this.#messageChannel.port2.addEventListener('close', onClose)
     this.#messageChannel.port2.start()
 
-    this.#release = this.#options.connect(
+    this.#connection = this.#options.connect(
       this.#options.connectionName,
       this.#messageChannel.port1,
+      () => {
+        // A worker that the connector ended sends no close,
+        // and in browsers its port gives no close event
+        this.#messageChannel.port2.close()
+        this.status = WorkerClientStatus.closed
+      },
     )
 
     await connectPromise
@@ -250,13 +258,17 @@ export class WorkerClient<RequestData, ResponseData>
   }
 
   /**
-   * Tells the connector once that this connection no longer needs the worker;
+   * Tells the connector once that this connection no longer needs the worker,
+   * and stops listening for the cancel, which has nothing to cancel then;
    * a client closed before it connected holds nothing to release
    */
   #releaseWorker(): void {
-    const release = this.#release
-    this.#release = null
-    release?.()
+    const unsubscribeAbort = this.#unsubscribeAbort
+    this.#unsubscribeAbort = null
+    unsubscribeAbort?.()
+    const connection = this.#connection
+    this.#connection = null
+    connection?.release()
   }
 
   subscribe(
