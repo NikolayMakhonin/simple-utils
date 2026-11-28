@@ -1,10 +1,9 @@
 import { type IPool } from 'src/common/async/pool/Pool'
 import { poolRunWait } from 'src/common/async/pool/poolRunWait'
 import type { CacheStat, IStorageDb } from 'src/common'
-import * as path from 'path'
 import { poolFs } from 'src/node/fs'
 import * as fs from 'fs'
-import type { IFileStorage } from './FileStorage'
+import { getFileStoragePath, type IFileStorage } from './FileStorage'
 
 export type FileStatStorageOptions = {
   storages: {
@@ -14,6 +13,15 @@ export type FileStatStorageOptions = {
   pool?: null | IPool
 }
 
+/**
+ * A storage of cache stats that keeps each stat in the metadata of the file of its key:
+ * dateModified is the modification time of the file, dateUsed its access time,
+ * and size its size.
+ * A stat with hasError is kept by the file of the error storage,
+ * any other stat by the file of the value storage.
+ * The file must exist before set, because set changes exclusively its times.
+ * Delete and clear change no file
+ */
 export class FileStatStorage implements IStorageDb<string, CacheStat> {
   readonly #options: FileStatStorageOptions
   readonly #entries: Map<string, CacheStat> = new Map()
@@ -30,15 +38,11 @@ export class FileStatStorage implements IStorageDb<string, CacheStat> {
     if (storage == null) {
       return
     }
-    const subPath = storage.options.converterSubPath.to(key)
-    const filePath = path.resolve(storage.options.dir, subPath)
+    const filePath = getFileStoragePath(storage.options, key)
     await poolRunWait({
       pool: this.#options.pool ?? poolFs,
       count: 1,
       func: async () => {
-        // utimes requires the target file to exist; Cache writes value/error
-        // before calling stat.set, so the parent directory is guaranteed present
-        // docs: https://nodejs.org/download/release/v6.14.2/docs/api/fs.html#fs_fs_utimes_path_atime_mtime_callback
         await fs.promises.utimes(
           filePath,
           value.dateUsed / 1000,
@@ -50,20 +54,16 @@ export class FileStatStorage implements IStorageDb<string, CacheStat> {
   }
 
   async get(key: string): Promise<CacheStat | undefined> {
-    const valueSubPath =
-      this.#options.storages.value.options.converterSubPath.to(key)
-    const filePathValue = path.resolve(
-      this.#options.storages.value.options.dir,
-      valueSubPath,
+    const filePathValue = getFileStoragePath(
+      this.#options.storages.value.options,
+      key,
     )
 
     let filePathError: string | null = null
     if (this.#options.storages.error != null) {
-      const errorSubPath =
-        this.#options.storages.error.options.converterSubPath.to(key)
-      filePathError = path.resolve(
-        this.#options.storages.error.options.dir,
-        errorSubPath,
+      filePathError = getFileStoragePath(
+        this.#options.storages.error.options,
+        key,
       )
     }
 
@@ -132,8 +132,8 @@ export class FileStatStorage implements IStorageDb<string, CacheStat> {
       this.#options.storages.value.getKeys(),
       this.#options.storages.error?.getKeys(),
     ])
-    // Keys from value and error storages cannot intersect by design,
-    // otherwise we will have a lot of problems, not just here
+    // A key is in both storages after a write that stopped between the two files.
+    // getEntries() then loads it twice into one entry, from the newer file
     return [...keysValue, ...(keysError ?? [])]
   }
 

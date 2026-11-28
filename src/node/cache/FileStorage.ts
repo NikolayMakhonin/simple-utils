@@ -42,8 +42,7 @@ export class FileStorage implements IFileStorage {
   }
 
   async set(key: string, value: Uint8Array): Promise<void> {
-    const subPath = this.#options.converterSubPath.to(key)
-    const filePath = path.join(this.#options.dir, subPath)
+    const filePath = getFileStoragePath(this.#options, key)
     const tmpFileName = this.#options.getTempFileName
       ? this.#options.getTempFileName(key)
       : generateTempFileName()
@@ -52,8 +51,7 @@ export class FileStorage implements IFileStorage {
   }
 
   async get(key: string): Promise<Uint8Array | undefined> {
-    const subPath = this.#options.converterSubPath.to(key)
-    const filePath = path.join(this.#options.dir, subPath)
+    const filePath = getFileStoragePath(this.#options, key)
     try {
       const data = await poolRunWait({
         pool: this.#options.pool ?? poolFs,
@@ -72,8 +70,7 @@ export class FileStorage implements IFileStorage {
   }
 
   async delete(key: string): Promise<void> {
-    const subPath = this.#options.converterSubPath.to(key)
-    const filePath = path.join(this.#options.dir, subPath)
+    const filePath = getFileStoragePath(this.#options, key)
     try {
       await poolRunWait({
         pool: this.#options.pool ?? poolFs,
@@ -120,4 +117,24 @@ export class FileStorage implements IFileStorage {
       throw err
     }
   }
+}
+
+/**
+ * Gives the path of the file of a key,
+ * which is the sub path from converterSubPath inside dir.
+ * Throws when the sub path leads out of dir through `..`,
+ * so that no key reads, writes, or deletes a file outside of the storage
+ */
+export function getFileStoragePath(
+  options: FileStorageOptionsBase,
+  key: string,
+): string {
+  const filePath = path.join(options.dir, options.converterSubPath.to(key))
+  const relativePath = path.relative(options.dir, filePath)
+  if (relativePath === '..' || relativePath.startsWith('..' + path.sep)) {
+    throw new Error(
+      `[getFileStoragePath] the file of key (${key}) is outside of dir (${options.dir}); filePath: ${filePath}`,
+    )
+  }
+  return filePath
 }

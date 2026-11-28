@@ -54,4 +54,12 @@ describe('Cache', () => {
     expect(valueGet).toHaveBeenCalledTimes(1)
     expect(errorGet).toHaveBeenCalledTimes(1)
   })
+
+  it('a failed load of the stats is repeated by the next call', async () => {
+    const { cache, storages } = createCache()
+    const error = new Error('stat load error')
+    vi.spyOn(storages.stat, 'getEntries').mockRejectedValueOnce(error)
+    await expect(cache.getOrCreate('a', () => 1)).rejects.toBe(error)
+    expect(await cache.getOrCreate('a', () => 2)).toBe(2)
+  })
 })

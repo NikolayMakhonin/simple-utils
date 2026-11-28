@@ -45,7 +45,13 @@ export class CacheStats<Key, Stat extends CacheStat, StatStored>
 
   private init(): Promise<void> {
     if (this.#initPromise == null) {
-      this.#initPromise = this._init()
+      // A failed load is forgotten, so that the next call loads the stats again.
+      // Without that, one failure of the storage, also a temporary one,
+      // would fail every later call
+      this.#initPromise = this._init().catch(error => {
+        this.#initPromise = null
+        throw error
+      })
     }
     return this.#initPromise
   }
