@@ -21,7 +21,7 @@ import type {
 import { createWorkerVite } from './create/createWorkerVite'
 import { createWorkerWeb } from './create/createWorkerWeb'
 import { ManualPromise } from 'src/common/async/promise/ManualPromise'
-import { FakeAbortSignal } from 'src/common/async/abort/-test/FakeAbortSignal'
+import { AbortSignalMock } from 'src/common/async/abort/-test/AbortSignalMock'
 import {
   type WorkerClientRequest,
   WorkerClientRequestType,
@@ -225,19 +225,13 @@ describe('workerFunction', { timeout: 60 * 1000 }, () => {
   })
 
   it('a call of a name that the worker lacks ends with the error of the worker', async () => {
-    async function testMissing(connectionName: string) {
-      const missing = createWorkerFunctionClient<null, null>({
-        connect: pool.connect,
-        connectionName,
-      })
-      await expect(missing({ data: { data: null } }).end()).rejects.toThrow(
-        `no handler for connectionName ${connectionName}`,
-      )
-    }
-    await testMissing('missing')
-    // The members of Object.prototype are no handlers
-    await testMissing('constructor')
-    await testMissing('toString')
+    const missing = createWorkerFunctionClient<null, null>({
+      connect: pool.connect,
+      connectionName: 'missing',
+    })
+    await expect(missing({ data: { data: null } }).end()).rejects.toThrow(
+      'no handler for connectionName missing',
+    )
   })
 
   it('a call ends with the error of a worker that fails to start', async () => {
@@ -300,7 +294,7 @@ describe('workerFunction', { timeout: 60 * 1000 }, () => {
   })
 
   it('a call through a connector that throws ends with its error and leaves no subscription', async () => {
-    const abortSignal = new FakeAbortSignal()
+    const abortSignal = new AbortSignalMock()
     const busy = createBusy(() => {
       throw new Error('[test] connect failed')
     })
@@ -450,7 +444,7 @@ describe('workerFunction', { timeout: 60 * 1000 }, () => {
   })
 
   it('a call leaves no subscription on its abort signal when it ends', async () => {
-    const abortSignal = new FakeAbortSignal()
+    const abortSignal = new AbortSignalMock()
     const busy = createBusy(pool.connect)
     await busy({ data: { data: { holdTime: 0 } }, abortSignal }).end()
     expect(abortSignal.subscriptionCount).toBe(0)

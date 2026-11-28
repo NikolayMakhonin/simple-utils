@@ -149,10 +149,12 @@ export function getWorkerFatalErrors(): IObservable<WorkerError> {
           self.addEventListener('error', onError)
           self.addEventListener('unhandledrejection', onUnhandledRejection)
         } else {
-          // The monitor lets Node.js end the thread after such an error, as by default,
-          // because no thread can be trusted after it.
-          // A listener of uncaughtException or unhandledRejection would keep the thread running.
-          // The monitor gets an unhandled rejection too, which Node.js raises as such an error
+          // The monitor lets Node.js end the thread after an uncaught error,
+          // as it does by default, because no thread can be trusted
+          // after such an error. A listener of uncaughtException
+          // or unhandledRejection would keep the thread running.
+          // The monitor also gets an unhandled rejection,
+          // which Node.js raises as an uncaught error
           process.on('uncaughtExceptionMonitor', onNodeError)
           process.on('beforeExit', onClose)
         }
@@ -185,9 +187,9 @@ export function errorEventToWorkerError(event: ErrorEvent): WorkerError {
   if (event.filename) {
     message += `\n${event.filename}:${event.lineno}:${event.colno}`
   }
-  const stack = event.error?.stack ?? event.error?.message
-  if (stack != null) {
-    message += `\n${stack}`
+  const error = event.error
+  if (error != null) {
+    message += `\n${error.stack ?? error.message ?? error}`
   }
   return new WorkerError(WorkerErrorType.fatalError, message)
 }

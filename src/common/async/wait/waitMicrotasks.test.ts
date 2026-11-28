@@ -1,7 +1,7 @@
 import { describe, it, assert, expect } from 'vitest'
 import { AbortControllerFast } from '@flemist/abort-controller-fast'
 import { waitMicrotasks } from './waitMicrotasks'
-import { FakeAbortSignal } from 'src/common/async/abort/-test/FakeAbortSignal'
+import { AbortSignalMock } from 'src/common/async/abort/-test/AbortSignalMock'
 
 describe('waitMicrotasks', () => {
   it('stress', async () => {
@@ -27,7 +27,7 @@ describe('waitMicrotasks', () => {
   })
 
   it('unsubscribes from the abort signal after the wait', async () => {
-    const abortSignal = new FakeAbortSignal()
+    const abortSignal = new AbortSignalMock()
     await waitMicrotasks(abortSignal)
     await waitMicrotasks(abortSignal)
     expect(abortSignal.subscriptionCount).toBe(0)

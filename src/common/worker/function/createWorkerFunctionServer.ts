@@ -172,8 +172,7 @@ export function createWorkerFunctionServer<
 
     /**
      * Ends the connection at a request that the protocol does not allow,
-     * after which the call cannot go on: the client gets the error,
-     * and the running function gets the abort
+     * after which the call cannot go on
      */
     function closeWithError(error: Error): void {
       if (server.status !== WorkerServerStatus.closed) {

@@ -11,7 +11,7 @@ import {
   WorkerServerRequestType,
 } from './types'
 import { ManualPromise } from 'src/common/async/promise/ManualPromise'
-import { FakeAbortSignal } from 'src/common/async/abort/-test/FakeAbortSignal'
+import { AbortSignalMock } from 'src/common/async/abort/-test/AbortSignalMock'
 
 describe('WorkerClient', () => {
   /**
@@ -144,7 +144,7 @@ describe('WorkerClient', () => {
   })
 
   it('a connector that throws ends the connection with its error', async () => {
-    const abortSignal = new FakeAbortSignal()
+    const abortSignal = new AbortSignalMock()
     const client = new WorkerClient<unknown, unknown>({
       connectionName: 'test',
       connect: () => {

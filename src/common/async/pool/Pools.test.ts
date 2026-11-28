@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import { Pool } from './Pool'
 import { Pools } from './Pools'
-import { FakeAbortSignal } from 'src/common/async/abort/-test/FakeAbortSignal'
+import { AbortSignalMock } from 'src/common/async/abort/-test/AbortSignalMock'
 
 describe('Pools', () => {
   it('a tick leaves no subscription on the abort signal after it resolves', async () => {
-    const abortSignal = new FakeAbortSignal()
+    const abortSignal = new AbortSignalMock()
     const pool1 = new Pool(1)
     const pool2 = new Pool(1)
     pool1.hold(1)

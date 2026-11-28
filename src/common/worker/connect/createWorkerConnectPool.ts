@@ -41,7 +41,6 @@ type PoolConnection = {
   /** Tells the connection that the pool ended its worker, with the error that ended it */
   readonly onTerminate: (error?: unknown) => void
   isAborted: boolean
-  isReleased: boolean
 }
 
 /**
@@ -86,9 +85,11 @@ export function createWorkerConnectPool(
       workers.splice(index, 0, poolWorker)
       Promise.resolve(poolWorker.worker).then(
         worker => {
-          // An error of a worker is a failure that must never happen: the worker is dead,
-          // as after a failed load of its script, or in a state that nothing can trust.
-          // So the pool ends it at once, and its calls fail with its error instead of waiting for it
+          // An error of a worker is a failure that must never happen.
+          // After it the worker is dead, as after a failed load of its script,
+          // or in a state that nothing can trust.
+          // So the pool ends it at once, and its calls fail with its error
+          // instead of waiting for it
           function onError(error: Error) {
             worker.off('error', onError)
             removeWorker(poolWorker)
@@ -147,21 +148,11 @@ export function createWorkerConnectPool(
       onTerminate: (error?: unknown) => void,
     ) {
       const poolWorker = getWorker()
-      const connection: PoolConnection = {
-        onTerminate,
-        isAborted: false,
-        isReleased: false,
-      }
+      const connection: PoolConnection = { onTerminate, isAborted: false }
       poolWorker.connections.add(connection)
       void sendConnectRequest(poolWorker.worker, connectionName, messagePort)
       return {
         release() {
-          if (connection.isReleased) {
-            throw new Error(
-              '[createWorkerConnectPool][release] the connection is released already',
-            )
-          }
-          connection.isReleased = true
           // The pool has already ended the worker and told the connection
           if (!poolWorker.connections.delete(connection)) {
             return
@@ -173,18 +164,6 @@ export function createWorkerConnectPool(
           }
         },
         abort() {
-          // A second count of the connection would let the pool end a worker
-          // whose other connections still run
-          if (connection.isReleased) {
-            throw new Error(
-              '[createWorkerConnectPool][abort] the connection is released already',
-            )
-          }
-          if (connection.isAborted) {
-            throw new Error(
-              '[createWorkerConnectPool][abort] the connection is aborted already',
-            )
-          }
           connection.isAborted = true
           poolWorker.abortedCount++
           terminateIfAllAborted(poolWorker)

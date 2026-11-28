@@ -6,7 +6,7 @@ import { ManualPromise } from 'src/common/async/promise/ManualPromise'
 
 describe('createWorkerConnectPool', () => {
   /**
-   * Runs the steps on a pool of fake workers: a name opens a connection
+   * Runs the steps on a pool of mock workers: a name opens a connection
    * of that name, '-' with a name releases that connection, '!' with a name
    * cancels it, and '*' ends the pool. Expects the index of the worker that every
    * opened connection went to, the workers indexed in the order of their creation,
@@ -25,7 +25,7 @@ describe('createWorkerConnectPool', () => {
     const pool = createWorkerConnectPool({
       maxCount,
       createWorker: () =>
-        new FakeWorker(createdCount++, workerIndexes, terminatedWorkerIndexes),
+        new WorkerMock(createdCount++, workerIndexes, terminatedWorkerIndexes),
     })
     const connections = new Map<string, WorkerConnection>()
     for (let i = 0; i < steps.length; i++) {
@@ -116,7 +116,7 @@ describe('createWorkerConnectPool', () => {
       maxCount: 3,
       createWorker: index => {
         createIndexes.push(index)
-        return new FakeWorker(index, [], [])
+        return new WorkerMock(index, [], [])
       },
     })
     function connect(connectionName: string) {
@@ -142,7 +142,7 @@ describe('createWorkerConnectPool', () => {
         if (createIndexes.length === 1) {
           throw new Error('[test] start failed')
         }
-        return new FakeWorker(index, workerIndexes, [])
+        return new WorkerMock(index, workerIndexes, [])
       },
     })
     pool.connect('a', new MessageChannel().port1, () => {})
@@ -164,7 +164,7 @@ describe('createWorkerConnectPool', () => {
         if (createCount === 1) {
           throw new Error('[test] start failed')
         }
-        return new FakeWorker(index, [], terminatedWorkerIndexes)
+        return new WorkerMock(index, [], terminatedWorkerIndexes)
       },
     })
     const connectionFailed = pool.connect(
@@ -196,15 +196,15 @@ describe('createWorkerConnectPool', () => {
   })
 
   it('a worker that reports an error is ended at once with that error, and the next connection starts another one', async () => {
-    const fakeWorkers: FakeWorker[] = []
+    const workers: WorkerMock[] = []
     const terminatedWorkerIndexes: number[] = []
     const terminateErrors: unknown[] = []
     const pool = createWorkerConnectPool({
       maxCount: 1,
       createWorker: index => {
-        const fakeWorker = new FakeWorker(index, [], terminatedWorkerIndexes)
-        fakeWorkers.push(fakeWorker)
-        return fakeWorker
+        const worker = new WorkerMock(index, [], terminatedWorkerIndexes)
+        workers.push(worker)
+        return worker
       },
     })
     function connect(connectionName: string) {
@@ -215,53 +215,23 @@ describe('createWorkerConnectPool', () => {
     connect('a')
     await waitMicrotasks()
     const workerError = new Error('[test] worker error')
-    fakeWorkers[0].emitError(workerError)
+    workers[0].emitError(workerError)
     await waitMicrotasks()
     expect(terminatedWorkerIndexes).toEqual([0])
     expect(terminateErrors).toStrictEqual([workerError])
     connect('b')
-    expect(fakeWorkers.length).toBe(2)
+    expect(workers.length).toBe(2)
     // The end of the pool is no error of the worker
     await pool.terminate()
     expect(terminateErrors).toStrictEqual([workerError, undefined])
   })
-
-  it('a connection throws at a second abort, at an abort after its release, and at a second release', async () => {
-    const pool = createWorkerConnectPool({
-      maxCount: 1,
-      createWorker: index => new FakeWorker(index, [], []),
-    })
-    const connectionAborted = pool.connect(
-      'a',
-      new MessageChannel().port1,
-      () => {},
-    )
-    connectionAborted.abort()
-    expect(() => connectionAborted.abort()).toThrow(
-      '[createWorkerConnectPool][abort] the connection is aborted already',
-    )
-    const connectionReleased = pool.connect(
-      'b',
-      new MessageChannel().port1,
-      () => {},
-    )
-    connectionReleased.release()
-    expect(() => connectionReleased.abort()).toThrow(
-      '[createWorkerConnectPool][abort] the connection is released already',
-    )
-    expect(() => connectionReleased.release()).toThrow(
-      '[createWorkerConnectPool][release] the connection is released already',
-    )
-    await pool.terminate()
-  })
 })
 
 /**
- * A worker that records its index for every connection that it gets,
- * and when it is ended, instead of running anything,
- * and reports an error when a test calls emitError
+ * A worker that runs nothing. It records its index when it gets a connection
+ * and when it is ended, and reports an error when a test calls emitError
  */
-class FakeWorker implements IWorker {
+class WorkerMock implements IWorker {
   readonly #index: number
   readonly #workerIndexes: number[]
   readonly #terminatedWorkerIndexes: number[]

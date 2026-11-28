@@ -227,9 +227,8 @@ export type WorkerServerResponse<Data> =
 
 /**
  * Opens a connection to a worker through the port. When the connector ends the worker
- * of an open connection, after a cancel of its operation, after an error of the worker,
- * or when the connector itself ends, it calls onTerminate, because the worker can no
- * longer close the connection. It passes the error of the worker when an error ended it,
+ * of an open connection, it calls onTerminate, because the worker can no longer close
+ * the connection. It passes the error of the worker when an error ended it,
  * so that the operation of the connection ends with the cause of the failure.
  * It must not call onTerminate inside connect, abort, or release, because the caller
  * can call them inside the handling of an event of the connection, and onTerminate

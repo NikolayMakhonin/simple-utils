@@ -63,4 +63,11 @@ describe('errorEventToWorkerError', () => {
     )
     expect(error.message).toBe(`Uncaught Error: x\n${errorThrown.stack}`)
   })
+
+  it('an ErrorEvent with a thrown string gives its message and the string', () => {
+    const error = errorEventToWorkerError(
+      new ErrorEvent('error', { message: 'Uncaught x', error: 'x' }),
+    )
+    expect(error.message).toBe('Uncaught x\nx')
+  })
 })

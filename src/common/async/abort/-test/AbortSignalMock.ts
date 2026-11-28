@@ -7,7 +7,7 @@ import type {
  * An abort signal that never aborts and counts the callbacks subscribed to it,
  * so that a test can check that code unsubscribes from the signals that it gets
  */
-export class FakeAbortSignal implements IAbortSignalFast {
+export class AbortSignalMock implements IAbortSignalFast {
   readonly aborted = false
   readonly reason = undefined
   #subscriptionCount = 0
