@@ -27,13 +27,13 @@ export function workerRequestHandler<RequestData, ResponseData>(
         type: 'response',
         requestId: request.requestId,
         data: result,
-      } as WorkerEventResponse<ResponseData>
+      }
     } catch (error) {
       response = {
         type: 'responseError',
         requestId: request.requestId,
         error: serializeError(error),
-      } as WorkerEventResponseError
+      }
     }
     if (eventBus.abortSignal.aborted) {
       return
@@ -45,6 +45,6 @@ export function workerRequestHandler<RequestData, ResponseData>(
     if (event.type !== 'request') {
       return
     }
-    void respond(event as WorkerEventRequest<RequestData>)
+    void respond(event)
   })
 }

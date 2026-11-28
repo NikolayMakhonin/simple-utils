@@ -9,9 +9,9 @@ export type TransferableAny = Transferable | TransferableNode
 export type WorkerData<Data> = {
   readonly data: Data
   /**
-   * The list of transferable objects that should be transferred to the worker.
-   * These objects will not be available in the main thread until the worker transfers them back.
-   * So you can share some memory between threads without copying it.
+   * The transfer list of postMessage for the data.
+   * The receiving thread gets these objects without a copy,
+   * and the sending thread can no longer use them
    */
   readonly transferList?: null | readonly TransferableAny[]
 }

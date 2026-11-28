@@ -10,7 +10,10 @@ import {
 } from '../types'
 
 export class WorkerNode implements IWorker {
-  readonly #listenerWrappers: Map<string, Map<any, any>> = new Map()
+  readonly #exitWrappers = new Map<
+    (error: Error) => void,
+    (exitCode: number) => void
+  >()
   readonly #worker: NodeWorker
   #isTerminated = false
 
@@ -26,39 +29,24 @@ export class WorkerNode implements IWorker {
   on(event: 'message', listener: (value: any) => void): this
   on(event: 'messageerror', listener: (error: Error) => void): this
   on(event: 'error' | 'message' | 'messageerror', listener: any): this {
-    if (event === 'error') {
-      let listenerWrappers = this.#listenerWrappers.get('exit')
-      if (listenerWrappers == null) {
-        listenerWrappers = new Map()
-        this.#listenerWrappers.set('exit', listenerWrappers)
-      }
-      let wrapper = listenerWrappers.get(listener)
-      if (wrapper == null) {
-        wrapper = (exitCode: number) => {
-          // No error after terminate(): terminate() exits the worker with code 1,
-          // the same code as a crash. The code below would report it as fatalError
-          if (this.#isTerminated) {
-            return
-          }
-          if (exitCode === 0) {
-            listener(
-              new WorkerError(
-                WorkerErrorType.closed,
-                `Worker exited with code ${exitCode}`,
-              ),
-            )
-          } else {
-            listener(
-              new WorkerError(
-                WorkerErrorType.fatalError,
-                `Worker exited with code ${exitCode}`,
-              ),
-            )
-          }
+    if (event === 'error' && !this.#exitWrappers.has(listener)) {
+      const wrapper = (exitCode: number) => {
+        // No error after terminate(): terminate() exits the worker with code 1,
+        // the same code as a crash. The code below would report it as fatalError
+        if (this.#isTerminated) {
+          return
         }
-        this.#worker.on('exit', wrapper)
-        listenerWrappers.set(listener, wrapper)
+        listener(
+          new WorkerError(
+            exitCode === 0
+              ? WorkerErrorType.closed
+              : WorkerErrorType.fatalError,
+            `[WorkerNode] worker exited with code ${exitCode}`,
+          ),
+        )
       }
+      this.#worker.on('exit', wrapper)
+      this.#exitWrappers.set(listener, wrapper)
     }
     this.#worker.on(event, listener)
     return this
@@ -69,13 +57,10 @@ export class WorkerNode implements IWorker {
   off(event: 'messageerror', listener: (error: Error) => void): this
   off(event: 'error' | 'message' | 'messageerror', listener: any): this {
     if (event === 'error') {
-      const listenerWrappers = this.#listenerWrappers.get('exit')
-      if (listenerWrappers != null) {
-        const wrapper = listenerWrappers.get(listener)
-        if (wrapper != null) {
-          this.#worker.off('exit', wrapper)
-          listenerWrappers.delete(listener)
-        }
+      const wrapper = this.#exitWrappers.get(listener)
+      if (wrapper != null) {
+        this.#worker.off('exit', wrapper)
+        this.#exitWrappers.delete(listener)
       }
     }
     this.#worker.off(event, listener)

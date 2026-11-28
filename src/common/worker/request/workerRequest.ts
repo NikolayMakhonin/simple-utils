@@ -1,13 +1,6 @@
 import type { IAbortSignalFast } from '@flemist/abort-controller-fast'
 import { waitObservable } from 'src/common/rx'
-import type {
-  IWorkerEventBus,
-  WorkerData,
-  WorkerEvent,
-  WorkerEventRequest,
-  WorkerEventResponse,
-  WorkerEventResponseError,
-} from '../types'
+import type { IWorkerEventBus, WorkerData, WorkerEvent } from '../types'
 import { deserializeError } from '../helpers'
 import { withTimeout } from 'src/common/async/timeout/withTimeout'
 import { combineAbortSignals } from 'src/common/async/abort/combineAbortSignals'
@@ -38,16 +31,12 @@ export function workerRequest<RequestData, ResponseData>(
         abortSignal,
       ).then(event => {
         if (event.type === 'responseError') {
-          throw deserializeError((event as WorkerEventResponseError).error)
+          throw deserializeError(event.error)
         }
-        return (event as WorkerEventResponse<ResponseData>).data
+        return event.data
       })
 
-      eventBus.emit({
-        type: 'request',
-        requestId,
-        data,
-      } as WorkerEventRequest<RequestData>)
+      eventBus.emit({ type: 'request', requestId, data })
 
       return promise
     },

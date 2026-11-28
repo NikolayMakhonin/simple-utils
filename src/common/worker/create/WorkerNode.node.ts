@@ -41,7 +41,10 @@ describe('WorkerNode', () => {
     const { errors, exited } = create('process.exit(0)')
     await exited
     expect(errors).toStrictEqual([
-      new WorkerError(WorkerErrorType.closed, 'Worker exited with code 0'),
+      new WorkerError(
+        WorkerErrorType.closed,
+        '[WorkerNode] worker exited with code 0',
+      ),
     ])
   })
 
@@ -49,7 +52,10 @@ describe('WorkerNode', () => {
     const { errors, exited } = create('process.exit(3)')
     await exited
     expect(errors).toStrictEqual([
-      new WorkerError(WorkerErrorType.fatalError, 'Worker exited with code 3'),
+      new WorkerError(
+        WorkerErrorType.fatalError,
+        '[WorkerNode] worker exited with code 3',
+      ),
     ])
   })
 
@@ -59,7 +65,10 @@ describe('WorkerNode', () => {
     expect(errors.length).toBe(2)
     expect(errors[0].message).toBe('test error')
     expect(errors[1]).toStrictEqual(
-      new WorkerError(WorkerErrorType.fatalError, 'Worker exited with code 1'),
+      new WorkerError(
+        WorkerErrorType.fatalError,
+        '[WorkerNode] worker exited with code 1',
+      ),
     )
   })
 
