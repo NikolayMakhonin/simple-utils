@@ -217,11 +217,12 @@ export class WorkerFunctionCall<
         // the connection exclusively after that task, and a cancelled call must end at once
         await promiseToAbortable(abortSignal, client.connect())
       } catch (error) {
-        // A cancel ends the call below, whether the race or the connector,
-        // which can end the worker of a cancelled call, rejected the connect.
+        // After a cancel the code below ends the call with the reason of the cancel.
+        // The connect can then reject through the race, or through the connector,
+        // which can end the worker of a cancelled call.
         // A call that ended while it connected keeps the error that ended it,
         // such as the error of a worker that lacks the connection name.
-        // An error thrown here would replace it, because end() awaits start()
+        // An error thrown here would replace that error, because end() awaits start()
         if (!abortSignal?.aborted && !this.#completed) {
           throw error
         }

@@ -131,8 +131,9 @@ export function createWorkerConnectPool(
 
   /**
    * Takes the worker out of the pool, so that no new connection goes to it.
-   * Does nothing for a worker that has left the pool already: one that failed to start
-   * can still be ended by the pool, and one that the pool ended can still fail to start
+   * Does nothing for a worker that has left the pool already, because one
+   * that failed to start can still be ended by the pool, and one that the pool
+   * ended can still fail to start
    */
   function removeWorker(poolWorker: PoolWorker): void {
     const index = workers.indexOf(poolWorker)
@@ -208,8 +209,9 @@ async function sendConnectRequest(
 }
 
 /**
- * Ends the worker, then tells each of its connections, which the worker can no longer close,
- * with the error that ended the worker, when an error ended it.
+ * Ends the worker, then tells each of its connections that the worker ended,
+ * because the worker can no longer close them.
+ * Each connection gets the error that ended the worker, when there is one.
  * The connections learn of it after the call that ended the worker returns,
  * because a client can cancel inside the handling of an event of its connection.
  * The connections leave the worker first, so that their releases find nothing to count

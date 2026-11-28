@@ -81,8 +81,8 @@ export function deserializeError(data: ErrorSerialized) {
 }
 
 /**
- * Ends a connection that no server will serve, as a server ends it after an error:
- * the client of the port gets the error, then the close of the connection
+ * Ends a connection that no server will serve, as a server ends it after an error.
+ * The client of the port gets the error, then the close of the connection
  */
 export function refuseWorkerConnection(
   messagePort: IMessagePort,
@@ -106,12 +106,7 @@ export function getWorkerFatalErrors(): IObservable<WorkerError> {
     workerErrorsSubject = new Subject<WorkerError>({
       startStopNotifier(emit) {
         function onError(event: ErrorEvent) {
-          emit(
-            new WorkerError(
-              WorkerErrorType.fatalError,
-              `[getWorkerFatalErrors] error: ${event.message}`,
-            ),
-          )
+          emit(errorEventToWorkerError(event))
         }
 
         function onUnhandledRejection(event: PromiseRejectionEvent) {
@@ -136,7 +131,7 @@ export function getWorkerFatalErrors(): IObservable<WorkerError> {
           emit(
             new WorkerError(
               WorkerErrorType.fatalError,
-              `[getWorkerFatalErrors] error: ${error.message}`,
+              `[getWorkerFatalErrors] error: ${error.stack ?? error.message}`,
             ),
           )
         }

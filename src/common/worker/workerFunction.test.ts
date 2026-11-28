@@ -23,7 +23,6 @@ import { createWorkerWeb } from './create/createWorkerWeb'
 import { ManualPromise } from 'src/common/async/promise/ManualPromise'
 import { AbortSignalMock } from 'src/common/async/abort/-test/AbortSignalMock'
 import {
-  type WorkerClientRequest,
   WorkerClientRequestType,
   WorkerClientResponseType,
   WorkerClientStatus,
@@ -31,7 +30,7 @@ import {
   type WorkerError,
   WorkerErrorType,
 } from './types'
-import { type IWorkerClient, WorkerClient } from './WorkerClient'
+import { WorkerClient } from './WorkerClient'
 import { createConnectDirect } from './-test/createConnectDirect'
 import {
   type WorkerFunctionRequest,
@@ -91,23 +90,44 @@ async function startBusy(
 
 type WorkerFunctionTestBusyClient = ReturnType<typeof createBusy>
 
-/** Collects the errors of the client until its connection closes */
-function collectErrorsUntilClosed<RequestData, ResponseData>(
-  client: IWorkerClient<RequestData, ResponseData>,
-) {
-  const errors: unknown[] = []
-  const closed = new ManualPromise()
-  client.subscribe(event => {
-    if (event.type === WorkerClientResponseType.error) {
-      errors.push(event.error)
-    } else if (
-      event.type === WorkerClientResponseType.status &&
-      event.status === WorkerClientStatus.closed
-    ) {
-      closed.resolve()
+/**
+ * Sends the inputs to the worker function of connectionName in a new test worker
+ * through createConnectDirect, and gives the errors that the client got
+ * until the connection closed
+ */
+async function sendInputsDirect(connectionName: string, inputs: unknown[]) {
+  const worker = await createTestWorker()
+  try {
+    const client = new WorkerClient<
+      WorkerFunctionRequest<unknown, never>,
+      WorkerFunctionResponse<unknown, never>
+    >({ connectionName, connect: createConnectDirect(worker) })
+    const errors: unknown[] = []
+    const closed = new ManualPromise()
+    client.subscribe(event => {
+      if (event.type === WorkerClientResponseType.error) {
+        errors.push(event.error)
+      } else if (
+        event.type === WorkerClientResponseType.status &&
+        event.status === WorkerClientStatus.closed
+      ) {
+        closed.resolve()
+      }
+    })
+    await client.connect()
+    for (let i = 0; i < inputs.length; i++) {
+      client.emit({
+        type: WorkerClientRequestType.data,
+        data: {
+          data: { type: WorkerFunctionRequestType.input, data: inputs[i] },
+        },
+      })
     }
-  })
-  return { errors, closed: closed.promise }
+    await closed.promise
+    return errors
+  } finally {
+    await worker.terminate()
+  }
 }
 
 afterAll(async () => {
@@ -304,59 +324,26 @@ describe('workerFunction', { timeout: 60 * 1000 }, () => {
     expect(abortSignal.subscriptionCount).toBe(0)
   })
 
-  it('a fatal error of the worker reaches the client once', async () => {
-    // A connector that never ends the worker, so that exclusively the worker
-    // reports its error and ends the connection, while the pool ends a worker at its error
-    const worker = await createTestWorker()
-    try {
-      const client = new WorkerClient<
-        WorkerFunctionRequest<null, never>,
-        WorkerFunctionResponse<null, never>
-      >({ connectionName: 'fatal', connect: createConnectDirect(worker) })
-      const { errors, closed } = collectErrorsUntilClosed(client)
-      await client.connect()
-      client.emit({
-        type: WorkerClientRequestType.data,
-        data: { data: { type: WorkerFunctionRequestType.input, data: null } },
-      })
-      await closed
-      expect(errors.length).toBe(1)
-      expect((errors[0] as WorkerError).type).toBe(WorkerErrorType.fatalError)
-    } finally {
-      await worker.terminate()
-    }
+  it('a fatal error of the worker reaches the client once, with the place where it was thrown', async () => {
+    const errors = await sendInputsDirect('fatal', [null])
+    expect(errors.length).toBe(1)
+    expect((errors[0] as WorkerError).type).toBe(WorkerErrorType.fatalError)
+    // The client also learns where in the script of the worker the error was thrown
+    expect((errors[0] as WorkerError).message).toContain('worker.ts:')
   })
 
   it('a second input of a call ends its connection with an error', async () => {
-    const worker = await createTestWorker()
-    try {
-      const client = new WorkerClient<
-        WorkerFunctionRequest<WorkerFunctionTestInput, never>,
-        WorkerFunctionResponse<WorkerFunctionTestOutput, never>
-      >({ connectionName: 'sum', connect: createConnectDirect(worker) })
-      const { errors, closed } = collectErrorsUntilClosed(client)
-      await client.connect()
-      const input: WorkerClientRequest<
-        WorkerFunctionRequest<WorkerFunctionTestInput, never>
-      > = {
-        type: WorkerClientRequestType.data,
-        data: {
-          data: {
-            type: WorkerFunctionRequestType.input,
-            data: { a: 1, b: 2, steps: TOTAL_STEPS, stepTime: STEP_TIME },
-          },
-        },
-      }
-      client.emit(input)
-      client.emit(input)
-      await closed
-      expect(errors.length).toBe(1)
-      expect((errors[0] as Error).message).toBe(
-        '[createWorkerFunctionServer] already running',
-      )
-    } finally {
-      await worker.terminate()
+    const input: WorkerFunctionTestInput = {
+      a: 1,
+      b: 2,
+      steps: TOTAL_STEPS,
+      stepTime: STEP_TIME,
     }
+    const errors = await sendInputsDirect('sum', [input, input])
+    expect(errors.length).toBe(1)
+    expect((errors[0] as Error).message).toBe(
+      '[createWorkerFunctionServer] already running',
+    )
   })
 
   it('a call cancelled while it waits for a busy worker ends at once and never starts there', async () => {
