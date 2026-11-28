@@ -11,10 +11,8 @@ export function waitObservable<T>(
   return new Promise<T>(resolve => {
     let resolved = false
 
-    // eslint-disable-next-line prefer-const
-    let unsubscribeAbort: Unsubscribe | null | undefined
-    // eslint-disable-next-line prefer-const
-    let unsubscribeObservable: Unsubscribe | null | undefined
+    let unsubscribeAbort: Unsubscribe | null | undefined = null
+    let unsubscribeObservable: Unsubscribe | null = null
     function _resolve(value: T) {
       unsubscribeAbort?.()
       unsubscribeObservable?.()

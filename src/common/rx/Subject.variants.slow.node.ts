@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-wrapper-object-types */
+/* eslint-disable @typescript-eslint/no-wrapper-object-types -- Number objects among the values check that a subject passes on the very object it gets */
 import { describe, it } from 'vitest'
 import { createTestVariants } from '@flemist/test-variants'
 import {
@@ -38,30 +38,11 @@ export type TestVariantsArgs = {
 }
 
 const testVariants = createTestVariants(async (args: TestVariantsArgs) => {
-  const rnd = new Random(args.seed)
-  try {
-    const context = generateContext({ rnd: rnd.clone(), args, log: false })
-    test({ rnd: rnd.clone(), context, args })
-  } catch (err) {
-    try {
-      const context = generateContext({ rnd: rnd.clone(), args, log: true })
-      test({ rnd: rnd.clone(), context, args })
-    } catch {
-      // Ignore re-run error, throw original
-    }
-    throw err
-  }
+  const context = generateContext(args)
+  test({ rnd: new Random(args.seed), context, args })
 })
 
-type GenerateContextOptions = {
-  rnd: Random
-  args: TestVariantsArgs
-  log: boolean
-}
-
-function generateContext(options: GenerateContextOptions): TestContext {
-  const { rnd, args, log } = options
-
+function generateContext(args: TestVariantsArgs): TestContext {
   const source = new Subject<Value>({
     emitLastEvent: args.source_emitLastEvent,
     hasLast: args.source_hasLast,

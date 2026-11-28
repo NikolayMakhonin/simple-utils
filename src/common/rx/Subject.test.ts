@@ -104,7 +104,7 @@ describe('Subject', () => {
     unsubscribe()
   })
 
-  it('clean clears the retained value and stale flag after the last unsubscribe', () => {
+  it('autoClear clears the retained value and stale flag after the last unsubscribe', () => {
     const subject = new Subject<number>({
       emitLastEvent: true,
       autoClear: true,

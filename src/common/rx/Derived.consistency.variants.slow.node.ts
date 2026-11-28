@@ -33,7 +33,7 @@
  * [test][2] emit value=2
  * [test] factory call=2 values=[2, 2]
  */
-/* eslint-disable @typescript-eslint/no-wrapper-object-types */
+/* eslint-disable @typescript-eslint/no-wrapper-object-types -- Number objects among the values check that both chains deliver the very object that the source emitted */
 import { describe, it } from 'vitest'
 import { createTestVariants } from '@flemist/test-variants'
 import {

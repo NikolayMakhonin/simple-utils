@@ -111,21 +111,22 @@ function startStopNotifier<S extends Stores, T>(
     }
   }
 
-  sources.forEach((source, index) => {
+  for (let i = 0, len = sources.length; i < len; i++) {
+    const source = sources[i]
     if (!isObservable(source)) {
-      values[index] = source
-      return
+      values[i] = source
+      continue
     }
     // An observable source is pending until its first delivery,
     // so the computation never runs from a source that delivered nothing
-    isPending[index] = true
+    isPending[i] = true
     pendingCount++
     unsubscribes.push(
       source.subscribe(
         value => {
-          values[index] = value
-          if (isPending[index]) {
-            isPending[index] = false
+          values[i] = value
+          if (isPending[i]) {
+            isPending[i] = false
             pendingCount--
           }
           if (isStarted && pendingCount === 0) {
@@ -133,8 +134,8 @@ function startStopNotifier<S extends Stores, T>(
           }
         },
         () => {
-          if (!isPending[index]) {
-            isPending[index] = true
+          if (!isPending[i]) {
+            isPending[i] = true
             pendingCount++
           }
           invalidate()
@@ -148,7 +149,7 @@ function startStopNotifier<S extends Stores, T>(
         },
       ),
     )
-  })
+  }
 
   isStarted = true
   if (pendingCount === 0) {
@@ -166,7 +167,9 @@ function startStopNotifier<S extends Stores, T>(
     const prevUnsubscribe = asyncUnsubscribe
     unsubscribes = null!
     asyncUnsubscribe = null
-    prevUnsubscribes.forEach(o => o())
+    for (let i = 0, len = prevUnsubscribes.length; i < len; i++) {
+      prevUnsubscribes[i]()
+    }
     prevUnsubscribe?.()
   }
 }
