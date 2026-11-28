@@ -123,12 +123,9 @@ export function createWorkerFunctionServer<
           switch (event.data.data.type) {
             case WorkerFunctionRequestType.input:
               if (running) {
-                server.emit({
-                  type: WorkerServerResponseType.error,
-                  error: serializeError(
-                    new Error('[createWorkerFunctionServer] already running'),
-                  ),
-                })
+                closeWithError(
+                  new Error('[createWorkerFunctionServer] already running'),
+                )
                 return
               }
               void runFunc(
@@ -139,15 +136,12 @@ export function createWorkerFunctionServer<
               eventBus.emit(event.data.data.data)
               break
             default:
-              server.emit({
-                type: WorkerServerResponseType.error,
-                error: serializeError(
-                  new WorkerError(
-                    WorkerErrorType.messageError,
-                    `[createWorkerFunctionServer] unexpected request: ${JSON.stringify(event.data)}`,
-                  ),
+              closeWithError(
+                new WorkerError(
+                  WorkerErrorType.messageError,
+                  `[createWorkerFunctionServer] unexpected request: ${JSON.stringify(event.data)}`,
                 ),
-              })
+              )
               break
           }
           break
@@ -161,32 +155,36 @@ export function createWorkerFunctionServer<
           }
           break
         case WorkerServerRequestType.error:
-          if (server.status !== WorkerServerStatus.closed) {
-            server.emit({
-              type: WorkerServerResponseType.error,
-              error: serializeError(event.error),
-            })
-          }
+          // WorkerServer has already sent this error to the client
           abortController.abort(event.error)
           server.close()
           break
-        default: {
-          const error = new WorkerError(
-            WorkerErrorType.messageError,
-            `[createWorkerFunctionServer] unexpected event: ${JSON.stringify(event)}`,
+        default:
+          closeWithError(
+            new WorkerError(
+              WorkerErrorType.messageError,
+              `[createWorkerFunctionServer] unexpected event: ${JSON.stringify(event)}`,
+            ),
           )
-          if (server.status !== WorkerServerStatus.closed) {
-            server.emit({
-              type: WorkerServerResponseType.error,
-              error: serializeError(error),
-            })
-          }
-          abortController.abort(error)
-          server.close()
           break
-        }
       }
     })
+
+    /**
+     * Ends the connection at a request that the protocol does not allow,
+     * after which the call cannot go on: the client gets the error,
+     * and the running function gets the abort
+     */
+    function closeWithError(error: Error): void {
+      if (server.status !== WorkerServerStatus.closed) {
+        server.emit({
+          type: WorkerServerResponseType.error,
+          error: serializeError(error),
+        })
+      }
+      abortController.abort(error)
+      server.close()
+    }
 
     server.connect()
   }

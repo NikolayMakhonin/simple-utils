@@ -4,6 +4,8 @@ import { createServer, createServerModuleRunner } from 'vite'
 async function run() {
   // With middlewareMode, Vite creates no HTTP server, which the thread does not use
   const server = await createServer({
+    // Without a config file of the caller, Vite finds the config of the project
+    configFile: workerData.configFile,
     server: {
       middlewareMode: true,
       hmr: false,

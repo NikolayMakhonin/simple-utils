@@ -20,6 +20,8 @@
 
 ## Follow all of these rules
 
+Read every file of the list below with the Read tool before any other tool call of the session, except a file whose contents the context already shows, because the harness does not always load these imports into the context, and the rules that decide the first calls (which tool lists a folder, which tool searches, etc) are in them
+
 @ai/project/base/docs/terms.md
 @ai/project/simple-utils/docs/terms.md
 

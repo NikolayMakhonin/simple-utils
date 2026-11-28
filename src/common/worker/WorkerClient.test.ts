@@ -11,6 +11,7 @@ import {
   WorkerServerRequestType,
 } from './types'
 import { ManualPromise } from 'src/common/async/promise/ManualPromise'
+import { FakeAbortSignal } from 'src/common/async/abort/-test/FakeAbortSignal'
 
 describe('WorkerClient', () => {
   /**
@@ -22,7 +23,7 @@ describe('WorkerClient', () => {
     let releaseCount = 0
     let abortCount = 0
     let server: WorkerServer<unknown, unknown> = null!
-    let onTerminateConnection: () => void = null!
+    let onTerminateConnection: (error?: unknown) => void = null!
     const client = new WorkerClient<unknown, unknown>({
       connectionName: 'test',
       connect: (connectionName, messagePort, onTerminate) => {
@@ -45,8 +46,8 @@ describe('WorkerClient', () => {
       getServer: () => server,
       getReleaseCount: () => releaseCount,
       getAbortCount: () => abortCount,
-      terminate: () => {
-        onTerminateConnection()
+      terminate: (error?: unknown) => {
+        onTerminateConnection(error)
       },
     }
   }
@@ -111,6 +112,28 @@ describe('WorkerClient', () => {
     expect(getReleaseCount()).toBe(1)
   })
 
+  it('a connector that ends the worker with an error gives the error before the close', async () => {
+    const { client, terminate } = createClient()
+    await client.connect()
+    const events: unknown[] = []
+    client.subscribe(event => {
+      events.push(
+        event.type === WorkerClientResponseType.error ? event.error : event,
+      )
+    })
+    const error = new Error('[test] worker failed')
+    terminate(error)
+    // A notice after the close changes nothing
+    terminate(new Error('[test] notice after the close'))
+    expect(events).toEqual([
+      error,
+      {
+        type: WorkerClientResponseType.status,
+        status: WorkerClientStatus.closed,
+      },
+    ])
+  })
+
   it('a cancel right after connect reaches the connector', async () => {
     const abortController = new AbortControllerFast()
     const { client, getAbortCount } = createClient(abortController.signal)
@@ -118,5 +141,26 @@ describe('WorkerClient', () => {
     abortController.abort()
     expect(getAbortCount()).toBe(1)
     await connected
+  })
+
+  it('a connector that throws ends the connection with its error', async () => {
+    const abortSignal = new FakeAbortSignal()
+    const client = new WorkerClient<unknown, unknown>({
+      connectionName: 'test',
+      connect: () => {
+        throw new Error('[test] connect failed')
+      },
+      abortSignal,
+    })
+    const errors: unknown[] = []
+    client.subscribe(event => {
+      if (event.type === WorkerClientResponseType.error) {
+        errors.push(event.error)
+      }
+    })
+    await expect(client.connect()).rejects.toThrow('[test] connect failed')
+    expect(errors).toEqual([new Error('[test] connect failed')])
+    expect(client.status).toBe(WorkerClientStatus.closed)
+    expect(abortSignal.subscriptionCount).toBe(0)
   })
 })

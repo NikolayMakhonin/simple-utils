@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'url'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { createWorkerVite } from './createWorkerVite'
 import { WorkerError, WorkerErrorType } from '../types'
@@ -51,6 +52,22 @@ describe('createWorkerVite', { timeout: 60 * 1000 }, () => {
       worker.on('message', resolve)
     })
     expect(message).toBe(1n)
+    await worker.terminate()
+  })
+
+  it('loads the config file of the options', async () => {
+    const worker = await createWorkerVite(
+      new URL('../-test/workerConfig.ts', import.meta.url),
+      {
+        configFile: fileURLToPath(
+          new URL('../-test/vite.config.define.ts', import.meta.url),
+        ),
+      },
+    )
+    const message = await new Promise(resolve => {
+      worker.on('message', resolve)
+    })
+    expect(message).toBe('loaded')
     await worker.terminate()
   })
 })

@@ -86,9 +86,23 @@ const busy = createWorkerFunctionServer<
   },
 })
 
+/**
+ * Throws an error from a timer, where no call can catch it, and never returns,
+ * so that exclusively the fatal error of the worker ends the connection
+ */
+const fatal = createWorkerFunctionServer<null, null>({
+  func() {
+    setTimeout(() => {
+      throw new Error('[test] fatal')
+    }, 0)
+    return new Promise<never>(() => {})
+  },
+})
+
 workerServerRegister({
   sum,
   busy,
+  fatal,
 })
 
 workerServerStart()

@@ -1,9 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import {
-  AbortControllerFast,
-  type IAbortSignalFast,
-} from '@flemist/abort-controller-fast'
+import { AbortControllerFast } from '@flemist/abort-controller-fast'
 import { combineAbortSignals } from './combineAbortSignals'
+import { FakeAbortSignal } from './-test/FakeAbortSignal'
 
 describe('combineAbortSignals', () => {
   it('base', () => {
@@ -32,23 +30,12 @@ describe('combineAbortSignals', () => {
   })
 
   it('a callback subscribed twice throws and leaves no subscription on the signals', () => {
-    let subscriptionCount = 0
-    const abortSignal: IAbortSignalFast = {
-      aborted: false,
-      reason: undefined,
-      throwIfAborted() {},
-      subscribe() {
-        subscriptionCount++
-        return () => {
-          subscriptionCount--
-        }
-      },
-    }
+    const abortSignal = new FakeAbortSignal()
     const combined = combineAbortSignals(abortSignal)
     const callback = () => {}
     const unsubscribe = combined.subscribe(callback)
     expect(() => combined.subscribe(callback)).toThrow('Already subscribed')
     unsubscribe()
-    expect(subscriptionCount).toBe(0)
+    expect(abortSignal.subscriptionCount).toBe(0)
   })
 })

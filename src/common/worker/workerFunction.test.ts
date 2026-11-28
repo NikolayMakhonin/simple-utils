@@ -21,7 +21,23 @@ import type {
 import { createWorkerVite } from './create/createWorkerVite'
 import { createWorkerWeb } from './create/createWorkerWeb'
 import { ManualPromise } from 'src/common/async/promise/ManualPromise'
-import type { WorkerConnect } from './types'
+import { FakeAbortSignal } from 'src/common/async/abort/-test/FakeAbortSignal'
+import {
+  type WorkerClientRequest,
+  WorkerClientRequestType,
+  WorkerClientResponseType,
+  WorkerClientStatus,
+  type WorkerConnect,
+  type WorkerError,
+  WorkerErrorType,
+} from './types'
+import { type IWorkerClient, WorkerClient } from './WorkerClient'
+import { createConnectDirect } from './-test/createConnectDirect'
+import {
+  type WorkerFunctionRequest,
+  WorkerFunctionRequestType,
+  type WorkerFunctionResponse,
+} from './function/types'
 
 const STEP_TIME = 100
 const TOTAL_STEPS = 10
@@ -36,7 +52,10 @@ const pool = createWorkerConnectPool({
 })
 
 function createTestWorker() {
-  const url = new URL('./-test/worker.ts', import.meta.url)
+  return createWorkerOfScript(new URL('./-test/worker.ts', import.meta.url))
+}
+
+function createWorkerOfScript(url: URL) {
   // Node.js has no Worker, so there the worker runs through Vite in a worker thread.
   // In browsers it runs as a web worker
   return typeof Worker === 'undefined'
@@ -71,6 +90,25 @@ async function startBusy(
 }
 
 type WorkerFunctionTestBusyClient = ReturnType<typeof createBusy>
+
+/** Collects the errors of the client until its connection closes */
+function collectErrorsUntilClosed<RequestData, ResponseData>(
+  client: IWorkerClient<RequestData, ResponseData>,
+) {
+  const errors: unknown[] = []
+  const closed = new ManualPromise()
+  client.subscribe(event => {
+    if (event.type === WorkerClientResponseType.error) {
+      errors.push(event.error)
+    } else if (
+      event.type === WorkerClientResponseType.status &&
+      event.status === WorkerClientStatus.closed
+    ) {
+      closed.resolve()
+    }
+  })
+  return { errors, closed: closed.promise }
+}
 
 afterAll(async () => {
   await pool.terminate()
@@ -187,13 +225,144 @@ describe('workerFunction', { timeout: 60 * 1000 }, () => {
   })
 
   it('a call of a name that the worker lacks ends with the error of the worker', async () => {
-    const missing = createWorkerFunctionClient<null, null>({
-      connect: pool.connect,
-      connectionName: 'missing',
+    async function testMissing(connectionName: string) {
+      const missing = createWorkerFunctionClient<null, null>({
+        connect: pool.connect,
+        connectionName,
+      })
+      await expect(missing({ data: { data: null } }).end()).rejects.toThrow(
+        `no handler for connectionName ${connectionName}`,
+      )
+    }
+    await testMissing('missing')
+    // The members of Object.prototype are no handlers
+    await testMissing('constructor')
+    await testMissing('toString')
+  })
+
+  it('a call ends with the error of a worker that fails to start', async () => {
+    const poolFailing = createWorkerConnectPool({
+      createWorker: async () => {
+        throw new Error('[test] start failed')
+      },
+      maxCount: 1,
     })
-    await expect(missing({ data: { data: null } }).end()).rejects.toThrow(
-      'no handler for connectionName missing',
-    )
+    try {
+      const busy = createBusy(poolFailing.connect)
+      await expect(
+        busy({ data: { data: { holdTime: 0 } } }).end(),
+      ).rejects.toThrow('[test] start failed')
+    } finally {
+      await poolFailing.terminate()
+    }
+  })
+
+  it('a call to a worker whose script fails to load ends with an error', async () => {
+    const poolMissing = createWorkerConnectPool({
+      createWorker: () =>
+        createWorkerOfScript(new URL('./-test/missing.ts', import.meta.url)),
+      maxCount: 1,
+    })
+    try {
+      const busy = createBusy(poolMissing.connect)
+      // In browsers the pool ends the worker at its error event and gives the call that error.
+      // In Node.js createWorkerVite rejects, and the call gets its error
+      await expect(
+        busy({ data: { data: { holdTime: 0 } } }).end(),
+      ).rejects.toThrow(
+        typeof Worker === 'undefined'
+          ? 'missing.ts'
+          : 'error event without a message',
+      )
+    } finally {
+      await poolMissing.terminate()
+    }
+  })
+
+  it('a call to a worker that fails while it runs ends with the error of the worker', async () => {
+    const poolSingle = createWorkerConnectPool({
+      createWorker: createTestWorker,
+      maxCount: 1,
+    })
+    try {
+      const fatal = createWorkerFunctionClient<null, null>({
+        connect: poolSingle.connect,
+        connectionName: 'fatal',
+      })
+      // Whichever reaches the call first, the message of the worker or the error event
+      // at which the pool ends the worker, it holds the error of the worker
+      await expect(fatal({ data: { data: null } }).end()).rejects.toThrow(
+        '[test] fatal',
+      )
+    } finally {
+      await poolSingle.terminate()
+    }
+  })
+
+  it('a call through a connector that throws ends with its error and leaves no subscription', async () => {
+    const abortSignal = new FakeAbortSignal()
+    const busy = createBusy(() => {
+      throw new Error('[test] connect failed')
+    })
+    await expect(
+      busy({ data: { data: { holdTime: 0 } }, abortSignal }).end(),
+    ).rejects.toThrow('[test] connect failed')
+    expect(abortSignal.subscriptionCount).toBe(0)
+  })
+
+  it('a fatal error of the worker reaches the client once', async () => {
+    // A connector that never ends the worker, so that exclusively the worker
+    // reports its error and ends the connection, while the pool ends a worker at its error
+    const worker = await createTestWorker()
+    try {
+      const client = new WorkerClient<
+        WorkerFunctionRequest<null, never>,
+        WorkerFunctionResponse<null, never>
+      >({ connectionName: 'fatal', connect: createConnectDirect(worker) })
+      const { errors, closed } = collectErrorsUntilClosed(client)
+      await client.connect()
+      client.emit({
+        type: WorkerClientRequestType.data,
+        data: { data: { type: WorkerFunctionRequestType.input, data: null } },
+      })
+      await closed
+      expect(errors.length).toBe(1)
+      expect((errors[0] as WorkerError).type).toBe(WorkerErrorType.fatalError)
+    } finally {
+      await worker.terminate()
+    }
+  })
+
+  it('a second input of a call ends its connection with an error', async () => {
+    const worker = await createTestWorker()
+    try {
+      const client = new WorkerClient<
+        WorkerFunctionRequest<WorkerFunctionTestInput, never>,
+        WorkerFunctionResponse<WorkerFunctionTestOutput, never>
+      >({ connectionName: 'sum', connect: createConnectDirect(worker) })
+      const { errors, closed } = collectErrorsUntilClosed(client)
+      await client.connect()
+      const input: WorkerClientRequest<
+        WorkerFunctionRequest<WorkerFunctionTestInput, never>
+      > = {
+        type: WorkerClientRequestType.data,
+        data: {
+          data: {
+            type: WorkerFunctionRequestType.input,
+            data: { a: 1, b: 2, steps: TOTAL_STEPS, stepTime: STEP_TIME },
+          },
+        },
+      }
+      client.emit(input)
+      client.emit(input)
+      await closed
+      expect(errors.length).toBe(1)
+      expect((errors[0] as Error).message).toBe(
+        '[createWorkerFunctionServer] already running',
+      )
+    } finally {
+      await worker.terminate()
+    }
   })
 
   it('a call cancelled while it waits for a busy worker ends at once and never starts there', async () => {
@@ -281,20 +450,9 @@ describe('workerFunction', { timeout: 60 * 1000 }, () => {
   })
 
   it('a call leaves no subscription on its abort signal when it ends', async () => {
-    let subscriptionCount = 0
-    const abortSignal: IAbortSignalFast = {
-      aborted: false,
-      reason: undefined,
-      throwIfAborted() {},
-      subscribe() {
-        subscriptionCount++
-        return () => {
-          subscriptionCount--
-        }
-      },
-    }
+    const abortSignal = new FakeAbortSignal()
     const busy = createBusy(pool.connect)
     await busy({ data: { data: { holdTime: 0 } }, abortSignal }).end()
-    expect(subscriptionCount).toBe(0)
+    expect(abortSignal.subscriptionCount).toBe(0)
   })
 })

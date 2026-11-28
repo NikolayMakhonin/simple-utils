@@ -219,8 +219,9 @@ export class WorkerFunctionCall<
       } catch (error) {
         // A cancel ends the call below, whether the race or the connector,
         // which can end the worker of a cancelled call, rejected the connect.
-        // A call that the worker ended with an error while it connected keeps that error,
-        // which tells more than the failed connect, such as a name that the worker lacks
+        // A call that ended while it connected keeps the error that ended it,
+        // such as the error of a worker that lacks the connection name.
+        // An error thrown here would replace it, because end() awaits start()
         if (!abortSignal?.aborted && !this.#completed) {
           throw error
         }

@@ -141,12 +141,6 @@ export class WorkerClient<RequestData, ResponseData>
             type: WorkerClientResponseType.error,
             error: deserializeError(data.error),
           })
-          // An error before the connection is set up means that the worker opened
-          // no server for the port, which would never answer it
-          if (this.#status === WorkerClientStatus.connecting) {
-            this.#messageChannel.port2.close()
-            this.status = WorkerClientStatus.closed
-          }
           break
         case WorkerServerResponseType.data:
           this.#events.emit({
@@ -186,16 +180,35 @@ export class WorkerClient<RequestData, ResponseData>
     this.#messageChannel.port2.addEventListener('close', onClose)
     this.#messageChannel.port2.start()
 
-    this.#connection = this.#options.connect(
-      this.#options.connectionName,
-      this.#messageChannel.port1,
-      () => {
-        // A worker that the connector ended sends no close,
-        // and in browsers its port gives no close event
-        this.#messageChannel.port2.close()
-        this.status = WorkerClientStatus.closed
-      },
-    )
+    try {
+      this.#connection = this.#options.connect(
+        this.#options.connectionName,
+        this.#messageChannel.port1,
+        error => {
+          // The connection can have closed already, by its worker or by its port,
+          // before the connector told it that the worker ended
+          if (this.#status === WorkerClientStatus.closed) {
+            return
+          }
+          // The listeners get the error before the close, as a server sends them
+          if (error != null) {
+            this.#events.emit({ type: WorkerClientResponseType.error, error })
+          }
+          // A worker that the connector ended sends no close,
+          // and in browsers its port gives no close event
+          this.#messageChannel.port2.close()
+          this.status = WorkerClientStatus.closed
+        },
+      )
+    } catch (error) {
+      // Nothing will answer the port, so the connection ends here.
+      // The listeners get the error before the close, as a server sends them,
+      // because a listener that ends at the close would miss the error
+      this.#events.emit({ type: WorkerClientResponseType.error, error })
+      this.#messageChannel.port2.close()
+      this.status = WorkerClientStatus.closed
+      throw error
+    }
 
     await connectPromise
 

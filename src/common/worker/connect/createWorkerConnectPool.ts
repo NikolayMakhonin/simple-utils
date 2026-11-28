@@ -4,6 +4,7 @@ import type {
   WorkerConnect,
   WorkerConnectRequest,
 } from '../types'
+import { refuseWorkerConnection } from '../helpers'
 import type { PromiseLikeOrValue } from 'src/common/types'
 import { clockDateReal } from 'src/common/time/clock-date'
 
@@ -37,9 +38,10 @@ type PoolWorker = {
 
 /** A connection that a worker of the pool holds open */
 type PoolConnection = {
-  /** Tells the connection that the pool ended its worker */
-  readonly onTerminate: () => void
+  /** Tells the connection that the pool ended its worker, with the error that ended it */
+  readonly onTerminate: (error?: unknown) => void
   isAborted: boolean
+  isReleased: boolean
 }
 
 /**
@@ -51,7 +53,11 @@ type PoolConnection = {
  * the fewest. A worker busy with a synchronous task queues the connections
  * that reach it until the task ends. A worker whose open connections are all
  * cancelled is ended at once, which stops their operations and frees its memory,
- * and the next connections go to the other workers or to a new one
+ * and the next connections go to the other workers or to a new one.
+ * A worker that reports an error is ended at once too, so that its connections end
+ * with its error instead of waiting for a worker that is dead or broken.
+ * The connections of a worker that fails to start end with the error of its start,
+ * and the next connection starts another worker
  */
 export function createWorkerConnectPool(
   options: WorkerConnectPoolOptions,
@@ -78,6 +84,25 @@ export function createWorkerConnectPool(
         abortedCount: 0,
       }
       workers.splice(index, 0, poolWorker)
+      Promise.resolve(poolWorker.worker).then(
+        worker => {
+          // An error of a worker is a failure that must never happen: the worker is dead,
+          // as after a failed load of its script, or in a state that nothing can trust.
+          // So the pool ends it at once, and its calls fail with its error instead of waiting for it
+          function onError(error: Error) {
+            worker.off('error', onError)
+            removeWorker(poolWorker)
+            void terminateWorker(poolWorker, error)
+          }
+          worker.on('error', onError)
+        },
+        () => {
+          // A worker that failed to start serves no connection, so it leaves the pool,
+          // and the next connection starts another one.
+          // Its connections get the error from sendConnectRequest
+          removeWorker(poolWorker)
+        },
+      )
       return poolWorker
     }
     let leastBusy = workers[0]
@@ -99,22 +124,44 @@ export function createWorkerConnectPool(
     if (count === 0 || poolWorker.abortedCount < count) {
       return
     }
-    workers.splice(workers.indexOf(poolWorker), 1)
+    removeWorker(poolWorker)
     void terminateWorker(poolWorker)
+  }
+
+  /**
+   * Takes the worker out of the pool, so that no new connection goes to it.
+   * Does nothing for a worker that has left the pool already: one that failed to start
+   * can still be ended by the pool, and one that the pool ended can still fail to start
+   */
+  function removeWorker(poolWorker: PoolWorker): void {
+    const index = workers.indexOf(poolWorker)
+    if (index >= 0) {
+      workers.splice(index, 1)
+    }
   }
 
   return {
     connect(
       connectionName: string,
       messagePort: IMessagePort,
-      onTerminate: () => void,
+      onTerminate: (error?: unknown) => void,
     ) {
       const poolWorker = getWorker()
-      const connection: PoolConnection = { onTerminate, isAborted: false }
+      const connection: PoolConnection = {
+        onTerminate,
+        isAborted: false,
+        isReleased: false,
+      }
       poolWorker.connections.add(connection)
       void sendConnectRequest(poolWorker.worker, connectionName, messagePort)
       return {
         release() {
+          if (connection.isReleased) {
+            throw new Error(
+              '[createWorkerConnectPool][release] the connection is released already',
+            )
+          }
+          connection.isReleased = true
           // The pool has already ended the worker and told the connection
           if (!poolWorker.connections.delete(connection)) {
             return
@@ -126,6 +173,18 @@ export function createWorkerConnectPool(
           }
         },
         abort() {
+          // A second count of the connection would let the pool end a worker
+          // whose other connections still run
+          if (connection.isReleased) {
+            throw new Error(
+              '[createWorkerConnectPool][abort] the connection is released already',
+            )
+          }
+          if (connection.isAborted) {
+            throw new Error(
+              '[createWorkerConnectPool][abort] the connection is aborted already',
+            )
+          }
           connection.isAborted = true
           poolWorker.abortedCount++
           terminateIfAllAborted(poolWorker)
@@ -134,20 +193,31 @@ export function createWorkerConnectPool(
     },
 
     async terminate() {
-      const promise = Promise.all(workers.map(terminateWorker))
+      const promise = Promise.all(
+        workers.map(poolWorker => terminateWorker(poolWorker)),
+      )
       workers.length = 0
       await promise
     },
   }
 }
 
-/** Sends the worker, once it is created, the request to open a connection through the port */
+/**
+ * Sends the worker, once it is created, the request to open a connection through the port,
+ * or refuses the connection with the error that stopped the creation of the worker
+ */
 async function sendConnectRequest(
   workerPromise: PromiseLikeOrValue<IWorker>,
   connectionName: string,
   messagePort: IMessagePort,
 ): Promise<void> {
-  const worker = await workerPromise
+  let worker: IWorker
+  try {
+    worker = await workerPromise
+  } catch (error) {
+    refuseWorkerConnection(messagePort, error)
+    return
+  }
   const request: WorkerConnectRequest = {
     type: 'connect',
     connectionName,
@@ -159,20 +229,30 @@ async function sendConnectRequest(
 }
 
 /**
- * Ends the worker, then tells each of its connections, which the worker can no longer close.
+ * Ends the worker, then tells each of its connections, which the worker can no longer close,
+ * with the error that ended the worker, when an error ended it.
  * The connections learn of it after the call that ended the worker returns,
  * because a client can cancel inside the handling of an event of its connection.
  * The connections leave the worker first, so that their releases find nothing to count
  */
-async function terminateWorker(poolWorker: PoolWorker): Promise<void> {
+async function terminateWorker(
+  poolWorker: PoolWorker,
+  error?: unknown,
+): Promise<void> {
   const connections = poolWorker.connections
   poolWorker.connections = new Set()
   try {
-    const worker = await poolWorker.worker
+    let worker: IWorker
+    try {
+      worker = await poolWorker.worker
+    } catch {
+      // A worker that failed to start runs nothing to end
+      return
+    }
     await worker.terminate()
   } finally {
     connections.forEach(connection => {
-      connection.onTerminate()
+      connection.onTerminate(error)
     })
   }
 }

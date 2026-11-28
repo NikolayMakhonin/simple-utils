@@ -28,4 +28,15 @@ describe('deserializeError', () => {
     expect(result.code).toBe(5)
     expect(({} as any).polluted).toBeUndefined()
   })
+
+  it('restores the message of an error that a structured clone turns into a plain object', () => {
+    // An error as Node.js passes it from a worker thread: an object with the prototype
+    // of an error, whose message is not enumerable
+    const error = Object.create(Error.prototype, {
+      message: { value: 'msg', writable: true, configurable: true },
+    })
+    const result = deserializeError(structuredClone(serializeError(error)))
+    expect(result).toBeInstanceOf(Error)
+    expect(result.message).toBe('msg')
+  })
 })

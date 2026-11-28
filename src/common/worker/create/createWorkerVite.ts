@@ -10,6 +10,7 @@ const VITE_MODULE_NAME = 'vite'
 
 async function _createWorkerVite(
   workerPathOrUrl: string | URL,
+  configFile: string | undefined,
 ): Promise<IWorker> {
   const [{ Worker: NodeWorker }, { fileURLToPath }] = await Promise.all([
     import('worker_threads'),
@@ -29,6 +30,7 @@ async function _createWorkerVite(
         workerPathOrUrl instanceof URL
           ? fileURLToPath(workerPathOrUrl)
           : workerPathOrUrl,
+      configFile,
     },
   })
   const worker = new WorkerNode(nodeWorker)
@@ -73,27 +75,40 @@ async function _createWorkerVite(
 
 let prevCreateWorkerVitePromise: Promise<IWorker> | null = null
 
+export type CreateWorkerViteOptions = {
+  /**
+   * The vite config file of the thread, resolved against the working directory
+   * as Vite resolves configFile; without it, the thread finds the config
+   * of the project as Vite does. Each thread loads its config at its start,
+   * so a config with exclusively what the script needs makes the start shorter
+   */
+  configFile?: null | string
+}
+
 /**
  * Starts a Node.js worker thread that runs the source file (TypeScript, etc)
- * through the Vite installed in the project, with the vite config of the project.
+ * through the Vite installed in the project, with the vite config of the project
+ * or the configFile of the options.
  * Concurrent calls start their threads one after another.
  * Resolves after the file has been imported.
  * Rejects when the file throws, exits or posts a message during the import
  */
 export async function createWorkerVite(
   workerPathOrUrl: string | URL,
+  options?: null | CreateWorkerViteOptions,
 ): Promise<IWorker> {
+  const configFile = options?.configFile ?? undefined
   // Starts the threads one after another: with Vite 6, threads that started Vite
   // at the same time crashed the whole process in 5 of 12 attempts (heap corruption),
   // one after another in none of 12.
   // With Vite 8 none of 24 attempts crashed, but the peer dependency allows Vite 6
   if (prevCreateWorkerVitePromise) {
     prevCreateWorkerVitePromise = prevCreateWorkerVitePromise.then(
-      () => _createWorkerVite(workerPathOrUrl),
-      () => _createWorkerVite(workerPathOrUrl),
+      () => _createWorkerVite(workerPathOrUrl, configFile),
+      () => _createWorkerVite(workerPathOrUrl, configFile),
     )
   } else {
-    prevCreateWorkerVitePromise = _createWorkerVite(workerPathOrUrl)
+    prevCreateWorkerVitePromise = _createWorkerVite(workerPathOrUrl, configFile)
   }
   return prevCreateWorkerVitePromise
 }

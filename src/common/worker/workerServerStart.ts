@@ -3,10 +3,10 @@ import type {
   WorkerConnectRequest,
   WorkerServerHandler,
 } from './types'
-import { serializeError } from './helpers'
+import { refuseWorkerConnection } from './helpers'
 import { clockDateReal } from 'src/common/time/clock-date'
 
-const workerServerHandlers: Record<string, WorkerServerHandler> = {}
+const workerServerHandlers = new Map<string, WorkerServerHandler>()
 
 export type WorkerServerRegisterOptions = Record<
   string,
@@ -16,21 +16,14 @@ export type WorkerServerRegisterOptions = Record<
 export function workerServerRegister(handlers: WorkerServerRegisterOptions) {
   for (const connectionName in handlers) {
     if (Object.prototype.hasOwnProperty.call(handlers, connectionName)) {
-      if (connectionName in workerServerHandlers) {
+      if (workerServerHandlers.has(connectionName)) {
         throw new Error(
           `[workerServerRegister] handler for connectionName ${connectionName} already exists`,
         )
       }
-      workerServerHandlers[connectionName] = handlers[connectionName]
+      workerServerHandlers.set(connectionName, handlers[connectionName])
     }
   }
-}
-
-function sendError(messagePort: IMessagePort, error: Error) {
-  messagePort.postMessage({
-    type: 'error',
-    error: serializeError(error),
-  })
 }
 
 export function workerServerStart() {
@@ -49,12 +42,12 @@ export function workerServerStart() {
           clockDateRealDateMinimum,
         )
       }
-      const handler = workerServerHandlers[connectionName]
+      const handler = workerServerHandlers.get(connectionName)
       if (!handler) {
-        sendError(
+        refuseWorkerConnection(
           messagePort,
           new Error(
-            `[createWorkerConnectServer] no handler for connectionName ${connectionName}`,
+            `[workerServerStart] no handler for connectionName ${connectionName}`,
           ),
         )
         return

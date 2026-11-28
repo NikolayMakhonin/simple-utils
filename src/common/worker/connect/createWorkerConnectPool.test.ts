@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { IWorker, WorkerConnection } from '../types'
 import { createWorkerConnectPool } from './createWorkerConnectPool'
 import { waitMicrotasks } from 'src/common/async/wait/waitMicrotasks'
+import { ManualPromise } from 'src/common/async/promise/ManualPromise'
 
 describe('createWorkerConnectPool', () => {
   /**
@@ -130,16 +131,141 @@ describe('createWorkerConnectPool', () => {
     expect(createIndexes).toEqual([0, 1, 2, 0])
     await pool.terminate()
   })
+
+  it('a worker that fails to start leaves the pool, and the next connection starts another one', async () => {
+    const createIndexes: number[] = []
+    const workerIndexes: number[] = []
+    const pool = createWorkerConnectPool({
+      maxCount: 1,
+      createWorker: async index => {
+        createIndexes.push(index)
+        if (createIndexes.length === 1) {
+          throw new Error('[test] start failed')
+        }
+        return new FakeWorker(index, workerIndexes, [])
+      },
+    })
+    pool.connect('a', new MessageChannel().port1, () => {})
+    await waitMicrotasks()
+    pool.connect('b', new MessageChannel().port1, () => {})
+    await waitMicrotasks()
+    expect(createIndexes).toEqual([0, 0])
+    expect(workerIndexes).toEqual([0])
+    await pool.terminate()
+  })
+
+  it('the cancel of a connection of a worker that failed to start ends no other worker', async () => {
+    const terminatedWorkerIndexes: number[] = []
+    let createCount = 0
+    const pool = createWorkerConnectPool({
+      maxCount: 2,
+      createWorker: async index => {
+        createCount++
+        if (createCount === 1) {
+          throw new Error('[test] start failed')
+        }
+        return new FakeWorker(index, [], terminatedWorkerIndexes)
+      },
+    })
+    const connectionFailed = pool.connect(
+      'a',
+      new MessageChannel().port1,
+      () => {},
+    )
+    pool.connect('b', new MessageChannel().port1, () => {})
+    await waitMicrotasks()
+    connectionFailed.abort()
+    await pool.terminate()
+    expect(terminatedWorkerIndexes).toEqual([1])
+  })
+
+  it('terminate resolves when a worker fails to start while the pool ends it', async () => {
+    const start = new ManualPromise<IWorker>()
+    let terminateCount = 0
+    const pool = createWorkerConnectPool({
+      maxCount: 1,
+      createWorker: () => start.promise,
+    })
+    pool.connect('a', new MessageChannel().port1, () => {
+      terminateCount++
+    })
+    const terminated = pool.terminate()
+    start.reject(new Error('[test] start failed'))
+    await terminated
+    expect(terminateCount).toBe(1)
+  })
+
+  it('a worker that reports an error is ended at once with that error, and the next connection starts another one', async () => {
+    const fakeWorkers: FakeWorker[] = []
+    const terminatedWorkerIndexes: number[] = []
+    const terminateErrors: unknown[] = []
+    const pool = createWorkerConnectPool({
+      maxCount: 1,
+      createWorker: index => {
+        const fakeWorker = new FakeWorker(index, [], terminatedWorkerIndexes)
+        fakeWorkers.push(fakeWorker)
+        return fakeWorker
+      },
+    })
+    function connect(connectionName: string) {
+      pool.connect(connectionName, new MessageChannel().port1, error => {
+        terminateErrors.push(error)
+      })
+    }
+    connect('a')
+    await waitMicrotasks()
+    const workerError = new Error('[test] worker error')
+    fakeWorkers[0].emitError(workerError)
+    await waitMicrotasks()
+    expect(terminatedWorkerIndexes).toEqual([0])
+    expect(terminateErrors).toStrictEqual([workerError])
+    connect('b')
+    expect(fakeWorkers.length).toBe(2)
+    // The end of the pool is no error of the worker
+    await pool.terminate()
+    expect(terminateErrors).toStrictEqual([workerError, undefined])
+  })
+
+  it('a connection throws at a second abort, at an abort after its release, and at a second release', async () => {
+    const pool = createWorkerConnectPool({
+      maxCount: 1,
+      createWorker: index => new FakeWorker(index, [], []),
+    })
+    const connectionAborted = pool.connect(
+      'a',
+      new MessageChannel().port1,
+      () => {},
+    )
+    connectionAborted.abort()
+    expect(() => connectionAborted.abort()).toThrow(
+      '[createWorkerConnectPool][abort] the connection is aborted already',
+    )
+    const connectionReleased = pool.connect(
+      'b',
+      new MessageChannel().port1,
+      () => {},
+    )
+    connectionReleased.release()
+    expect(() => connectionReleased.abort()).toThrow(
+      '[createWorkerConnectPool][abort] the connection is released already',
+    )
+    expect(() => connectionReleased.release()).toThrow(
+      '[createWorkerConnectPool][release] the connection is released already',
+    )
+    await pool.terminate()
+  })
 })
 
 /**
  * A worker that records its index for every connection that it gets,
- * and when it is ended, instead of running anything
+ * and when it is ended, instead of running anything,
+ * and reports an error when a test calls emitError
  */
 class FakeWorker implements IWorker {
   readonly #index: number
   readonly #workerIndexes: number[]
   readonly #terminatedWorkerIndexes: number[]
+  readonly #errorListeners = new Set<(value: any) => void>()
 
   constructor(
     index: number,
@@ -155,12 +281,25 @@ class FakeWorker implements IWorker {
     this.#workerIndexes.push(this.#index)
   }
 
-  on(): this {
+  on(event: string, listener: (value: any) => void): this {
+    if (event === 'error') {
+      this.#errorListeners.add(listener)
+    }
     return this
   }
 
-  off(): this {
+  off(event: string, listener: (value: any) => void): this {
+    if (event === 'error') {
+      this.#errorListeners.delete(listener)
+    }
     return this
+  }
+
+  /** Reports the error to the error listeners, as a real worker does at a failure */
+  emitError(error: Error): void {
+    this.#errorListeners.forEach(listener => {
+      listener(error)
+    })
   }
 
   async terminate(): Promise<void> {
