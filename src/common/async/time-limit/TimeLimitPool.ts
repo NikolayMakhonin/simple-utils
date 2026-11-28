@@ -13,6 +13,10 @@ export type TimeLimitPoolOptions = {
   clock?: null | IClock
 }
 
+/**
+ * Like its pool, but returns a released slot to it only time milliseconds after the release,
+ * so that an operation can start in a slot no sooner than that after the previous one ended
+ */
 export class TimeLimitPool extends PoolWrapper implements ITimeLimitPool {
   private readonly _time: number
   private readonly _clock: IClock

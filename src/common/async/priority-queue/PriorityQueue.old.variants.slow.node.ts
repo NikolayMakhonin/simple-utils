@@ -348,7 +348,7 @@ describe(
       assert.strictEqual(results.length, 0)
     })
 
-    it.skip('custom 1', { timeout: 300_000 }, async () => {
+    it('custom 1', { timeout: 300_000 }, async () => {
       await testVariants({
         readyToRunTime1: [0],
         readyToRunTime2: [0],
@@ -368,7 +368,7 @@ describe(
       })()
     })
 
-    it.skip('custom 2', { timeout: 300_000 }, async () => {
+    it('custom 2', { timeout: 300_000 }, async () => {
       await testVariants({
         readyToRunTime1: [0],
         readyToRunTime2: [0],
@@ -388,7 +388,7 @@ describe(
       })()
     })
 
-    it.skip('custom 3', { timeout: 300_000 }, async () => {
+    it('custom 3', { timeout: 300_000 }, async () => {
       await testVariants({
         readyToRunTime1: [0],
         readyToRunTime2: [0],
@@ -408,7 +408,7 @@ describe(
       })()
     })
 
-    it.skip('profiling', { timeout: 300_000 }, async () => {
+    it('profiling', { timeout: 300_000 }, async () => {
       await testVariants({
         readyToRunTime1: [0],
         readyToRunTime2: [0],

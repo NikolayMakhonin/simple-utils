@@ -67,4 +67,8 @@ export class ObjectPoolWrapper<TObject extends object>
   ): Promise<TResult> {
     return this._objectPool.use(count, func, priority, abortSignal)
   }
+
+  clear(): Promise<void> {
+    return this._objectPool.clear()
+  }
 }

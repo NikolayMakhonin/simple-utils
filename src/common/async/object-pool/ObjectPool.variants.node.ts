@@ -60,6 +60,12 @@ describe('object-pool > ObjectPool', () => {
             }
           }
 
+      const destroyedObjects = new Set<IObject>()
+      function destroyObject(obj: IObject): void {
+        assert.ok(!destroyedObjects.has(obj))
+        destroyedObjects.add(obj)
+      }
+
       const pool = usePools
         ? new Pools(
             new Pool(maxSize),
@@ -72,7 +78,7 @@ describe('object-pool > ObjectPool', () => {
         pool,
         heldObjects,
         create: createObject,
-        destroy: null,
+        destroy: destroyObject,
       })
 
       assert.strictEqual(objectPool.pool.heldCountMax, maxSize)
@@ -184,6 +190,7 @@ describe('object-pool > ObjectPool', () => {
                 assert.ok(abortSignal!.aborted)
               }
 
+              assert.strictEqual(objects.length, countObjects)
               assert.ok(objects.every(o => o))
               assert.ok(objects.every(o => typeof o.id === 'number'))
               assert.ok(objects.every(o => o.id <= maxSize))
@@ -256,6 +263,10 @@ describe('object-pool > ObjectPool', () => {
       for (let i = 0; i < totalCount; i++) {
         assert.strictEqual(results[i], i + 10000 * iteration)
       }
+
+      await objectPool.clear()
+      assert.strictEqual(objectPool.availableObjects.length, 0)
+      assert.strictEqual(destroyedObjects.size, objectsCount)
     },
   )
 
