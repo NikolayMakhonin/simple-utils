@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { Locker, LockerWithId } from './Locker'
 import { ManualPromise } from './promise/ManualPromise'
+import type { PromiseOrValue } from 'src/common/types/common'
 
 describe('Locker', () => {
   it('base', async () => {
@@ -18,7 +19,7 @@ describe('Locker', () => {
     const locker = new Locker()
     const events: string[] = []
     const ends = [new ManualPromise(), new ManualPromise(), new ManualPromise()]
-    const results: Promise<void>[] = []
+    const results: PromiseOrValue<void>[] = []
     for (let i = 0; i < ends.length; i++) {
       results.push(
         locker.lock(async () => {

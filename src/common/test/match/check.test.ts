@@ -84,7 +84,7 @@ describe('checkFunc', () => {
       ),
     ).toBe(error)
     await expect(
-      checkFunc(async () => {
+      checkFunc<number>(async () => {
         throw error
       })(1),
     ).rejects.toBe(error)
@@ -98,7 +98,7 @@ describe('checkFunc', () => {
       })(1, matchInstanceOf(TypeError)),
     ).toBe(undefined)
     expect(
-      await checkFunc(async () => {
+      await checkFunc<number>(async () => {
         throw error
       })(1, matchInstanceOf(TypeError)),
     ).toBe(undefined)

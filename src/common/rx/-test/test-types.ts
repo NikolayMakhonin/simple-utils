@@ -1,3 +1,7 @@
+// Compile-time checks of the types that the sources of a Derived give its function.
+// A change that breaks the inference of these types fails the type check,
+// because tsc reads this file with the rest of src. Nothing imports or runs it
+import { expectTypeOf } from 'vitest'
 import { Derived } from '../Derived'
 import type {
   DerivedFunc,
@@ -34,10 +38,7 @@ export function derivedOrValue<Value, T>(
   if (!isObservable(source)) {
     return func(source)
   }
-  return new Derived([source], ([value], emit) => {
-    emit(value)
-    return EMPTY_FUNC
-  })
+  return new Derived([source], ([value]) => func(value))
 }
 
 export function derived<S extends Stores, T>(
@@ -51,20 +52,31 @@ export function derived<S extends Stores, T>(
   })
 }
 
-derivedOrValues(
-  [staticObservable(1), '2'],
-  ([value1, value2]) => `${value1}${value2}`,
-).subscribe(value => {
-  console.log(value)
+derivedOrValues([staticObservable(1), '2'], ([value1, value2]) => {
+  expectTypeOf(value1).toEqualTypeOf<number>()
+  expectTypeOf(value2).toEqualTypeOf<string>()
+  return `${value1}${value2}`
+})
+
+derivedOrValue(staticObservable(1), value => {
+  expectTypeOf(value).toEqualTypeOf<number>()
+  return String(value)
+})
+
+derivedOrValue(1, value => {
+  expectTypeOf(value).toEqualTypeOf<number>()
+  return String(value)
 })
 
 derived(
   [staticObservable(1), '2'],
   ([value1, value2], set) => {
+    expectTypeOf(value1).toEqualTypeOf<number>()
+    expectTypeOf(value2).toEqualTypeOf<string>()
     set(`${value1}${value2}`)
     return EMPTY_FUNC
   },
   '',
 ).subscribe(value => {
-  console.log(value)
+  expectTypeOf(value).toEqualTypeOf<string>()
 })
