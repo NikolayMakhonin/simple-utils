@@ -101,7 +101,7 @@ export class TaskRepeated<
   private result(): Result {
     if (this.statusInner.timeLastEnd == null) {
       this.abortSignal.throwIfAborted()
-      throw new AbortError('Task stopped before first execution')
+      throw new AbortError('[TaskRepeated] stopped before the first execution')
     }
     if (this.statusInner.lastHasError) {
       throw this.statusInner.lastError
@@ -145,7 +145,10 @@ export class TaskRepeated<
             }
             await this.waitIdle()
           } catch {
-            // Ignore errors, because it handles in wrapped task
+            // An error of the execution is not rethrown here,
+            // because the wrapped task keeps it in its status.
+            // The strategy decides from that status whether and when to repeat.
+            // At the end, result() throws the error of the last execution, when it failed
           }
           prevTotalStarts = this.statusInner.totalStarts
         }
@@ -157,11 +160,9 @@ export class TaskRepeated<
         const _delay = strategyResult?.delay
 
         if (typeof _delay === 'number') {
-          if (_delay >= 0) {
-            const delayAbortSignal = this.createDelayAbortSignal()
-            await delay(_delay, delayAbortSignal, this.clock).catch(EMPTY_FUNC)
-            this.abortDelay()
-          }
+          const delayAbortSignal = this.createDelayAbortSignal()
+          await delay(_delay, delayAbortSignal, this.clock).catch(EMPTY_FUNC)
+          this.abortDelay()
         } else if (typeof _delay === 'function') {
           const delayAbortSignal = this.createDelayAbortSignal()
           const delayResultOrPromise = _delay(
@@ -194,7 +195,7 @@ export class TaskRepeated<
             afterDelay = delayFuncResult.delay
           }
 
-          if (afterDelay != null && afterDelay >= 0) {
+          if (afterDelay != null) {
             await delay(afterDelay, delayAbortSignal, this.clock).catch(
               EMPTY_FUNC,
             )

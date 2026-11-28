@@ -93,9 +93,11 @@ export class TaskBase<
     }
     if (this.#options?.logLevel == null || this.#options.logLevel >= level) {
       if (level <= LogLevel.error) {
-        console.error('[TaskBase]', error)
+        console.error('[TaskBase] the task function failed', error)
+      } else if (level <= LogLevel.warn) {
+        console.warn('[TaskBase] the task function failed', error)
       } else {
-        console.warn('[TaskBase]', error)
+        console.log('[TaskBase] the task function failed', error)
       }
     }
   }

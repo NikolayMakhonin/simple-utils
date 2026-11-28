@@ -19,16 +19,7 @@ import type { TaskOptionsBase } from './TaskBase'
 import { type ITaskWrapperSource, TaskWrapper } from './TaskWrapper'
 import { TaskStatusControllerBase } from './TaskStatusControllerBase'
 
-export type TaskRunOptionsThrottled = TaskRunOptionsBase & {
-  readonly throttleTime?: null | number
-  readonly throttleTimeMax?: null | number
-  /**
-   * false/undefined - throttle time counts from the last execution start
-   * true - throttle time counts from the last execution end;
-   *   executes immediately when never executed or enough time passed
-   */
-  readonly throttleFromEnd?: null | boolean
-}
+export type TaskRunOptionsThrottled = TaskRunOptionsBase & ThrottleOptions
 
 export interface ITaskThrottled<
   Args = ArgsDefault,
@@ -88,7 +79,7 @@ export class TaskThrottled<
 
   private updateThrottleTime(
     throttleTime?: null | number,
-    _throttleTimeMax?: null | number | false,
+    throttleTimeMax?: null | number,
   ): void {
     const throttleTimeNew = throttleTime ?? this.#options?.throttleTime ?? 0
     this.#throttleTimeCurrent =
@@ -96,11 +87,7 @@ export class TaskThrottled<
         ? throttleTimeNew
         : Math.min(this.#throttleTimeCurrent, throttleTimeNew)
     this.#throttleTimeMaxCurrent =
-      _throttleTimeMax == null
-        ? (this.#options?.throttleTimeMax ?? null)
-        : _throttleTimeMax === false
-          ? null
-          : _throttleTimeMax
+      throttleTimeMax ?? this.#options?.throttleTimeMax ?? null
   }
 
   private updateTimeNextCall(): void {
@@ -133,33 +120,14 @@ export class TaskThrottled<
 
   private update(
     throttleTime?: null | number,
-    _throttleTimeMax?: null | number | false,
+    throttleTimeMax?: null | number,
     throttleFromEnd?: null | boolean,
   ): void {
     if (throttleFromEnd != null) {
       this.#throttleFromEnd = throttleFromEnd
     }
-    this.updateThrottleTime(throttleTime, _throttleTimeMax)
+    this.updateThrottleTime(throttleTime, throttleTimeMax)
     this.updateTimeNextCall()
-  }
-
-  private getTimeCall(time: number): number | null {
-    if (this.#throttleTimeCurrent == null) {
-      return null
-    }
-
-    let timeCall = this.#timeNextCall ?? 0
-
-    const timeLastCall = this.#timeLastCall ?? time
-    const timeCallMax =
-      this.#throttleTimeMaxCurrent == null
-        ? null
-        : time +
-          Math.max(0, this.#throttleTimeMaxCurrent - (time - timeLastCall))
-    if (timeCallMax != null) {
-      timeCall = Math.min(timeCall, timeCallMax)
-    }
-    return timeCall
   }
 
   #processPromise: Promise<void> | null = null
@@ -171,7 +139,9 @@ export class TaskThrottled<
           this.abortSignal.throwIfAborted()
 
           const time = this.clock.time.value()
-          this.#timeTimerTarget = this.getTimeCall(time)
+          // A null #throttleTimeCurrent means that no run() call waits for an execution
+          this.#timeTimerTarget =
+            this.#throttleTimeCurrent == null ? null : this.#timeNextCall
 
           if (this.#timeTimerTarget == null || this.#timeTimerTarget <= time) {
             break

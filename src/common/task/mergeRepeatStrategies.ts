@@ -5,12 +5,12 @@ import type {
   TaskStatusBase,
 } from './types'
 import type { PromiseLikeOrValue } from 'src/common/types/common'
-import { isPromiseLike } from 'src/common/async'
 
 /**
  * Merges multiple repeat strategies into one applying sequentially
  * Non-null values from later strategies overwrite earlier
- * Delay functions are started simultaneously, awaited sequentially
+ * Delay functions start at the same time
+ * The merged delay waits for all of them, or rejects at the first rejection
  */
 export function mergeRepeatStrategies<
   Result = any,
@@ -90,15 +90,14 @@ function mergeDelays<
       }
     }
 
+    const results = await Promise.all(promises)
+
     let resultStop: boolean | null | undefined
     let resultStopReason: any
     let resultDelay: number | null | undefined
 
-    for (let i = 0, len = promises.length; i < len; i++) {
-      const promiseOrValue = promises[i]
-      const result = isPromiseLike(promiseOrValue)
-        ? await promiseOrValue
-        : promiseOrValue
+    for (let i = 0, len = results.length; i < len; i++) {
+      const result = results[i]
       if (result == null) {
         continue
       }

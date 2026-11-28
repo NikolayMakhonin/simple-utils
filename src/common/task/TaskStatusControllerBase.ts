@@ -48,7 +48,7 @@ export class TaskStatusControllerBase<
 > implements ITaskStatusControllerBase<Result, Status>
 {
   readonly #options: undefined | null | TaskStatusControllerBaseOptions<Result>
-  readonly #abortController: AbortControllerReusable = null!
+  readonly #abortController: AbortControllerReusable
   readonly #events: ISubject<Status>
   readonly #clock: IClock
   #status: Status

@@ -194,7 +194,7 @@ async function test(options: TestOptions): Promise<void> {
   }
 }
 
-describe('toThrottled', { timeout: 7 * 60 * 60 * 1000 }, () => {
+describe('TaskThrottled', { timeout: 7 * 60 * 60 * 1000 }, () => {
   it('variants', async () => {
     await testVariants({
       throttleTime: Array.from({ length: 11 }, (_, i) =>
@@ -237,7 +237,7 @@ describe('toThrottled', { timeout: 7 * 60 * 60 * 1000 }, () => {
         },
       ],
       saveErrorVariants: {
-        dir: 'tmp/test/toThrottled/variants',
+        dir: 'tmp/test/TaskThrottled/variants',
         attemptsPerVariant: 10,
         useToFindBestError: false,
       },

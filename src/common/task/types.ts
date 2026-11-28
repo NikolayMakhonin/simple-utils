@@ -1,9 +1,6 @@
 import { type IObservable } from 'src/common/rx'
 import { type IClock } from 'src/common/time/clock'
-import type {
-  PromiseLikeOrValue,
-  PromiseOrValue,
-} from 'src/common/types/common'
+import type { PromiseLikeOrValue } from 'src/common/types/common'
 import { type IAbortSignalFast } from '@flemist/abort-controller-fast'
 
 export type ArgsDefault = void | undefined | null
