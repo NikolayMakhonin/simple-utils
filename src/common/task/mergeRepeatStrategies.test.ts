@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { AbortControllerFast } from '@flemist/abort-controller-fast'
+import { delay } from 'src/common/async/wait/delay'
+import { waitMicrotasks } from 'src/common/async/wait/waitMicrotasks'
 import { mergeRepeatStrategies } from './mergeRepeatStrategies'
 import { createTask } from './TaskBase'
 import type { TaskRepeatStrategy, TaskRepeatStrategyDelay } from './types'
@@ -38,5 +40,26 @@ describe('mergeRepeatStrategies', () => {
       () => ({ delay: () => Promise.reject(error) }),
     )
     await expect(mergedDelay(status, abortSignal)).rejects.toBe(error)
+  })
+
+  it('a delay function that throws rejects the merged delay without an unhandled rejection', async () => {
+    const error = new Error('delay error')
+    const mergedDelay = getMergedDelay(
+      () => ({ delay: (_, delayAbortSignal) => delay(1000, delayAbortSignal) }),
+      () => ({
+        delay: () => {
+          throw error
+        },
+      }),
+    )
+    const delayAbortController = new AbortControllerFast()
+    await expect(mergedDelay(status, delayAbortController.signal)).rejects.toBe(
+      error,
+    )
+    // A caller aborts the delay after the error.
+    // The first delay function rejects then.
+    // Vitest fails the run if that rejection has no handler
+    delayAbortController.abort()
+    await waitMicrotasks()
   })
 })

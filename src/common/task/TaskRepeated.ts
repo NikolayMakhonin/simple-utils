@@ -160,9 +160,13 @@ export class TaskRepeated<
         const _delay = strategyResult?.delay
 
         if (typeof _delay === 'number') {
-          const delayAbortSignal = this.createDelayAbortSignal()
-          await delay(_delay, delayAbortSignal, this.clock).catch(EMPTY_FUNC)
-          this.abortDelay()
+          // A negative delay means no delay.
+          // A NaN delay goes on to delay(), which throws for it
+          if (_delay >= 0 || Number.isNaN(_delay)) {
+            const delayAbortSignal = this.createDelayAbortSignal()
+            await delay(_delay, delayAbortSignal, this.clock).catch(EMPTY_FUNC)
+            this.abortDelay()
+          }
         } else if (typeof _delay === 'function') {
           const delayAbortSignal = this.createDelayAbortSignal()
           const delayResultOrPromise = _delay(
@@ -195,7 +199,12 @@ export class TaskRepeated<
             afterDelay = delayFuncResult.delay
           }
 
-          if (afterDelay != null) {
+          // A negative delay means no delay.
+          // A NaN delay goes on to delay(), which throws for it
+          if (
+            afterDelay != null &&
+            (afterDelay >= 0 || Number.isNaN(afterDelay))
+          ) {
             await delay(afterDelay, delayAbortSignal, this.clock).catch(
               EMPTY_FUNC,
             )

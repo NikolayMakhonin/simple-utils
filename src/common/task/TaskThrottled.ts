@@ -139,7 +139,9 @@ export class TaskThrottled<
           this.abortSignal.throwIfAborted()
 
           const time = this.clock.time.value()
-          // A null #throttleTimeCurrent means that no run() call waits for an execution
+          // A null #throttleTimeCurrent means that no execution is pending.
+          // The method run() sets it, and abort() and the start of an execution
+          // set it to null
           this.#timeTimerTarget =
             this.#throttleTimeCurrent == null ? null : this.#timeNextCall
 

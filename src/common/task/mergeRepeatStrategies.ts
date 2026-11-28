@@ -10,7 +10,7 @@ import type { PromiseLikeOrValue } from 'src/common/types/common'
  * Merges multiple repeat strategies into one applying sequentially
  * Non-null values from later strategies overwrite earlier
  * Delay functions start at the same time
- * The merged delay waits for all of them, or rejects at the first rejection
+ * The merged delay waits for all of them, or rejects with the first error of one of them
  */
 export function mergeRepeatStrategies<
   Result = any,
@@ -84,7 +84,16 @@ function mergeDelays<
     for (let i = 0, len = delays.length; i < len; i++) {
       const _delay = delays[i]
       if (typeof _delay === 'function') {
-        promises.push(_delay(status, delayAbortSignal))
+        try {
+          promises.push(_delay(status, delayAbortSignal))
+        } catch (error) {
+          // A throw would leave the promises of the delay functions
+          // started before this one without a handler.
+          // Such a promise can reject when the caller aborts delayAbortSignal.
+          // Promise.all below handles them together with this error
+          promises.push(Promise.reject(error))
+          break
+        }
       } else {
         promises.push(_delay)
       }
